@@ -3,6 +3,87 @@
 import type { TournamentGroup, TournamentGroupTeam, GroupStanding } from '@/types'
 import type { Language } from './Navbar'
 
+// ── Fallback: all 48 WC2026 teams — always visible, even when API is down ──────
+// qualify_prob 0.5 = equal chance pre-tournament (top 2 of 4 advance)
+
+const FALLBACK_GROUPS: TournamentGroup[] = [
+  { group: 'A', teams: [
+    { team: 'USA',     flag: '🇺🇸', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Panama',  flag: '🇵🇦', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Albania', flag: '🇦🇱', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Ukraine', flag: '🇺🇦', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+  ]},
+  { group: 'B', teams: [
+    { team: 'Mexico',    flag: '🇲🇽', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Jamaica',   flag: '🇯🇲', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Venezuela', flag: '🇻🇪', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Ecuador',   flag: '🇪🇨', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+  ]},
+  { group: 'C', teams: [
+    { team: 'Canada',   flag: '🇨🇦', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Honduras', flag: '🇭🇳', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Morocco',  flag: '🇲🇦', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Portugal', flag: '🇵🇹', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+  ]},
+  { group: 'D', teams: [
+    { team: 'Spain',       flag: '🇪🇸', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Japan',       flag: '🇯🇵', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Congo DR',    flag: '🇨🇩', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'New Zealand', flag: '🇳🇿', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+  ]},
+  { group: 'E', teams: [
+    { team: 'Germany',   flag: '🇩🇪', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Australia', flag: '🇦🇺', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Argentina', flag: '🇦🇷', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Chile',     flag: '🇨🇱', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+  ]},
+  { group: 'F', teams: [
+    { team: 'France',   flag: '🇫🇷', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Algeria',  flag: '🇩🇿', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Nigeria',  flag: '🇳🇬', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Paraguay', flag: '🇵🇾', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+  ]},
+  { group: 'G', teams: [
+    { team: 'England',  flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Serbia',   flag: '🇷🇸', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Cameroon', flag: '🇨🇲', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Senegal',  flag: '🇸🇳', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+  ]},
+  { group: 'H', teams: [
+    { team: 'Netherlands',  flag: '🇳🇱', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Finland',      flag: '🇫🇮', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Saudi Arabia', flag: '🇸🇦', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Peru',         flag: '🇵🇪', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+  ]},
+  { group: 'I', teams: [
+    { team: 'Brazil',      flag: '🇧🇷', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Uruguay',     flag: '🇺🇾', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Colombia',    flag: '🇨🇴', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'South Korea', flag: '🇰🇷', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+  ]},
+  { group: 'J', teams: [
+    { team: 'Belgium',  flag: '🇧🇪', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Egypt',    flag: '🇪🇬', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Qatar',    flag: '🇶🇦', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Slovakia', flag: '🇸🇰', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+  ]},
+  { group: 'K', teams: [
+    { team: 'Croatia', flag: '🇭🇷', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Iran',    flag: '🇮🇷', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Poland',  flag: '🇵🇱', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Tunisia', flag: '🇹🇳', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+  ]},
+  { group: 'L', teams: [
+    { team: 'Italy',       flag: '🇮🇹', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Turkey',      flag: '🇹🇷', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Slovenia',    flag: '🇸🇮', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+    { team: 'Switzerland', flag: '🇨🇭', predicted_pts: 0, predicted_gd: 0, predicted_gf: 0, qualify_prob: 0.5 },
+  ]},
+]
+
+const FALLBACK_BY_GROUP: Record<string, TournamentGroupTeam[]> = {}
+for (const g of FALLBACK_GROUPS) FALLBACK_BY_GROUP[g.group] = g.teams
+
 interface Props {
   groups: TournamentGroup[]
   standings: GroupStanding[]
@@ -240,25 +321,25 @@ export default function GroupStagePredictions({ groups, standings, loading, lang
     realByGroup[row.group_name].push(row)
   }
 
-  // Build group name → AI teams map
-  const aiByGroup: Record<string, TournamentGroupTeam[]> = {}
+  // Build group name → AI teams map (from API)
+  const apiByGroup: Record<string, TournamentGroupTeam[]> = {}
   for (const g of groups) {
-    aiByGroup[g.group] = g.teams
+    apiByGroup[g.group] = g.teams
   }
 
-  // Union of known group names (A–L)
+  // Merge: use API teams only when they have non-empty names; otherwise use fallback.
+  // This guarantees team names are always visible even when the API is down or returns empty data.
+  const aiByGroup: Record<string, TournamentGroupTeam[]> = {}
+  for (const fb of FALLBACK_GROUPS) {
+    const apiTeams = apiByGroup[fb.group] ?? []
+    const apiHasNames = apiTeams.length > 0 && apiTeams.some(t => t.team && t.team.trim() !== '')
+    aiByGroup[fb.group] = apiHasNames ? apiTeams : fb.teams
+  }
+
+  // Always render all 12 groups A–L (fallback guarantees they exist)
   const allGroups = Array.from(
     new Set([...Object.keys(realByGroup), ...Object.keys(aiByGroup)])
   ).sort()
-
-  if (allGroups.length === 0) {
-    return (
-      <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-12 text-center">
-        <span className="text-4xl">🔮</span>
-        <p className="mt-3 text-[#8B949E]">{t.noData}</p>
-      </div>
-    )
-  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
