@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
-import Navbar, { type Language } from '@/components/Navbar'
+import Navbar from '@/components/Navbar'
+import { useLanguage } from '@/hooks/useLanguage'
 
 const labels = {
   EN: {
@@ -141,12 +141,12 @@ const labels = {
 }
 
 export default function AboutPage() {
-  const [language, setLanguage] = useState<Language>('EN')
+  const { language, changeLanguage } = useLanguage()
   const t = labels[language]
 
   return (
     <div className="min-h-screen bg-[#0D1117]">
-      <Navbar language={language} onLanguageChange={setLanguage} />
+      <Navbar language={language} onLanguageChange={changeLanguage} />
 
       <main className="mx-auto max-w-3xl px-4 sm:px-6 py-12 space-y-14">
         {/* Back */}

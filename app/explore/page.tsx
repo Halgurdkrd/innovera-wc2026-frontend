@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import Navbar, { type Language } from '@/components/Navbar'
+import Navbar from '@/components/Navbar'
+import { useLanguage } from '@/hooks/useLanguage'
 import TeamCard from '@/components/TeamCard'
 import TeamProfile from '@/components/TeamProfile'
 import GroupStagePredictions from '@/components/GroupStagePredictions'
@@ -77,7 +78,7 @@ const labels = {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ExplorePage() {
-  const [language, setLanguage] = useState<Language>('EN')
+  const { language, changeLanguage } = useLanguage()
   const [activeTab, setActiveTab] = useState<Tab>('teams')
   const [standings, setStandings] = useState<GroupStanding[]>([])
   const [luckScores, setLuckScores] = useState<LuckScore[]>([])
@@ -179,7 +180,7 @@ export default function ExplorePage() {
 
   return (
     <div className="min-h-screen bg-[#0D1117]">
-      <Navbar language={language} onLanguageChange={setLanguage} />
+      <Navbar language={language} onLanguageChange={changeLanguage} />
 
       {/* Team profile overlay */}
       {selectedTeam && (

@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Navbar, { type Language } from '@/components/Navbar'
+import Navbar from '@/components/Navbar'
+import { useLanguage } from '@/hooks/useLanguage'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 
@@ -101,7 +102,7 @@ function Avatar({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function LeaderboardPage() {
-  const [language, setLanguage] = useState<Language>('EN')
+  const { language, changeLanguage } = useLanguage()
   const [activeTab, setActiveTab] = useState<Tab>('weekly')
   const [profiles, setProfiles] = useState<UserProfile[]>([])
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
@@ -201,7 +202,7 @@ export default function LeaderboardPage() {
 
   return (
     <div className="min-h-screen bg-[#0D1117]">
-      <Navbar language={language} onLanguageChange={setLanguage} />
+      <Navbar language={language} onLanguageChange={changeLanguage} />
 
       <main className="mx-auto max-w-3xl px-4 sm:px-6 py-8 space-y-8">
         {/* Header */}

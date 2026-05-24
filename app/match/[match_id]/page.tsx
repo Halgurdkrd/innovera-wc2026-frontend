@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import Navbar, { type Language } from '@/components/Navbar'
+import Navbar from '@/components/Navbar'
+import CardModal from '@/components/CardModal'
+import { useLanguage } from '@/hooks/useLanguage'
+import type { Language } from '@/lib/translations'
 import ShapCard from '@/components/ShapCard'
 import MomentumBar from '@/components/MomentumBar'
 import LuckScoreBar from '@/components/LuckScoreBar'
@@ -126,12 +129,13 @@ export default function MatchDetailPage({
 }: {
   params: { match_id: string }
 }) {
-  const [language, setLanguage] = useState<Language>('EN')
+  const { language, changeLanguage } = useLanguage()
   const [match, setMatch] = useState<Match | null>(null)
   const [prediction, setPrediction] = useState<Prediction | null>(null)
   const [loading, setLoading] = useState(true)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [shareLoading, setShareLoading] = useState(false)
+  const [showCardModal, setShowCardModal] = useState(false)
 
   const t = labels[language]
   const { match_id } = params
@@ -158,7 +162,9 @@ export default function MatchDetailPage({
       const res = await fetch(`${apiUrl}/card?match_id=${match_id}`)
       if (res.ok) {
         const data = await res.json()
-        setShareUrl(data.url ?? data.download_url ?? null)
+        const url = data.url ?? data.download_url ?? null
+        setShareUrl(url)
+        if (url) setShowCardModal(true)
       }
     } catch {
       // share card is best-effort
@@ -170,7 +176,7 @@ export default function MatchDetailPage({
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0D1117]">
-        <Navbar language={language} onLanguageChange={setLanguage} />
+        <Navbar language={language} onLanguageChange={changeLanguage} />
         <div className="mx-auto max-w-4xl px-4 py-12 space-y-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="h-32 rounded-xl bg-[#161B22] border border-[#30363D] animate-pulse" />
@@ -183,7 +189,7 @@ export default function MatchDetailPage({
   if (!match) {
     return (
       <div className="min-h-screen bg-[#0D1117]">
-        <Navbar language={language} onLanguageChange={setLanguage} />
+        <Navbar language={language} onLanguageChange={changeLanguage} />
         <div className="mx-auto max-w-4xl px-4 py-24 text-center">
           <p className="text-[#8B949E]">Match not found.</p>
           <Link href="/" className="mt-4 inline-block text-[#F0A500] hover:underline">{t.back}</Link>
@@ -198,7 +204,15 @@ export default function MatchDetailPage({
 
   return (
     <div className="min-h-screen bg-[#0D1117]">
-      <Navbar language={language} onLanguageChange={setLanguage} />
+      <Navbar language={language} onLanguageChange={changeLanguage} />
+
+      {showCardModal && shareUrl && (
+        <CardModal
+          imageUrl={shareUrl}
+          language={language}
+          onClose={() => setShowCardModal(false)}
+        />
+      )}
 
       <main className="mx-auto max-w-4xl px-4 sm:px-6 py-8 space-y-8">
         {/* Back */}
@@ -429,28 +443,23 @@ export default function MatchDetailPage({
               </div>
             )}
 
-            {/* Share card */}
-            <div className="flex items-center gap-3">
+            {/* Share card — opens CardModal once generated */}
+            <button
+              onClick={handleShareCard}
+              disabled={shareLoading}
+              className="inline-flex items-center gap-2 bg-[#161B22] border border-[#30363D] hover:border-[#F0A500]/50 text-[#E6EDF3] hover:text-[#F0A500] text-sm font-semibold px-5 py-2.5 rounded-lg transition-all disabled:opacity-60"
+            >
+              <span>📤</span>
+              {shareLoading ? t.shareLoading : t.shareCard}
+            </button>
+            {shareUrl && !showCardModal && (
               <button
-                onClick={handleShareCard}
-                disabled={shareLoading}
-                className="inline-flex items-center gap-2 bg-[#161B22] border border-[#30363D] hover:border-[#F0A500]/50 text-[#E6EDF3] hover:text-[#F0A500] text-sm font-semibold px-5 py-2.5 rounded-lg transition-all"
+                onClick={() => setShowCardModal(true)}
+                className="inline-flex items-center gap-2 bg-[#F0A500] hover:bg-[#D4920A] text-[#0D1117] font-semibold text-sm px-5 py-2.5 rounded-lg transition-colors"
               >
-                <span>📤</span>
-                {shareLoading ? t.shareLoading : t.shareCard}
+                👁 {t.shareDownload}
               </button>
-              {shareUrl && (
-                <a
-                  href={shareUrl}
-                  download
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-[#F0A500] hover:bg-[#D4920A] text-[#0D1117] font-semibold text-sm px-5 py-2.5 rounded-lg transition-colors"
-                >
-                  ⬇️ {t.shareDownload}
-                </a>
-              )}
-            </div>
+            )}
           </section>
         )}
       </main>

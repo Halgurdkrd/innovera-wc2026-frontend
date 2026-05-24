@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import Navbar, { type Language } from '@/components/Navbar'
+import { useEffect, useState } from 'react'
+import Navbar from '@/components/Navbar'
+import { useLanguage } from '@/hooks/useLanguage'
 import MatchCard from '@/components/MatchCard'
 import LuckScoreSection from '@/components/LuckScoreSection'
 import GroupStandingsPreview from '@/components/GroupStandingsPreview'
@@ -28,7 +29,7 @@ const labels = {
 }
 
 export default function HomePage() {
-  const [language, setLanguage] = useState<Language>('EN')
+  const { language, changeLanguage } = useLanguage()
   const [matches, setMatches] = useState<Match[]>([])
   const [luckScores, setLuckScores] = useState<LuckScore[]>([])
   const [standings, setStandings] = useState<GroupStanding[]>([])
@@ -70,7 +71,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#0D1117]">
-      <Navbar language={language} onLanguageChange={setLanguage} />
+      <Navbar language={language} onLanguageChange={changeLanguage} />
 
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-16">
         {/* ── Hero ── */}
