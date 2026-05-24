@@ -61,8 +61,8 @@ type Conf = typeof CONFEDERATIONS[number]
 
 const labels = {
   EN: {
-    title: 'Explore WC 2026',
-    subtitle: '48 teams, 12 groups, 3 host nations',
+    title: 'Explore — Innovera Predictor',
+    subtitle: '48 teams · 12 groups · 3 host nations · FIFA World Cup 2026',
     searchPlaceholder: 'Search team or confederation…',
     noResults: 'No teams match your search',
     loading: 'Loading teams…',
@@ -70,8 +70,8 @@ const labels = {
     teamsCount: (n: number) => `${n} teams`,
   },
   KU: {
-    title: 'گەڕان — جامی جیهان ٢٠٢٦',
-    subtitle: '٤٨ تیم، ١٢ گروپ، ٣ وڵاتی مێهوان',
+    title: 'گەڕان — Innovera Predictor',
+    subtitle: '٤٨ تیم · ١٢ گروپ · ٣ وڵاتی مێهوان · جامی جیهان ٢٠٢٦',
     searchPlaceholder: 'گەڕان بۆ تیم یان کۆنفیدراسیۆن…',
     noResults: 'هیچ تیمێک نەدۆزرایەوە',
     loading: 'تیمەکان بارکردن…',

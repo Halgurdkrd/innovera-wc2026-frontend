@@ -91,7 +91,10 @@ export default function HomePage() {
 
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-[#E6EDF3] tracking-tight leading-tight max-w-4xl mx-auto">
             {language === 'EN' ? (
-              <>AI-Powered World Cup <span className="text-[#F0A500]">2026</span> Predictions</>
+              <>
+                <span className="text-[#F0A500]">Innovera</span> World Cup{' '}
+                <span className="text-[#F0A500]">2026</span> AI Predictor
+              </>
             ) : (
               <>{t.hero_title}</>
             )}
@@ -182,14 +185,19 @@ export default function HomePage() {
               <div className="flex h-6 w-6 items-center justify-center rounded bg-[#F0A500]">
                 <span className="text-xs font-bold text-[#0D1117]">I</span>
               </div>
-              <span className="text-sm font-semibold text-[#E6EDF3]">Innovera</span>
-              <span className="text-xs text-[#8B949E]">WC 2026</span>
+              <span className="text-sm font-semibold text-[#E6EDF3]">Innovera Predictor</span>
             </div>
-            <p className="text-xs text-[#8B949E]">
-              {language === 'KU'
-                ? 'هەموو حوقوقەکان پارێزراون © ٢٠٢٦'
-                : '© 2026 Innovera. AI predictions for entertainment purposes.'}
-            </p>
+            <div className="flex items-center gap-4 text-xs text-[#8B949E]">
+              <a href="/about" className="hover:text-[#E6EDF3] transition-colors">
+                {language === 'KU' ? 'دەربارە' : 'About'}
+              </a>
+              <span>·</span>
+              <span>
+                {language === 'KU'
+                  ? 'هەموو حوقوقەکان پارێزراون © ٢٠٢٦ innovera.ai'
+                  : '© 2026 innovera.ai · AI predictions for entertainment purposes.'}
+              </span>
+            </div>
           </div>
         </div>
       </footer>

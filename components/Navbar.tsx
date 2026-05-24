@@ -7,13 +7,11 @@ const translations = {
     login: 'Login',
     predictions: 'Predictions',
     explore: 'Explore',
-    tagline: 'WC 2026',
   },
   KU: {
     login: 'چوونەژوورەوە',
     predictions: 'پێشبینیەکان',
     explore: 'گەڕان',
-    tagline: 'جامی جیهان ٢٠٢٦',
   },
 }
 
@@ -32,8 +30,8 @@ export default function Navbar({ language, onLanguageChange }: NavbarProps) {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F0A500]">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F0A500] flex-shrink-0">
               <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
                 <circle cx="12" cy="12" r="10" fill="#0D1117" />
                 <path
@@ -47,12 +45,14 @@ export default function Navbar({ language, onLanguageChange }: NavbarProps) {
                 />
               </svg>
             </div>
-            <span className="text-lg font-bold tracking-tight text-[#E6EDF3] group-hover:text-[#F0A500] transition-colors">
-              Innovera
-            </span>
-            <span className="hidden sm:inline-block text-xs font-medium text-[#8B949E] bg-[#161B22] border border-[#30363D] px-2 py-0.5 rounded-full">
-              {t.tagline}
-            </span>
+            <div className="flex flex-col leading-none">
+              <span className="text-base font-extrabold tracking-tight text-[#E6EDF3] group-hover:text-[#F0A500] transition-colors">
+                Innovera <span className="text-[#F0A500]">Predictor</span>
+              </span>
+              <span className="hidden sm:block text-[10px] text-[#8B949E] font-medium tracking-wide">
+                FIFA World Cup 2026
+              </span>
+            </div>
           </Link>
 
           {/* Nav links — desktop */}

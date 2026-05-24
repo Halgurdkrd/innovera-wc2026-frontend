@@ -125,6 +125,11 @@ export default function MatchCard({ match, language }: MatchCardProps) {
           ? match.status === 'finished' ? 'بینینی شیکاری' : 'پێشبینی'
           : match.status === 'finished' ? 'View Analysis' : 'Predict'}
       </Link>
+
+      {/* Watermark */}
+      <p className="text-center text-[9px] text-[#30363D] tracking-widest font-medium select-none">
+        innovera.ai
+      </p>
     </div>
   )
 }
