@@ -40,9 +40,34 @@
 
 No terminal errors. `themeColor` moved to `viewport` export (Next.js 14 requirement).
 
+## S17b — Tournament Bracket UI ✅
+
+### New types (`types/index.ts`)
+- `TournamentGroupTeam`, `TournamentGroup`, `TournamentBracketMatch`, `TournamentChampion`, `TournamentSimulation`
+- `UserBracketMatchResult`, `UserBracketResponse`
+
+### New components
+- `components/GroupStagePredictions.tsx` — 12 group cards; live standings (Supabase) + AI qualify% when games played; AI-only predicted table otherwise; colour-coded qualify% pills (green/gold/red)
+- `components/BracketPredictions.tsx` — Predicted Champion card (trophy + probability bar); horizontal scrollable R32→Final bracket; real winners gold, AI-predicted blue dashed; click-to-open match detail modal with probability bars; **Submit My Bracket** flow: progressive round picker (R32→QF→SF→Final), auto-advances teams, POST `/simulate/user-bracket`, comparison view with per-match score
+
+### Explore page updated (`app/explore/page.tsx`)
+- Tabs: `Teams | Group Stage | Bracket` (replaced old Standings tab)
+- Fetches `GET /simulate/tournament` from FastAPI on mount
+- Passes `simulation` + `realSlots` (Supabase bracket table) to `BracketPredictions`
+- Passes `simulation.groups` + `standings` to `GroupStagePredictions`
+
+## Verified ✅ (2026-05-24)
+| Route | Status |
+|---|---|
+| `GET /` | 200 OK |
+| `GET /explore` | 200 OK — Teams / Group Stage / Bracket tabs render |
+| `GET /about` | 200 OK |
+| `GET /match/test-id` | 200 OK |
+| `GET /manifest.webmanifest` | 200 OK |
+
+No terminal errors. Build clean. All 4 routes compile on demand.
+
 ---
 
-## Next: S17b — Tournament Bracket UI
-- Full interactive knockout bracket
-- Match result entry slots
-- Champion prediction flow
+## Next: S18
+<!-- S18 instructions will be pasted here -->
