@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import type { Match } from '@/types'
 import type { Language } from './Navbar'
+import { useAuth } from '@/context/AuthContext'
+import { supabase } from '@/lib/supabase'
 
 interface UserPredictionProps {
   match: Match
@@ -20,9 +22,13 @@ const labels = {
     score: 'Predicted Score',
     lock: 'Lock My Prediction',
     locked: 'Prediction Locked ✓',
+    saving: 'Saving…',
     pastKickoff: 'Predictions closed',
+    loginHint: 'Login to save your prediction',
+    loginBtn: 'Login',
     placeholder: '--',
     vs: '-',
+    saveError: 'Saved locally — login to sync',
   },
   KU: {
     title: 'پێشبینیەکەت',
@@ -32,29 +38,54 @@ const labels = {
     score: 'ئەنجامی پێشبینیکراو',
     lock: 'پێشبینیەکەم قووڵ بکە',
     locked: 'پێشبینی قووڵکراو ✓',
+    saving: 'پاراستن…',
     pastKickoff: 'پێشبینی داخرابوو',
+    loginHint: 'بچە ژوورەوە بۆ پاراستنی پێشبینیەکەت',
+    loginBtn: 'چوونەژوورەوە',
     placeholder: '--',
     vs: '-',
+    saveError: 'لە ئامێرەکەت پارێزرا — بچە ژوورەوە بۆ هاوکێشانەوە',
   },
 }
 
 export default function UserPrediction({ match, language }: UserPredictionProps) {
   const t = labels[language]
+  const { user, openAuthModal } = useAuth()
+
   const [outcome, setOutcome] = useState<Outcome>(null)
   const [homeScore, setHomeScore] = useState('')
   const [awayScore, setAwayScore] = useState('')
   const [locked, setLocked] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const pastKickoff =
-    match.status !== 'upcoming' ||
-    new Date(match.match_time) < new Date()
+    match.status !== 'upcoming' || new Date(match.match_time) < new Date()
 
   const canLock = !locked && !pastKickoff && outcome !== null
 
-  const handleLock = () => {
+  const handleLock = async () => {
     if (!canLock) return
     setLocked(true)
-    // TODO: save to Supabase user_predictions table when auth is implemented
+
+    if (!user) return  // just lock locally if not logged in (UI already handled)
+
+    setSaving(true)
+    try {
+      await supabase.from('user_predictions').upsert(
+        {
+          user_id: user.id,
+          match_id: match.id,
+          predicted_outcome: outcome,
+          predicted_home_score: homeScore !== '' ? Number(homeScore) : null,
+          predicted_away_score: awayScore !== '' ? Number(awayScore) : null,
+        },
+        { onConflict: 'user_id,match_id' }
+      )
+    } catch {
+      // best-effort — prediction is locked locally regardless
+    } finally {
+      setSaving(false)
+    }
   }
 
   const btnClass = (type: Outcome) => {
@@ -78,6 +109,19 @@ export default function UserPrediction({ match, language }: UserPredictionProps)
           </span>
         )}
       </div>
+
+      {/* Login hint (non-blocking) */}
+      {!user && !locked && !pastKickoff && (
+        <div className="flex items-center justify-between bg-[#F0A500]/5 border border-[#F0A500]/20 rounded-lg px-3 py-2">
+          <p className="text-xs text-[#F0A500]">{t.loginHint}</p>
+          <button
+            onClick={() => openAuthModal(language)}
+            className="text-xs font-bold text-[#0D1117] bg-[#F0A500] hover:bg-[#D4920A] px-2.5 py-1 rounded-md transition-colors"
+          >
+            {t.loginBtn}
+          </button>
+        </div>
+      )}
 
       {/* Outcome buttons */}
       <div className="flex gap-3">
@@ -148,7 +192,7 @@ export default function UserPrediction({ match, language }: UserPredictionProps)
       {/* Lock button */}
       <button
         onClick={handleLock}
-        disabled={!canLock}
+        disabled={!canLock || saving}
         className={`w-full py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
           locked
             ? 'bg-[#2EA043]/20 border border-[#2EA043]/40 text-[#2EA043] cursor-default'
@@ -157,7 +201,7 @@ export default function UserPrediction({ match, language }: UserPredictionProps)
             : 'bg-[#30363D]/50 text-[#8B949E] cursor-not-allowed'
         }`}
       >
-        {locked ? t.locked : t.lock}
+        {saving ? t.saving : locked ? t.locked : t.lock}
       </button>
     </div>
   )
