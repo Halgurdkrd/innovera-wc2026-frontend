@@ -142,5 +142,95 @@ Vercel requires browser OAuth with GitHub — cannot be done via CLI without pre
 
 ---
 
-## Next: S20
-<!-- S20 instructions will be pasted here -->
+## S20 — Data Seeding + Simulation Verification ✅
+
+### Scripts added (`scripts/`)
+- `populate_teams.py` — upserts 48 WC2026 teams to Supabase `teams` + `group_standings` tables
+- `seed.sql` — CREATE TABLE + INSERT for `teams` + `group_standings` with RLS public-read policies
+- `populate_matches.py` — generates + upserts all 72 group stage fixtures
+- `matches_seed.sql` — INSERT for all 72 matches using backend schema (match_id PK, no flag/probability columns)
+
+### Supabase state (2026-05-24)
+| Table | Rows | Status |
+|---|---|---|
+| `teams` | 48 | ✅ populated |
+| `group_standings` | 48 | ✅ populated |
+| `matches` | 0 | ⚠️ run matches_seed.sql in SQL Editor |
+| `simulation_results` | 0 | ⚠️ blocked by RLS — needs service key |
+
+### Bug fixed — backend `app/routers/data.py`
+`GET /data/matches/{id}` queried `.eq("id", ...)` but PK column is `match_id` — fixed to `.eq("match_id", ...)`
+
+### Simulation endpoint verified ✅
+- `GET /simulate/diag` → `all_ok: true` (CSV 263 rows, model 55 features, simulation runs)
+- `GET /simulate/tournament?n=200` → HTTP 200
+- **Top 5 winner probabilities (n=200):**
+  1. France: 21.5%
+  2. Spain: 15.5%
+  3. Brazil: 11.5%
+  4. Germany: 8.0%
+  5. Colombia: 5.0%
+
+### simulation_results insert failing (silent)
+Root cause: HF Space uses anon key; no INSERT RLS policy on `simulation_results`. Fix options:
+- Add `SUPABASE_SERVICE_KEY` to HF Space → Settings → Variables and Secrets, **OR**
+- Run in Supabase SQL Editor: `CREATE POLICY "sim_insert" ON public.simulation_results FOR INSERT WITH CHECK (true);`
+
+### Known issue — simulation uses historical teams (not WC2026 roster)
+`winner_probs` includes teams like Sweden, South Africa, Czech Republic that are not at WC2026.
+Root cause: `bracket_simulation.py` draws team names from historical CSV instead of the actual 48 teams.
+Fix: pass the 48 WC2026 team names to `TournamentSimulator` as a constraint — S21 item.
+
+### Pending manual step
+Run `scripts/matches_seed.sql` in [Supabase SQL Editor](https://supabase.com/dashboard/project/prxnkjejczvasswhjwxr/sql/new) to insert all 72 group stage fixtures.
+
+---
+
+## S20b — Frontend Predictions Fix ✅ (2026-05-24)
+
+### Root cause
+`explore/page.tsx` stored the raw API response directly as `TournamentSimulation`.
+The API returns `group_tables` but the component expected `simulation.groups` — always `undefined` →
+`GroupStagePredictions` fell back to the hardcoded 50% for every team.
+
+### Fix (`app/explore/page.tsx`)
+- Added `RawSimulation` interface matching actual API shape (`group_tables`, `stage_appearances`, `predicted_bracket`, `winner_probs`)
+- Raw response stored in `rawSim` state; `simulation` derived via `useMemo(rawSim + standings)`
+- Mapping: `group_tables` → `groups`, `pts/gd/gf` → `predicted_pts/gd/gf`, `stage_appearances[team].R32` → `qualify_prob`
+- Bracket rounds (`R32/R16/QF/SF/Final`) mapped to `TournamentBracketMatch[]` with flags from `group_standings`
+- `predicted_champion` populated from `predicted_bracket.champion` + `winner_probs`
+
+### Also fixed in backend (same session)
+- `WC2026_GROUPS` corrected to actual Dec-2025 FIFA draw — no more phantom teams (Sweden, South Africa, etc.)
+- `GET /data/matches/{id}`: `.eq("id", …)` → `.eq("match_id", …)`
+
+## Verified ✅ (2026-05-24)
+| Feature | Status |
+|---|---|
+| Group Stage qualify% | ✅ Real AI predictions (Spain ~85%, New Zealand ~15%, etc.) |
+| Bracket tab | ✅ Predicted champion + round-by-round |
+| Winner probabilities | ✅ France 21.9%, Spain 16.1%, Germany 9%, Brazil 7.4% |
+| simulation_results table | ✅ Writing (RLS INSERT policy active) |
+| 50% fallback | ✅ Gone — replaced by simulation data |
+
+`npx next build` — zero errors. All routes clean.
+
+---
+
+## All Systems Operational ✅
+
+| System | Status |
+|---|---|
+| Frontend (Vercel) | ✅ https://innovera-wc2026-frontend.vercel.app |
+| Backend API (HF Space) | ✅ https://halgurdkrd-innovera-wc2026-api.hf.space |
+| Supabase | ✅ teams 48 · matches 72 · group_standings 48 · simulation_results 1+ |
+| Group Stage predictions | ✅ Real qualify% from AI simulation |
+| Bracket predictions | ✅ Champion + all rounds |
+| Auth (Google/Facebook) | ✅ OAuth via Supabase |
+| Leaderboard | ✅ top-50 + user row |
+| Match detail page | ✅ SHAP, scorelines, momentum |
+| Language toggle EN/KU | ✅ Persists via localStorage |
+| PWA manifest | ✅ |
+
+## Next: S21
+<!-- S21 instructions will be pasted here -->
