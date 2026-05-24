@@ -70,7 +70,7 @@ const labels = {
     teamsCount: (n: number) => `${n} teams`,
   },
   KU: {
-    title: 'گەڕان — Innovera Predictor',
+    title: 'گەڕان — ئینۆڤێرا پێشبینیکەر',
     subtitle: '٤٨ تیم · ١٢ گروپ · ٣ وڵاتی مێهوان · جامی جیهان ٢٠٢٦',
     searchPlaceholder: 'گەڕان بۆ تیم یان کۆنفیدراسیۆن…',
     noResults: 'هیچ تیمێک نەدۆزرایەوە',

@@ -39,9 +39,9 @@ const labels = {
     back: '← سەرەکی',
     tagline: 'پێشبینی جامی جیهان ٢٠٢٦ بە هوشی دەستکرد',
     about: 'دەربارە',
-    whatTitle: 'Innovera Predictor چییە؟',
+    whatTitle: 'ئینۆڤێرا پێشبینیکەر چییە؟',
     whatBody:
-      'Innovera World Cup AI Predictor پلاتفۆرمێکی هوشی دەستکردە کە پێشبینیی یارییەکانی جامی جیهانی FIFA ٢٠٢٦ بەکردەوە دەدات، لەگەڵ خەمەی بەخت، ئەنالیزی مۆمێنتەمی تیم، و ڕوونکردنەوەی SHAP بۆ هەر یارییەک.',
+      'ئینۆڤێرا — پێشبینیکەری زیرەکی دەستکردی جامی جیهانی پلاتفۆرمێکی هوشی دەستکردە کە پێشبینیی یارییەکانی جامی جیهانی FIFA ٢٠٢٦ بەکردەوە دەدات، لەگەڵ خەمەی بەخت، ئەنالیزی مۆمێنتەمی تیم، و ڕوونکردنەوەی SHAP بۆ هەر یارییەک.',
     howTitle: 'چۆن کاردەکات؟',
     howBody:
       'ئامرازی پێشبینیمان لەسەر داتای مێژووی یاری، توانای دەستە، فۆڕمی دوایین، ناسنامەی سەر بەسەر، و هۆکارە پەیوەندیدارەکان ماشین-فێربووە. بۆ هەر یارییەک ئاگادارکردنەوەی بردنەوە/یەکسان/دژێ درووست دەکەین لەگەڵ ڕوونکردنەوەی SHAP.',
@@ -50,7 +50,7 @@ const labels = {
       'بەکەند FastAPI لەسەر Hugging Face Spaces کار دەکات. داتای یاری و پێشبینی لە Supabase (PostgreSQL) پاراستراوە. پەڕەی پێشەوەی Next.js 14، TypeScript، و Tailwind CSS بەکاردێت.',
     disclaimerTitle: 'ئاگادارکردنەوە',
     disclaimerBody:
-      'Innovera Predictor تەنها بۆ مەرجی مایەدانی و پەروەردەیییە. پێشبینیەکان بە هوشی دەستکرد درووستکراون و ئەمە بریتی نیە لە ئامۆژگاری مەرجبازی. هەموو داتای تۆپی پێ گیرا FIFA و خاوەن مافەکانی پەیوەندیدارەکانیانە.',
+      'ئینۆڤێرا پێشبینیکەر تەنها بۆ مەرجی مایەدانی و پەروەردەیییە. پێشبینیەکان بە هوشی دەستکرد درووستکراون و ئەمە بریتی نیە لە ئامۆژگاری مەرجبازی. هەموو داتای تۆپی پێ گیرا FIFA و خاوەن مافەکانی پەیوەندیدارەکانیانە.',
     googleNote: 'چوونەژوورەوەی Google',
     googleBody:
       'کاتێک بە Google دەچیتە ژوورەوە، "Innovera AI Predictor" لەسەر پەڕەی ڕازیبوون دەبینیت. ئەمە ناوی کورتکراوەیە بەهۆی سنووری پیتی Google — هەمان ئەپی فەرمییە.',
@@ -92,7 +92,10 @@ export default function AboutPage() {
           </div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#E6EDF3] leading-tight">
-              Innovera <span className="text-[#F0A500]">World Cup AI Predictor</span>
+              {language === 'KU'
+                ? <><span className="text-[#F0A500]">ئینۆڤێرا</span> — پێشبینیکەری زیرەکی دەستکردی جامی جیهانی</>
+                : <>Innovera <span className="text-[#F0A500]">World Cup AI Predictor</span></>
+              }
             </h1>
             <p className="mt-1 text-sm text-[#8B949E]">{t.tagline}</p>
             <p className="mt-1 text-[10px] text-[#30363D] tracking-widest font-medium">innovera.ai</p>

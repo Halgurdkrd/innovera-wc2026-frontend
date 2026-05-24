@@ -18,7 +18,7 @@ const labels = {
     explore: 'Explore Predictions',
   },
   KU: {
-    hero_title: 'پێشبینیەکانی جامی جیهان ٢٠٢٦ بە هوشی دەستکرد',
+    hero_title: 'ئینۆڤێرا — پێشبینیکەری زیرەکی دەستکردی جامی جیهانی',
     hero_subtitle: 'پێشبینی هوشی دەستکرد، خەمەی خۆشبەختی، و پلەبەندی گروپ بۆ هەموو یارییەکانی جامی جیهان',
     hero_badge: 'بە هوشی دەستکرد',
     matches_title: 'یارییەکانی ئەمڕۆ',
@@ -96,7 +96,7 @@ export default function HomePage() {
                 <span className="text-[#F0A500]">2026</span> AI Predictor
               </>
             ) : (
-              <>{t.hero_title}</>
+              <><span className="text-[#F0A500]">ئینۆڤێرا</span> — پێشبینیکەری زیرەکی دەستکردی جامی جیهانی</>
             )}
           </h1>
 
@@ -185,7 +185,9 @@ export default function HomePage() {
               <div className="flex h-6 w-6 items-center justify-center rounded bg-[#F0A500]">
                 <span className="text-xs font-bold text-[#0D1117]">I</span>
               </div>
-              <span className="text-sm font-semibold text-[#E6EDF3]">Innovera Predictor</span>
+              <span className="text-sm font-semibold text-[#E6EDF3]">
+                {language === 'KU' ? 'ئینۆڤێرا پێشبینیکەر' : 'Innovera Predictor'}
+              </span>
             </div>
             <div className="flex items-center gap-4 text-xs text-[#8B949E]">
               <a href="/about" className="hover:text-[#E6EDF3] transition-colors">

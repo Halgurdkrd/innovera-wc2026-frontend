@@ -47,10 +47,13 @@ export default function Navbar({ language, onLanguageChange }: NavbarProps) {
             </div>
             <div className="flex flex-col leading-none">
               <span className="text-base font-extrabold tracking-tight text-[#E6EDF3] group-hover:text-[#F0A500] transition-colors">
-                Innovera <span className="text-[#F0A500]">Predictor</span>
+                {language === 'KU'
+                  ? <span className="text-[#F0A500]">ئینۆڤێرا پێشبینیکەر</span>
+                  : <>Innovera <span className="text-[#F0A500]">Predictor</span></>
+                }
               </span>
               <span className="hidden sm:block text-[10px] text-[#8B949E] font-medium tracking-wide">
-                FIFA World Cup 2026
+                {language === 'KU' ? 'جامی جیهانی FIFA ٢٠٢٦' : 'FIFA World Cup 2026'}
               </span>
             </div>
           </Link>
