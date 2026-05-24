@@ -6,6 +6,7 @@ import { AuthProvider } from "@/context/AuthContext";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://innovera-wc2026-frontend.vercel.app'),
   title: {
     default: "Innovera World Cup AI Predictor",
     template: "%s | Innovera Predictor",
