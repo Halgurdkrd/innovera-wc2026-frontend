@@ -69,5 +69,78 @@ No terminal errors. Build clean. All 4 routes compile on demand.
 
 ---
 
-## Next: S18
-<!-- S18 instructions will be pasted here -->
+## S18 — Leaderboard + About Redesign + Supabase Auth ✅
+
+### New files
+- `context/AuthContext.tsx` — global React context; Google/Facebook OAuth via Supabase; `upsertUserProfile` on first login; `AuthModalPortal` renders globally (no per-page modal setup needed); `openAuthModal(lang)` stores language for bilingual modal
+- `app/leaderboard/page.tsx` — top-50 leaderboard; Weekly / Tournament Total tabs; current user row highlighted in gold; user outside top-50 shown in separate card below; Share My Rank (rank-card API → `navigator.share()` → clipboard fallback); login banner for non-authed users
+
+### Modified files
+- `app/layout.tsx` — wrapped children with `<AuthProvider>`
+- `components/Navbar.tsx` — auth-aware: loading pulse → user avatar+menu dropdown (leaderboard link, sign out) → Login button; outside-click closes dropdown; Leaderboard added to desktop nav
+- `components/UserPrediction.tsx` — non-blocking login hint banner when not signed in; saves prediction to `user_predictions` table on lock if signed in
+- `app/about/page.tsx` — full redesign: mission statement, 3-step AI explainer (Data Collection → Model Training → Live Predictions), data sources (StatsBomb / FBref / API-Football), updated technology section with OAuth, contact placeholders, "Built with Claude Code" badge
+
+### Supabase tables required
+- `user_profiles(id uuid, user_id uuid, username text, avatar_url text, total_points int, weekly_points int, streak int, beat_ai int, created_at timestamptz)` — created on first OAuth login
+- `user_predictions(id uuid, user_id uuid, match_id text, predicted_outcome text, predicted_home_score int, predicted_away_score int, created_at timestamptz)` — unique on `(user_id, match_id)`
+
+### Infrastructure note
+OAuth providers (Google, Facebook) must be configured in the Supabase dashboard under Authentication → Providers.
+
+## Verified ✅ (2026-05-24)
+| Route | Status |
+|---|---|
+| `GET /` | 200 OK |
+| `GET /explore` | 200 OK — 3 tabs render |
+| `GET /leaderboard` | 200 OK |
+| `GET /about` | 200 OK — redesigned |
+| `GET /match/test-id` | 200 OK |
+| `GET /manifest.webmanifest` | 200 OK |
+
+`npx next build` passes clean (warnings only: `<img>` vs `<Image/>` — acceptable for external avatar URLs).
+
+---
+
+## S19 — Centralized Translations + CardModal + Vercel Prep ✅
+
+### New files
+- `lib/translations.ts` — 85-key EN/KU registry; `tr(key, lang)` helper; single source of truth for all static UI text; `Language` type defined here
+- `hooks/useLanguage.ts` — `useLanguage()` hook; reads/writes `localStorage` key `innovera_language`; language preference persists across all pages and page navigations
+- `components/CardModal.tsx` — shareable card modal; fetches image as blob for cross-origin download; Web Share API on mobile, clipboard fallback on desktop; "Coming soon" pill pattern matches Facebook button
+
+### Modified files
+- `components/Navbar.tsx` — migrated all nav labels to `tr()` from centralized translations; re-exports `Language` type from `lib/translations` (backward-compatible — all existing `import { type Language } from '@/components/Navbar'` still work)
+- `app/page.tsx` — `useLanguage()` replaces `useState<Language>('EN')`
+- `app/match/[match_id]/page.tsx` — `useLanguage()`, added `CardModal` (auto-opens after card generation, "View Card" button if closed)
+- `app/explore/page.tsx` — `useLanguage()`
+- `app/leaderboard/page.tsx` — `useLanguage()`
+- `app/about/page.tsx` — `useLanguage()`
+
+### How language persistence works
+1. User clicks EN or KU in Navbar
+2. `onLanguageChange(lang)` → `changeLanguage(lang)` in `useLanguage`
+3. `localStorage.setItem('innovera_language', lang)` persists the choice
+4. On next page load, `useEffect` reads localStorage and restores the preference
+5. All 5 pages share the same hook — preference is consistent site-wide
+
+## Verified ✅ (2026-05-24)
+`npx next build` — zero errors. Same `<img>` warnings as before (external avatar/card URLs). All 6 routes build clean.
+
+## Task 3 — Vercel Deploy (manual steps required)
+Vercel requires browser OAuth with GitHub — cannot be done via CLI without pre-authenticated credentials.
+
+**Steps to deploy:**
+1. Go to [vercel.com/new](https://vercel.com/new)
+2. Import `Halgurdkrd/innovera-wc2026-frontend` from GitHub
+3. Framework: Next.js (auto-detected)
+4. Add environment variables:
+   - `NEXT_PUBLIC_SUPABASE_URL` = `https://prxnkjejczvasswhjwxr.supabase.co`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = `sb_publishable_QZNOIjeSuAdvquNLBZQb0Q_5FjWn0rg`
+   - `NEXT_PUBLIC_API_URL` = `https://halgurdkrd-innovera-wc2026-api.hf.space`
+5. Click Deploy — auto-deploy on `main` branch push is enabled by default
+
+---
+
+## Next: S20
+<!-- S20 instructions will be pasted here -->
