@@ -15,7 +15,7 @@ Run:
   python scripts/populate_matches.py
 """
 
-import os, sys, json, pathlib
+import os, sys, json, pathlib, uuid
 import requests
 
 ROOT     = pathlib.Path(__file__).parent.parent
@@ -140,63 +140,30 @@ assert len(MATCHES) == 72, f"Expected 72 matches, got {len(MATCHES)}"
 def generate_sql() -> str:
     parts = [
         "-- ====================================================================",
-        "-- matches_seed.sql  --  Create matches table + insert all 72 WC2026",
-        "-- group stage fixtures.",
+        "-- matches_seed.sql  --  Insert all 72 WC2026 group stage fixtures",
+        "-- into the EXISTING matches table (S02 schema).",
         "-- Run in: Supabase Dashboard -> SQL Editor -> New Query -> Run",
+        "--",
+        "-- Columns used: match_id, home_team, away_team, match_date,",
+        "--               tournament_stage, group_name, venue, status",
         "-- ====================================================================",
         "",
-        "CREATE TABLE IF NOT EXISTS public.matches (",
-        "  id                   uuid        PRIMARY KEY DEFAULT gen_random_uuid(),",
-        "  group_name           text,",
-        "  home_team            text        NOT NULL,",
-        "  away_team            text        NOT NULL,",
-        "  home_team_flag       text,",
-        "  away_team_flag       text,",
-        "  match_date           date        NOT NULL,",
-        "  match_time           timestamptz NOT NULL,",
-        "  venue                text,",
-        "  city                 text,",
-        "  status               text        NOT NULL DEFAULT 'scheduled',",
-        "  home_win_probability numeric     NOT NULL DEFAULT 0.333,",
-        "  draw_probability     numeric     NOT NULL DEFAULT 0.334,",
-        "  away_win_probability numeric     NOT NULL DEFAULT 0.333,",
-        "  ai_confidence        int         NOT NULL DEFAULT 50,",
-        "  home_score           int,",
-        "  away_score           int,",
-        "  created_at           timestamptz DEFAULT now(),",
-        "  UNIQUE (home_team, away_team)",
-        ");",
-        "",
-        "ALTER TABLE public.matches ENABLE ROW LEVEL SECURITY;",
-        "",
-        'DROP POLICY IF EXISTS "Public read matches" ON public.matches;',
-        'CREATE POLICY "Public read matches" ON public.matches',
-        "  FOR SELECT USING (true);",
-        "",
         "INSERT INTO public.matches",
-        "  (group_name, home_team, away_team, home_team_flag, away_team_flag,",
-        "   match_date, match_time, venue, city, status,",
-        "   home_win_probability, draw_probability, away_win_probability, ai_confidence)",
+        "  (match_id, home_team, away_team, match_date, tournament_stage, group_name, venue, status)",
         "VALUES",
     ]
 
     rows = []
     for i, (grp, home, away, date, time_utc, venue, city) in enumerate(MATCHES):
-        mt = f"{date}T{time_utc}:00Z"
-        hf = FLAGS.get(home, "")
-        af = FLAGS.get(away, "")
+        mt = f"{date}T{time_utc}:00+00"
         v  = venue.replace("'", "''")
-        c  = city.replace("'", "''")
-        comma = "" if i == len(MATCHES) - 1 else ","
+        comma = ";" if i == len(MATCHES) - 1 else ","
         rows.append(
-            f"  ('{grp}','{home}','{away}','{hf}','{af}',"
-            f"'{date}','{mt}','{v}','{c}','scheduled',"
-            f"0.333,0.334,0.333,50){comma}"
+            f"  (gen_random_uuid(),'{home}','{away}','{mt}','Group','{grp}','{v}','scheduled'){comma}"
         )
 
     parts.extend(rows)
     parts += [
-        "ON CONFLICT (home_team, away_team) DO NOTHING;",
         "",
         "SELECT COUNT(*) AS total_matches FROM public.matches;",
         "",
@@ -247,8 +214,9 @@ def upsert(table: str, rows: list, conflict: str) -> tuple:
         "Content-Type":  "application/json",
         "Prefer":        "resolution=merge-duplicates,return=minimal",
     }
+    params = {"on_conflict": conflict} if conflict else {}
     r = requests.post(url, headers=headers,
-                      params={"on_conflict": conflict},
+                      params=params,
                       data=json.dumps(rows), timeout=20)
     if r.status_code in (200, 201, 204):
         return True, "ok"
@@ -282,24 +250,19 @@ rows_to_insert = []
 for grp, home, away, date, time_utc, venue, city in MATCHES:
     mt = f"{date}T{time_utc}:00Z"
     rows_to_insert.append({
-        "group_name":            grp,
-        "home_team":             home,
-        "away_team":             away,
-        "home_team_flag":        FLAGS.get(home, ""),
-        "away_team_flag":        FLAGS.get(away, ""),
-        "match_date":            date,
-        "match_time":            mt,
-        "venue":                 venue,
-        "status":                "scheduled",
-        "home_win_probability":  0.333,
-        "draw_probability":      0.334,
-        "away_win_probability":  0.333,
-        "ai_confidence":         50,
+        "match_id":         str(uuid.uuid4()),
+        "home_team":        home,
+        "away_team":        away,
+        "match_date":       mt,
+        "tournament_stage": "Group",
+        "group_name":       grp,
+        "venue":            venue,
+        "status":           "scheduled",
     })
 
 for i in range(0, len(rows_to_insert), batch_size):
     batch = rows_to_insert[i:i + batch_size]
-    ok, msg = upsert("matches", batch, "home_team,away_team")
+    ok, msg = upsert("matches", batch, "")
     batch_num = i // batch_size + 1
     if ok:
         ok_count += len(batch)
