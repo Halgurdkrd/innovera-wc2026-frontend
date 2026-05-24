@@ -128,3 +128,68 @@ export interface BracketSlot {
   winner?: string
   match_date?: string
 }
+
+// ── Tournament Simulation ─────────────────────────────────────────────────────
+
+export interface TournamentGroupTeam {
+  team: string
+  flag?: string
+  predicted_pts: number
+  predicted_gd: number
+  predicted_gf: number
+  qualify_prob: number       // 0–1
+  qualified?: boolean
+  eliminated?: boolean
+}
+
+export interface TournamentGroup {
+  group: string
+  teams: TournamentGroupTeam[]
+}
+
+export interface TournamentBracketMatch {
+  round: string
+  slot_number: number
+  team_a?: string
+  team_a_flag?: string
+  team_b?: string
+  team_b_flag?: string
+  win_prob_a?: number        // 0–1
+  win_prob_b?: number        // 0–1
+  predicted_winner?: string
+  actual_winner?: string
+  match_date?: string
+  score_a?: number
+  score_b?: number
+}
+
+export interface TournamentChampion {
+  team: string
+  flag?: string
+  probability: number        // 0–1
+}
+
+export interface TournamentSimulation {
+  groups?: TournamentGroup[]
+  bracket?: TournamentBracketMatch[]
+  predicted_champion?: TournamentChampion
+}
+
+// ── User Bracket ──────────────────────────────────────────────────────────────
+
+export interface UserBracketMatchResult {
+  slot_number: number
+  round: string
+  team_a?: string
+  team_b?: string
+  user_pick?: string
+  ai_prediction?: string
+  actual_result?: string | null
+  user_correct?: boolean | null
+}
+
+export interface UserBracketResponse {
+  bracket: UserBracketMatchResult[]
+  score: number
+  max_score: number
+}

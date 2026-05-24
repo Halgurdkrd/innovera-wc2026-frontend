@@ -4,60 +4,54 @@ import { useEffect, useState, useMemo } from 'react'
 import Navbar, { type Language } from '@/components/Navbar'
 import TeamCard from '@/components/TeamCard'
 import TeamProfile from '@/components/TeamProfile'
-import FullStandings from '@/components/FullStandings'
-import Bracket from '@/components/Bracket'
+import GroupStagePredictions from '@/components/GroupStagePredictions'
+import BracketPredictions from '@/components/BracketPredictions'
 import { supabase } from '@/lib/supabase'
-import type { GroupStanding, LuckScore, Team, BracketSlot } from '@/types'
+import type { GroupStanding, LuckScore, Team, BracketSlot, TournamentSimulation } from '@/types'
 
-// ── Confederation lookup (best-effort; falls back to group standing field) ─────
+// ── Confederation lookup ───────────────────────────────────────────────────────
 
 const CONFEDERATION_MAP: Record<string, string> = {
-  // CONCACAF (host nations + others)
   USA: 'CONCACAF', Canada: 'CONCACAF', Mexico: 'CONCACAF',
   'Costa Rica': 'CONCACAF', Honduras: 'CONCACAF', Jamaica: 'CONCACAF',
   Panama: 'CONCACAF', Haiti: 'CONCACAF',
-  // CONMEBOL
   Brazil: 'CONMEBOL', Argentina: 'CONMEBOL', Uruguay: 'CONMEBOL',
   Colombia: 'CONMEBOL', Chile: 'CONMEBOL', Ecuador: 'CONMEBOL',
   Peru: 'CONMEBOL', Venezuela: 'CONMEBOL', Bolivia: 'CONMEBOL', Paraguay: 'CONMEBOL',
-  // UEFA
   Germany: 'UEFA', France: 'UEFA', England: 'UEFA', Spain: 'UEFA',
   Portugal: 'UEFA', Netherlands: 'UEFA', Italy: 'UEFA', Belgium: 'UEFA',
   Switzerland: 'UEFA', Croatia: 'UEFA', Denmark: 'UEFA', Poland: 'UEFA',
   Austria: 'UEFA', Serbia: 'UEFA', Ukraine: 'UEFA', Turkey: 'UEFA',
   Hungary: 'UEFA', Scotland: 'UEFA', Norway: 'UEFA', Sweden: 'UEFA',
   Slovakia: 'UEFA', Romania: 'UEFA', Czech: 'UEFA', Wales: 'UEFA',
-  // AFC
   Japan: 'AFC', 'South Korea': 'AFC', Australia: 'AFC', Iran: 'AFC',
   'Saudi Arabia': 'AFC', Qatar: 'AFC', 'China PR': 'AFC', Iraq: 'AFC',
   Jordan: 'AFC', Indonesia: 'AFC', Uzbekistan: 'AFC',
-  // CAF
   Morocco: 'CAF', Senegal: 'CAF', Nigeria: 'CAF', Egypt: 'CAF',
   Cameroon: 'CAF', Ghana: 'CAF', Tunisia: 'CAF', Algeria: 'CAF',
   'Ivory Coast': 'CAF', Mali: 'CAF', Comoros: 'CAF',
-  // OFC
   'New Zealand': 'OFC',
 }
 
 const getConfederation = (teamName: string, row: GroupStanding) =>
   row.confederation ?? CONFEDERATION_MAP[teamName] ?? 'Other'
 
-// ── Tabs ───────────────────��───────────────────────────────────────────────────
+// ── Tabs ──────────────────────────────────────────────────────────────────────
 
-type Tab = 'teams' | 'standings' | 'bracket'
+type Tab = 'teams' | 'group_stage' | 'bracket'
 
 const tabLabels: Record<Tab, { EN: string; KU: string }> = {
-  teams:     { EN: 'Teams',     KU: 'تیمەکان' },
-  standings: { EN: 'Standings', KU: 'پلەبەندی' },
-  bracket:   { EN: 'Bracket',   KU: 'کۆتایی'   },
+  teams:       { EN: 'Teams',        KU: 'تیمەکان'     },
+  group_stage: { EN: 'Group Stage',  KU: 'قۆناغی گروپ' },
+  bracket:     { EN: 'Bracket',      KU: 'کۆتایی'       },
 }
 
-// ── Confederation filter chips ───────────��────────────────────────────────────
+// ── Confederation chips ───────────────────────────────────────────────────────
 
 const CONFEDERATIONS = ['All', 'UEFA', 'CONMEBOL', 'CONCACAF', 'CAF', 'AFC', 'OFC'] as const
 type Conf = typeof CONFEDERATIONS[number]
 
-// ── Labels ───────────────────────���─────────────────────��──────────────────────
+// ── Labels ────────────────────────────────────────────────────────────────────
 
 const labels = {
   EN: {
@@ -80,7 +74,7 @@ const labels = {
   },
 }
 
-// ── Page ────────────────────────��─────────────────────────────────────────────
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ExplorePage() {
   const [language, setLanguage] = useState<Language>('EN')
@@ -88,7 +82,9 @@ export default function ExplorePage() {
   const [standings, setStandings] = useState<GroupStanding[]>([])
   const [luckScores, setLuckScores] = useState<LuckScore[]>([])
   const [bracketSlots, setBracketSlots] = useState<BracketSlot[]>([])
+  const [simulation, setSimulation] = useState<TournamentSimulation | null>(null)
   const [loading, setLoading] = useState(true)
+  const [simLoading, setSimLoading] = useState(true)
 
   const [search, setSearch] = useState('')
   const [confFilter, setConfFilter] = useState<Conf>('All')
@@ -96,7 +92,7 @@ export default function ExplorePage() {
 
   const t = labels[language]
 
-  // ── Fetch ────────────���─────────────────────────────────────────────────────
+  // ── Fetch Supabase data ───────────────────────────────────────────────────
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
@@ -113,11 +109,22 @@ export default function ExplorePage() {
     fetchData()
   }, [])
 
-  // ── Derive teams from standings ────────────────────��───────────────────────
+  // ── Fetch tournament simulation ───────────────────────────────────────────
+  useEffect(() => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL
+    if (!apiUrl) { setSimLoading(false); return }
+
+    fetch(`${apiUrl}/simulate/tournament`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setSimulation(data ?? null))
+      .catch(() => null)
+      .finally(() => setSimLoading(false))
+  }, [])
+
+  // ── Derive teams from standings ───────────────────────────────────────────
   const teams = useMemo<Team[]>(() => {
     if (!standings.length) return []
 
-    // Build luck avg map: teamName → avg luck
     const luckMap: Record<string, number[]> = {}
     for (const ls of luckScores) {
       if (!luckMap[ls.team_name]) luckMap[ls.team_name] = []
@@ -128,7 +135,6 @@ export default function ExplorePage() {
       luckAvgMap[team] = scores.reduce((a, b) => a + b, 0) / scores.length
     }
 
-    // One team per unique name, highest position row wins
     const seen = new Map<string, Team>()
     for (const row of standings) {
       if (!seen.has(row.team_name)) {
@@ -150,13 +156,14 @@ export default function ExplorePage() {
         })
       }
     }
-    return Array.from(seen.values()).sort((a, b) =>
-      (a.group_name ?? '').localeCompare(b.group_name ?? '') ||
-      (a.position ?? 99) - (b.position ?? 99)
+    return Array.from(seen.values()).sort(
+      (a, b) =>
+        (a.group_name ?? '').localeCompare(b.group_name ?? '') ||
+        (a.position ?? 99) - (b.position ?? 99)
     )
   }, [standings, luckScores])
 
-  // ── Filter teams ───────────────────────────��───────────────────────────────
+  // ── Filter teams ──────────────────────────────────────────────────────────
   const filteredTeams = useMemo(() => {
     const q = search.toLowerCase()
     return teams.filter((t) => {
@@ -176,21 +183,17 @@ export default function ExplorePage() {
 
       {/* Team profile overlay */}
       {selectedTeam && (
-        <TeamProfile
-          team={selectedTeam}
-          language={language}
-          onClose={() => setSelectedTeam(null)}
-        />
+        <TeamProfile team={selectedTeam} language={language} onClose={() => setSelectedTeam(null)} />
       )}
 
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* ── Header ─────────────────────────────────────────────────────── */}
+        {/* Header */}
         <div className="space-y-1">
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#E6EDF3]">{t.title}</h1>
           <p className="text-sm text-[#8B949E]">{t.subtitle}</p>
         </div>
 
-        {/* ── Tabs ───────────────��───────────────────────────────────────── */}
+        {/* Tabs */}
         <div className="flex items-center gap-1 bg-[#161B22] border border-[#30363D] p-1 rounded-xl w-fit">
           {(Object.keys(tabLabels) as Tab[]).map((tab) => (
             <button
@@ -207,21 +210,18 @@ export default function ExplorePage() {
           ))}
         </div>
 
-        {/* ── Teams tab ─────────���───────────────────────────────────────── */}
+        {/* ── Teams tab ─────────────────────────────────────────────────── */}
         {activeTab === 'teams' && (
           <div className="space-y-6">
             {/* Search + filter row */}
             <div className="flex flex-col sm:flex-row gap-3">
-              {/* Search input */}
               <div className="relative flex-1">
                 <svg
                   className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8B949E]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  aria-hidden="true"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <input
                   type="text"
@@ -231,8 +231,6 @@ export default function ExplorePage() {
                   className="w-full bg-[#161B22] border border-[#30363D] rounded-lg pl-10 pr-4 py-2.5 text-sm text-[#E6EDF3] placeholder-[#8B949E] focus:border-[#F0A500] focus:outline-none transition-colors"
                 />
               </div>
-
-              {/* Confederation chips */}
               <div className="flex flex-wrap gap-2">
                 {CONFEDERATIONS.map((c) => (
                   <button
@@ -250,14 +248,10 @@ export default function ExplorePage() {
               </div>
             </div>
 
-            {/* Count badge */}
             {!loading && (
-              <p className="text-xs text-[#8B949E]">
-                {t.teamsCount(filteredTeams.length)}
-              </p>
+              <p className="text-xs text-[#8B949E]">{t.teamsCount(filteredTeams.length)}</p>
             )}
 
-            {/* Grid */}
             {loading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 {Array.from({ length: 24 }).map((_, i) => (
@@ -272,38 +266,31 @@ export default function ExplorePage() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 {filteredTeams.map((team) => (
-                  <TeamCard
-                    key={team.name}
-                    team={team}
-                    language={language}
-                    onClick={setSelectedTeam}
-                  />
+                  <TeamCard key={team.name} team={team} language={language} onClick={setSelectedTeam} />
                 ))}
               </div>
             )}
           </div>
         )}
 
-        {/* ── Standings tab ─────────────────────────────────────────────── */}
-        {activeTab === 'standings' && (
-          loading ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-48 rounded-xl bg-[#161B22] border border-[#30363D] animate-pulse" />
-              ))}
-            </div>
-          ) : (
-            <FullStandings standings={standings} language={language} />
-          )
+        {/* ── Group Stage tab ───────────────────────────────────────────── */}
+        {activeTab === 'group_stage' && (
+          <GroupStagePredictions
+            groups={simulation?.groups ?? []}
+            standings={standings}
+            loading={loading || simLoading}
+            language={language}
+          />
         )}
 
-        {/* ── Bracket tab ─────────────────���──────────────────────────────── */}
+        {/* ── Bracket tab ───────────────────────────────────────────────── */}
         {activeTab === 'bracket' && (
-          loading ? (
-            <div className="h-64 rounded-xl bg-[#161B22] border border-[#30363D] animate-pulse" />
-          ) : (
-            <Bracket slots={bracketSlots} language={language} />
-          )
+          <BracketPredictions
+            simulation={simulation}
+            realSlots={bracketSlots}
+            loading={loading || simLoading}
+            language={language}
+          />
         )}
       </main>
     </div>
