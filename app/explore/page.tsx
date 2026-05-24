@@ -8,7 +8,21 @@ import TeamProfile from '@/components/TeamProfile'
 import GroupStagePredictions from '@/components/GroupStagePredictions'
 import BracketPredictions from '@/components/BracketPredictions'
 import { supabase } from '@/lib/supabase'
-import type { GroupStanding, LuckScore, Team, BracketSlot, TournamentSimulation } from '@/types'
+import type {
+  GroupStanding, LuckScore, Team, BracketSlot,
+  TournamentSimulation, TournamentGroup, TournamentBracketMatch,
+} from '@/types'
+
+// ── Raw simulation API shape (before mapping to TournamentSimulation) ────────
+
+interface RawGroupTeam { team: string; pts: number; gd: number; gf: number }
+interface RawMatchResult { team_a?: string; team_b?: string; winner?: string }
+interface RawSimulation {
+  group_tables?: Record<string, RawGroupTeam[]>
+  stage_appearances?: Record<string, Record<string, number>>
+  predicted_bracket?: Record<string, RawMatchResult[]> & { champion?: string }
+  winner_probs?: Record<string, number>
+}
 
 // ── Confederation lookup ───────────────────────────────────────────────────────
 
@@ -83,9 +97,63 @@ export default function ExplorePage() {
   const [standings, setStandings] = useState<GroupStanding[]>([])
   const [luckScores, setLuckScores] = useState<LuckScore[]>([])
   const [bracketSlots, setBracketSlots] = useState<BracketSlot[]>([])
-  const [simulation, setSimulation] = useState<TournamentSimulation | null>(null)
+  const [rawSim, setRawSim] = useState<RawSimulation | null>(null)
   const [loading, setLoading] = useState(true)
   const [simLoading, setSimLoading] = useState(true)
+
+  // Transform raw API response into typed TournamentSimulation whenever
+  // either the raw API data or the standings (flags) change.
+  const simulation = useMemo<TournamentSimulation | null>(() => {
+    if (!rawSim) return null
+
+    const flagLookup: Record<string, string> = {}
+    for (const s of standings) {
+      if (s.team_flag) flagLookup[s.team_name] = s.team_flag
+    }
+
+    const groups: TournamentGroup[] = Object.entries(rawSim.group_tables ?? {}).map(
+      ([group, rawTeams]) => ({
+        group,
+        teams: rawTeams.map((t) => ({
+          team: t.team,
+          flag: flagLookup[t.team] ?? '🏳️',
+          predicted_pts: t.pts ?? 0,
+          predicted_gd: t.gd ?? 0,
+          predicted_gf: t.gf ?? 0,
+          qualify_prob: rawSim.stage_appearances?.[t.team]?.R32 ?? 0.5,
+        })),
+      })
+    )
+
+    const ROUND_MAP: Record<string, string> = {
+      R32: 'Round of 32', R16: 'Round of 16',
+      QF: 'Quarter-Finals', SF: 'Semi-Finals', Final: 'Final',
+    }
+    const bracket: TournamentBracketMatch[] = []
+    for (const [key, name] of Object.entries(ROUND_MAP)) {
+      const matches: RawMatchResult[] = rawSim.predicted_bracket?.[key] ?? []
+      matches.forEach((m, idx) => {
+        bracket.push({
+          round: name,
+          slot_number: idx + 1,
+          team_a: m.team_a,
+          team_a_flag: m.team_a ? (flagLookup[m.team_a] ?? '🏳️') : undefined,
+          team_b: m.team_b,
+          team_b_flag: m.team_b ? (flagLookup[m.team_b] ?? '🏳️') : undefined,
+          predicted_winner: m.winner,
+        })
+      })
+    }
+
+    const champion = rawSim.predicted_bracket?.champion
+    return {
+      groups,
+      bracket,
+      predicted_champion: champion
+        ? { team: champion, flag: flagLookup[champion], probability: rawSim.winner_probs?.[champion] ?? 0 }
+        : undefined,
+    }
+  }, [rawSim, standings])
 
   const [search, setSearch] = useState('')
   const [confFilter, setConfFilter] = useState<Conf>('All')
@@ -117,7 +185,7 @@ export default function ExplorePage() {
 
     fetch(`${apiUrl}/simulate/tournament`)
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setSimulation(data ?? null))
+      .then((data: RawSimulation | null) => setRawSim(data ?? null))
       .catch(() => null)
       .finally(() => setSimLoading(false))
   }, [])
