@@ -41,4 +41,90 @@ export interface GroupStanding {
   goal_difference: number
   points: number
   position: number
+  confederation?: string
+}
+
+// ── Prediction / Match Detail ─────────────────────────────────────────────────
+
+export interface ShapReason {
+  factor: string
+  direction: 'positive' | 'negative' | 'neutral'
+  value: number
+  team: 'home' | 'away'
+  description?: string
+}
+
+export interface Scoreline {
+  home_score: number
+  away_score: number
+  probability: number
+}
+
+export interface TeamMomentum {
+  team: string
+  team_flag?: string
+  score: number          // 0–100
+  trend: 'rising' | 'falling' | 'stable'
+  recent_form?: string[] // ['W','D','L',…]
+}
+
+export interface KeyPlayer {
+  name: string
+  team: string
+  team_flag?: string
+  role: string
+  impact_score: number   // 0–10
+  stat?: string
+}
+
+export interface Prediction {
+  id: string
+  match_id: string
+  shap_reasons?: ShapReason[]
+  scorelines?: Scoreline[]
+  momentum?: TeamMomentum[]
+  key_player?: KeyPlayer
+  ai_narrative?: string
+  luck_score?: number    // –10 … +10 (post-match only)
+  luck_label?: 'Lucky' | 'Deserved' | 'Unlucky'
+}
+
+// ── Explore / Teams ───────────────────────────────────────────────────────────
+
+export interface Team {
+  id?: string
+  name: string
+  flag?: string
+  group_name?: string
+  confederation?: string
+  momentum_score?: number
+  luck_avg?: number
+  last_results?: string[]  // ['W','D','L']
+  squad_info?: string
+  // from standings
+  played?: number
+  won?: number
+  drawn?: number
+  lost?: number
+  points?: number
+  position?: number
+  goals_for?: number
+  goals_against?: number
+  goal_difference?: number
+}
+
+// ── Bracket ───────────────────────────────────────────────────────────────────
+
+export interface BracketSlot {
+  id: string
+  round: string
+  slot_number: number
+  team_a?: string
+  team_a_flag?: string
+  team_b?: string
+  team_b_flag?: string
+  score_a?: number
+  score_b?: number
+  winner?: string
+  match_date?: string
 }

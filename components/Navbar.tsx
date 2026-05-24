@@ -6,13 +6,13 @@ const translations = {
   EN: {
     login: 'Login',
     predictions: 'Predictions',
-    standings: 'Standings',
+    explore: 'Explore',
     tagline: 'WC 2026',
   },
   KU: {
     login: 'چوونەژوورەوە',
     predictions: 'پێشبینیەکان',
-    standings: 'پلەبەندی',
+    explore: 'گەڕان',
     tagline: 'جامی جیهان ٢٠٢٦',
   },
 }
@@ -60,8 +60,8 @@ export default function Navbar({ language, onLanguageChange }: NavbarProps) {
             <Link href="/" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
               {t.predictions}
             </Link>
-            <Link href="/standings" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
-              {t.standings}
+            <Link href="/explore" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
+              {t.explore}
             </Link>
           </div>
 
