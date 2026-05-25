@@ -232,5 +232,59 @@ The API returns `group_tables` but the component expected `simulation.groups` �
 | Language toggle EN/KU | ✅ Persists via localStorage |
 | PWA manifest | ✅ |
 
-## Next: S21
-<!-- S21 instructions will be pasted here -->
+---
+
+## S21 — Official WC2026 Groups + /standings Fix ✅ (2026-05-25)
+
+### Root cause
+All hardcoded group/team data was using guessed/placeholder teams, not the official FIFA WC2026 draw from December 5, 2025.
+
+### Fixed files — Frontend
+- `components/GroupStagePredictions.tsx` — FALLBACK_GROUPS rewritten to official 48 teams (A–L)
+- `components/GroupStandingsPreview.tsx` — "View All Groups" link: `/standings` → `/explore?tab=group_stage`
+- `app/explore/page.tsx` — CONFEDERATION_MAP updated (added South Africa, Czech Republic, Bosnia-Herzegovina, Scotland, Haiti, Curaçao, Côte d'Ivoire, Sweden, Cabo Verde, Norway, Iraq, Austria, Jordan, Uzbekistan, Congo DR, Ghana, Panama); URL `?tab=` param read on mount via `window.location.search`
+- `scripts/seed.sql` — INSERT for correct 48 teams in official groups
+- `scripts/populate_teams.py` — TEAMS list updated
+- `scripts/matches_seed.sql` — all 72 fixtures regenerated with official team matchups
+- `scripts/populate_matches.py` — FLAGS + MATCHES updated
+
+### Fixed files — Backend (previous session)
+- `app/ml/bracket_simulation.py` — `WC2026_GROUPS` corrected to official draw
+- `app/ml/features.py` — `_FIFA_RANKINGS` updated with all 48 WC2026 teams
+
+### Official WC2026 Groups (Dec 5, 2025 draw)
+| Group | Teams |
+|---|---|
+| A | Mexico · South Korea · South Africa · Czech Republic |
+| B | Canada · Switzerland · Qatar · Bosnia-Herzegovina |
+| C | Brazil · Morocco · Scotland · Haiti |
+| D | USA · Paraguay · Australia · Turkey |
+| E | Germany · Curaçao · Côte d'Ivoire · Ecuador |
+| F | Netherlands · Japan · Tunisia · Sweden |
+| G | Belgium · Egypt · Iran · New Zealand |
+| H | Spain · Cabo Verde · Saudi Arabia · Uruguay |
+| I | France · Senegal · Norway · Iraq |
+| J | Argentina · Algeria · Austria · Jordan |
+| K | Portugal · Colombia · Uzbekistan · Congo DR |
+| L | England · Croatia · Ghana · Panama |
+
+### Pending manual steps (Supabase SQL Editor)
+1. Delete old group data:
+   ```sql
+   DELETE FROM public.group_standings;
+   DELETE FROM public.teams;
+   ```
+2. Run `scripts/seed.sql` — inserts correct 48 teams
+3. Delete old matches:
+   ```sql
+   DELETE FROM public.matches;
+   ```
+4. Run `scripts/matches_seed.sql` — inserts correct 72 fixtures
+5. Trigger new simulation: `GET /simulate/update?n=1000`
+
+### Git
+- Frontend pushed to GitHub (`main`) ✅
+- Backend already pushed to GitHub + HF Space (`master`/`main`) ✅
+
+## Next: S22
+<!-- S22 instructions will be pasted here -->
