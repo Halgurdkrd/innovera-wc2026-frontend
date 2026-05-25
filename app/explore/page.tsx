@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo, useRef, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import { useLanguage } from '@/hooks/useLanguage'
 import TeamCard from '@/components/TeamCard'
@@ -92,24 +93,25 @@ const labels = {
   },
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+// ── Inner page component (uses useSearchParams — must be inside Suspense) ─────
 
-export default function ExplorePage() {
+function ExplorePageContent() {
+  const searchParams = useSearchParams()
   const { language, changeLanguage } = useLanguage()
   const [activeTab, setActiveTab] = useState<Tab>('teams')
   const tabsRef = useRef<HTMLDivElement>(null)
 
+  // Re-runs whenever the URL search params change (works with client-side <Link> navigation)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const tab = params.get('tab') as Tab | null
+    const tab = searchParams.get('tab') as Tab | null
     if (tab && tab in tabLabels) {
       setActiveTab(tab)
-      // Scroll the tab bar into view so the user sees group content immediately
       setTimeout(() => {
         tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }, 100)
     }
-  }, [])
+  }, [searchParams])
+
   const [standings, setStandings] = useState<GroupStanding[]>([])
   const [luckScores, setLuckScores] = useState<LuckScore[]>([])
   const [bracketSlots, setBracketSlots] = useState<BracketSlot[]>([])
@@ -379,5 +381,15 @@ export default function ExplorePage() {
         )}
       </main>
     </div>
+  )
+}
+
+// ── Suspense boundary required by useSearchParams in Next.js App Router ───────
+
+export default function ExplorePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0D1117]" />}>
+      <ExplorePageContent />
+    </Suspense>
   )
 }
