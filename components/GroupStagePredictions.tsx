@@ -340,6 +340,9 @@ export default function GroupStagePredictions({ groups, stageAppearances, standi
     aiByGroup[fb.group] = fb.teams.map((fbTeam) => {
       const saProb = stageAppearances?.[fbTeam.team]?.R32
       const apiStats = apiStatsByTeam[fbTeam.team]
+      if (saProb == null && apiStats?.qualify_prob == null) {
+        console.log(`[GroupStage] qualify_prob fallback 50% — team not found in API: "${fbTeam.team}" (group ${fb.group})`)
+      }
       return {
         ...fbTeam,
         ...(apiStats ?? {}),
