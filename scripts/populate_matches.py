@@ -40,97 +40,134 @@ print(f"[URL] {SUPABASE_URL}")
 
 # ISO country codes (safe on Windows console, no emoji encoding issues)
 FLAGS = {
-    "USA": "US", "Panama": "PA", "Albania": "AL", "Ukraine": "UA",
-    "Mexico": "MX", "Jamaica": "JM", "Venezuela": "VE", "Ecuador": "EC",
-    "Canada": "CA", "Honduras": "HN", "Morocco": "MA", "Portugal": "PT",
-    "Spain": "ES", "Japan": "JP", "Congo DR": "CD", "New Zealand": "NZ",
-    "Germany": "DE", "Australia": "AU", "Argentina": "AR", "Chile": "CL",
-    "France": "FR", "Algeria": "DZ", "Nigeria": "NG", "Paraguay": "PY",
-    "England": "GB-ENG", "Serbia": "RS", "Cameroon": "CM", "Senegal": "SN",
-    "Netherlands": "NL", "Finland": "FI", "Saudi Arabia": "SA", "Peru": "PE",
-    "Brazil": "BR", "Uruguay": "UY", "Colombia": "CO", "South Korea": "KR",
-    "Belgium": "BE", "Egypt": "EG", "Qatar": "QA", "Slovakia": "SK",
-    "Croatia": "HR", "Iran": "IR", "Poland": "PL", "Tunisia": "TN",
-    "Italy": "IT", "Turkey": "TR", "Slovenia": "SI", "Switzerland": "CH",
+    # Official WC2026 teams (December 5, 2025 draw)
+    "Mexico": "MX", "South Korea": "KR", "South Africa": "ZA", "Czech Republic": "CZ",
+    "Canada": "CA", "Switzerland": "CH", "Qatar": "QA", "Bosnia-Herzegovina": "BA",
+    "Brazil": "BR", "Morocco": "MA", "Scotland": "GB-SCT", "Haiti": "HT",
+    "USA": "US", "Paraguay": "PY", "Australia": "AU", "Turkey": "TR",
+    "Germany": "DE", "Curaçao": "CW", "Côte d'Ivoire": "CI", "Ecuador": "EC",
+    "Netherlands": "NL", "Japan": "JP", "Tunisia": "TN", "Sweden": "SE",
+    "Belgium": "BE", "Egypt": "EG", "Iran": "IR", "New Zealand": "NZ",
+    "Spain": "ES", "Cabo Verde": "CV", "Saudi Arabia": "SA", "Uruguay": "UY",
+    "France": "FR", "Senegal": "SN", "Norway": "NO", "Iraq": "IQ",
+    "Argentina": "AR", "Algeria": "DZ", "Austria": "AT", "Jordan": "JO",
+    "Portugal": "PT", "Colombia": "CO", "Uzbekistan": "UZ", "Congo DR": "CD",
+    "England": "GB-ENG", "Croatia": "HR", "Ghana": "GH", "Panama": "PA",
 }
 
 # (group, home, away, date YYYY-MM-DD, time HH:MM UTC, venue, city)
 MATCHES = [
     # ── Matchday 1 (June 11-19) ──────────────────────────────────────────────
-    ("A", "USA",          "Panama",       "2026-06-11", "18:00", "MetLife Stadium",          "East Rutherford"),
-    ("A", "Albania",      "Ukraine",      "2026-06-12", "15:00", "AT&T Stadium",             "Arlington"),
-    ("B", "Mexico",       "Jamaica",      "2026-06-12", "18:00", "Estadio Azteca",           "Mexico City"),
-    ("B", "Venezuela",    "Ecuador",      "2026-06-12", "21:00", "Hard Rock Stadium",        "Miami Gardens"),
-    ("C", "Canada",       "Honduras",     "2026-06-13", "15:00", "BMO Field",                "Toronto"),
-    ("C", "Morocco",      "Portugal",     "2026-06-13", "18:00", "Rose Bowl",                "Pasadena"),
-    ("D", "Spain",        "Japan",        "2026-06-13", "21:00", "SoFi Stadium",             "Inglewood"),
-    ("D", "Congo DR",     "New Zealand",  "2026-06-14", "15:00", "Camping World Stadium",    "Orlando"),
-    ("E", "Germany",      "Australia",    "2026-06-14", "18:00", "Gillette Stadium",         "Foxborough"),
-    ("E", "Argentina",    "Chile",        "2026-06-14", "21:00", "AT&T Stadium",             "Arlington"),
-    ("F", "France",       "Algeria",      "2026-06-15", "15:00", "MetLife Stadium",          "East Rutherford"),
-    ("F", "Nigeria",      "Paraguay",     "2026-06-15", "18:00", "Estadio BBVA",             "Monterrey"),
-    ("G", "England",      "Serbia",       "2026-06-15", "21:00", "Lincoln Financial Field",  "Philadelphia"),
-    ("G", "Cameroon",     "Senegal",      "2026-06-16", "15:00", "Estadio Akron",            "Guadalajara"),
-    ("H", "Netherlands",  "Finland",      "2026-06-16", "18:00", "Arrowhead Stadium",        "Kansas City"),
-    ("H", "Saudi Arabia", "Peru",         "2026-06-16", "21:00", "Levi's Stadium",           "Santa Clara"),
-    ("I", "Brazil",       "Uruguay",      "2026-06-17", "15:00", "Hard Rock Stadium",        "Miami Gardens"),
-    ("I", "Colombia",     "South Korea",  "2026-06-17", "18:00", "Lumen Field",              "Seattle"),
-    ("J", "Belgium",      "Egypt",        "2026-06-17", "21:00", "Rose Bowl",                "Pasadena"),
-    ("J", "Qatar",        "Slovakia",     "2026-06-18", "15:00", "AT&T Stadium",             "Arlington"),
-    ("K", "Croatia",      "Iran",         "2026-06-18", "18:00", "Camping World Stadium",    "Orlando"),
-    ("K", "Poland",       "Tunisia",      "2026-06-18", "21:00", "SoFi Stadium",             "Inglewood"),
-    ("L", "Italy",        "Turkey",       "2026-06-19", "15:00", "Estadio Azteca",           "Mexico City"),
-    ("L", "Slovenia",     "Switzerland",  "2026-06-19", "18:00", "BC Place",                 "Vancouver"),
+    # Group A
+    ("A", "Mexico",          "South Korea",         "2026-06-11", "18:00", "MetLife Stadium",         "East Rutherford"),
+    ("A", "South Africa",    "Czech Republic",      "2026-06-12", "15:00", "AT&T Stadium",            "Arlington"),
+    # Group B
+    ("B", "Canada",          "Switzerland",         "2026-06-12", "18:00", "BC Place",                "Vancouver"),
+    ("B", "Qatar",           "Bosnia-Herzegovina",  "2026-06-12", "21:00", "AT&T Stadium",            "Arlington"),
+    # Group C
+    ("C", "Brazil",          "Morocco",             "2026-06-13", "15:00", "Rose Bowl",               "Pasadena"),
+    ("C", "Scotland",        "Haiti",               "2026-06-13", "18:00", "BMO Field",               "Toronto"),
+    # Group D
+    ("D", "USA",             "Paraguay",            "2026-06-13", "21:00", "MetLife Stadium",         "East Rutherford"),
+    ("D", "Australia",       "Turkey",              "2026-06-14", "15:00", "Camping World Stadium",   "Orlando"),
+    # Group E
+    ("E", "Germany",         "Curaçao",             "2026-06-14", "18:00", "Gillette Stadium",        "Foxborough"),
+    ("E", "Côte d'Ivoire",   "Ecuador",             "2026-06-14", "21:00", "Hard Rock Stadium",       "Miami Gardens"),
+    # Group F
+    ("F", "Netherlands",     "Japan",               "2026-06-15", "15:00", "SoFi Stadium",            "Inglewood"),
+    ("F", "Tunisia",         "Sweden",              "2026-06-15", "18:00", "Estadio BBVA",            "Monterrey"),
+    # Group G
+    ("G", "Belgium",         "Egypt",               "2026-06-15", "21:00", "Lincoln Financial Field", "Philadelphia"),
+    ("G", "Iran",            "New Zealand",         "2026-06-16", "15:00", "Lumen Field",             "Seattle"),
+    # Group H
+    ("H", "Spain",           "Cabo Verde",          "2026-06-16", "18:00", "Estadio Azteca",          "Mexico City"),
+    ("H", "Saudi Arabia",    "Uruguay",             "2026-06-16", "21:00", "Arrowhead Stadium",       "Kansas City"),
+    # Group I
+    ("I", "France",          "Senegal",             "2026-06-17", "15:00", "MetLife Stadium",         "East Rutherford"),
+    ("I", "Norway",          "Iraq",                "2026-06-17", "18:00", "Levi's Stadium",          "Santa Clara"),
+    # Group J
+    ("J", "Argentina",       "Algeria",             "2026-06-17", "21:00", "AT&T Stadium",            "Arlington"),
+    ("J", "Austria",         "Jordan",              "2026-06-18", "15:00", "Rose Bowl",               "Pasadena"),
+    # Group K
+    ("K", "Portugal",        "Colombia",            "2026-06-18", "18:00", "SoFi Stadium",            "Inglewood"),
+    ("K", "Uzbekistan",      "Congo DR",            "2026-06-18", "21:00", "Hard Rock Stadium",       "Miami Gardens"),
+    # Group L
+    ("L", "England",         "Croatia",             "2026-06-19", "15:00", "Lumen Field",             "Seattle"),
+    ("L", "Ghana",           "Panama",              "2026-06-19", "18:00", "Estadio Akron",           "Guadalajara"),
     # ── Matchday 2 (June 20-27) ──────────────────────────────────────────────
-    ("A", "USA",          "Albania",      "2026-06-20", "15:00", "Levi's Stadium",           "Santa Clara"),
-    ("A", "Panama",       "Ukraine",      "2026-06-20", "18:00", "Gillette Stadium",         "Foxborough"),
-    ("B", "Mexico",       "Venezuela",    "2026-06-20", "21:00", "Estadio Azteca",           "Mexico City"),
-    ("B", "Jamaica",      "Ecuador",      "2026-06-21", "15:00", "Hard Rock Stadium",        "Miami Gardens"),
-    ("C", "Canada",       "Morocco",      "2026-06-21", "18:00", "BC Place",                 "Vancouver"),
-    ("C", "Honduras",     "Portugal",     "2026-06-21", "21:00", "Rose Bowl",                "Pasadena"),
-    ("D", "Spain",        "Congo DR",     "2026-06-22", "15:00", "AT&T Stadium",             "Arlington"),
-    ("D", "Japan",        "New Zealand",  "2026-06-22", "18:00", "Levi's Stadium",           "Santa Clara"),
-    ("E", "Germany",      "Argentina",    "2026-06-22", "21:00", "MetLife Stadium",          "East Rutherford"),
-    ("E", "Australia",    "Chile",        "2026-06-23", "15:00", "Arrowhead Stadium",        "Kansas City"),
-    ("F", "France",       "Nigeria",      "2026-06-23", "18:00", "MetLife Stadium",          "East Rutherford"),
-    ("F", "Algeria",      "Paraguay",     "2026-06-23", "21:00", "Estadio BBVA",             "Monterrey"),
-    ("G", "England",      "Cameroon",     "2026-06-24", "15:00", "Lumen Field",              "Seattle"),
-    ("G", "Serbia",       "Senegal",      "2026-06-24", "18:00", "SoFi Stadium",             "Inglewood"),
-    ("H", "Netherlands",  "Saudi Arabia", "2026-06-24", "21:00", "AT&T Stadium",             "Arlington"),
-    ("H", "Finland",      "Peru",         "2026-06-25", "15:00", "BMO Field",                "Toronto"),
-    ("I", "Brazil",       "Colombia",     "2026-06-25", "18:00", "Hard Rock Stadium",        "Miami Gardens"),
-    ("I", "Uruguay",      "South Korea",  "2026-06-25", "21:00", "Estadio Akron",            "Guadalajara"),
-    ("J", "Belgium",      "Qatar",        "2026-06-26", "15:00", "Rose Bowl",                "Pasadena"),
-    ("J", "Egypt",        "Slovakia",     "2026-06-26", "18:00", "Camping World Stadium",    "Orlando"),
-    ("K", "Croatia",      "Poland",       "2026-06-26", "21:00", "MetLife Stadium",          "East Rutherford"),
-    ("K", "Iran",         "Tunisia",      "2026-06-27", "15:00", "Gillette Stadium",         "Foxborough"),
-    ("L", "Italy",        "Slovenia",     "2026-06-27", "18:00", "AT&T Stadium",             "Arlington"),
-    ("L", "Turkey",       "Switzerland",  "2026-06-27", "21:00", "BC Place",                 "Vancouver"),
+    # Group A
+    ("A", "Mexico",          "South Africa",        "2026-06-20", "15:00", "Levi's Stadium",          "Santa Clara"),
+    ("A", "South Korea",     "Czech Republic",      "2026-06-20", "18:00", "Gillette Stadium",        "Foxborough"),
+    # Group B
+    ("B", "Canada",          "Qatar",               "2026-06-20", "21:00", "BC Place",                "Vancouver"),
+    ("B", "Switzerland",     "Bosnia-Herzegovina",  "2026-06-21", "15:00", "Hard Rock Stadium",       "Miami Gardens"),
+    # Group C
+    ("C", "Brazil",          "Scotland",            "2026-06-21", "18:00", "Rose Bowl",               "Pasadena"),
+    ("C", "Morocco",         "Haiti",               "2026-06-21", "21:00", "BMO Field",               "Toronto"),
+    # Group D
+    ("D", "USA",             "Australia",           "2026-06-22", "15:00", "AT&T Stadium",            "Arlington"),
+    ("D", "Paraguay",        "Turkey",              "2026-06-22", "18:00", "MetLife Stadium",         "East Rutherford"),
+    # Group E
+    ("E", "Germany",         "Côte d'Ivoire",       "2026-06-22", "21:00", "Gillette Stadium",        "Foxborough"),
+    ("E", "Curaçao",         "Ecuador",             "2026-06-23", "15:00", "Estadio BBVA",            "Monterrey"),
+    # Group F
+    ("F", "Netherlands",     "Tunisia",             "2026-06-23", "18:00", "SoFi Stadium",            "Inglewood"),
+    ("F", "Japan",           "Sweden",              "2026-06-23", "21:00", "AT&T Stadium",            "Arlington"),
+    # Group G
+    ("G", "Belgium",         "Iran",                "2026-06-24", "15:00", "Lincoln Financial Field", "Philadelphia"),
+    ("G", "Egypt",           "New Zealand",         "2026-06-24", "18:00", "Arrowhead Stadium",       "Kansas City"),
+    # Group H
+    ("H", "Spain",           "Saudi Arabia",        "2026-06-24", "21:00", "Estadio Azteca",          "Mexico City"),
+    ("H", "Cabo Verde",      "Uruguay",             "2026-06-25", "15:00", "Camping World Stadium",   "Orlando"),
+    # Group I
+    ("I", "France",          "Norway",              "2026-06-25", "18:00", "MetLife Stadium",         "East Rutherford"),
+    ("I", "Senegal",         "Iraq",                "2026-06-25", "21:00", "Lumen Field",             "Seattle"),
+    # Group J
+    ("J", "Argentina",       "Austria",             "2026-06-26", "15:00", "Rose Bowl",               "Pasadena"),
+    ("J", "Algeria",         "Jordan",              "2026-06-26", "18:00", "Camping World Stadium",   "Orlando"),
+    # Group K
+    ("K", "Portugal",        "Uzbekistan",          "2026-06-26", "21:00", "MetLife Stadium",         "East Rutherford"),
+    ("K", "Colombia",        "Congo DR",            "2026-06-27", "15:00", "Gillette Stadium",        "Foxborough"),
+    # Group L
+    ("L", "England",         "Ghana",               "2026-06-27", "18:00", "AT&T Stadium",            "Arlington"),
+    ("L", "Croatia",         "Panama",              "2026-06-27", "21:00", "BC Place",                "Vancouver"),
     # ── Matchday 3 (June 29 - July 2, simultaneous within each group) ─────────
-    ("A", "USA",          "Ukraine",      "2026-06-29", "16:00", "MetLife Stadium",          "East Rutherford"),
-    ("A", "Panama",       "Albania",      "2026-06-29", "16:00", "AT&T Stadium",             "Arlington"),
-    ("B", "Mexico",       "Ecuador",      "2026-06-29", "18:00", "Estadio Azteca",           "Mexico City"),
-    ("B", "Jamaica",      "Venezuela",    "2026-06-29", "18:00", "Hard Rock Stadium",        "Miami Gardens"),
-    ("C", "Canada",       "Portugal",     "2026-06-29", "20:00", "BC Place",                 "Vancouver"),
-    ("C", "Honduras",     "Morocco",      "2026-06-29", "20:00", "Rose Bowl",                "Pasadena"),
-    ("D", "Spain",        "New Zealand",  "2026-06-30", "16:00", "SoFi Stadium",             "Inglewood"),
-    ("D", "Japan",        "Congo DR",     "2026-06-30", "16:00", "Camping World Stadium",    "Orlando"),
-    ("E", "Germany",      "Chile",        "2026-06-30", "18:00", "Gillette Stadium",         "Foxborough"),
-    ("E", "Australia",    "Argentina",    "2026-06-30", "18:00", "MetLife Stadium",          "East Rutherford"),
-    ("F", "France",       "Paraguay",     "2026-06-30", "20:00", "AT&T Stadium",             "Arlington"),
-    ("F", "Algeria",      "Nigeria",      "2026-06-30", "20:00", "Estadio BBVA",             "Monterrey"),
-    ("G", "England",      "Senegal",      "2026-07-01", "16:00", "Lincoln Financial Field",  "Philadelphia"),
-    ("G", "Serbia",       "Cameroon",     "2026-07-01", "16:00", "Arrowhead Stadium",        "Kansas City"),
-    ("H", "Netherlands",  "Peru",         "2026-07-01", "18:00", "Levi's Stadium",           "Santa Clara"),
-    ("H", "Finland",      "Saudi Arabia", "2026-07-01", "18:00", "Lumen Field",              "Seattle"),
-    ("I", "Brazil",       "South Korea",  "2026-07-01", "20:00", "Rose Bowl",                "Pasadena"),
-    ("I", "Uruguay",      "Colombia",     "2026-07-01", "20:00", "Estadio Akron",            "Guadalajara"),
-    ("J", "Belgium",      "Slovakia",     "2026-07-02", "16:00", "BMO Field",                "Toronto"),
-    ("J", "Egypt",        "Qatar",        "2026-07-02", "16:00", "AT&T Stadium",             "Arlington"),
-    ("K", "Croatia",      "Tunisia",      "2026-07-02", "18:00", "Hard Rock Stadium",        "Miami Gardens"),
-    ("K", "Iran",         "Poland",       "2026-07-02", "18:00", "SoFi Stadium",             "Inglewood"),
-    ("L", "Italy",        "Switzerland",  "2026-07-02", "20:00", "MetLife Stadium",          "East Rutherford"),
-    ("L", "Turkey",       "Slovenia",     "2026-07-02", "20:00", "Camping World Stadium",    "Orlando"),
+    # Group A (simultaneous)
+    ("A", "Mexico",          "Czech Republic",      "2026-06-29", "16:00", "MetLife Stadium",         "East Rutherford"),
+    ("A", "South Korea",     "South Africa",        "2026-06-29", "16:00", "AT&T Stadium",            "Arlington"),
+    # Group B (simultaneous)
+    ("B", "Canada",          "Bosnia-Herzegovina",  "2026-06-29", "18:00", "BC Place",                "Vancouver"),
+    ("B", "Switzerland",     "Qatar",               "2026-06-29", "18:00", "Hard Rock Stadium",       "Miami Gardens"),
+    # Group C (simultaneous)
+    ("C", "Brazil",          "Haiti",               "2026-06-29", "20:00", "Rose Bowl",               "Pasadena"),
+    ("C", "Morocco",         "Scotland",            "2026-06-29", "20:00", "BMO Field",               "Toronto"),
+    # Group D (simultaneous)
+    ("D", "USA",             "Turkey",              "2026-06-30", "16:00", "MetLife Stadium",         "East Rutherford"),
+    ("D", "Paraguay",        "Australia",           "2026-06-30", "16:00", "Camping World Stadium",   "Orlando"),
+    # Group E (simultaneous)
+    ("E", "Germany",         "Ecuador",             "2026-06-30", "18:00", "Gillette Stadium",        "Foxborough"),
+    ("E", "Curaçao",         "Côte d'Ivoire",       "2026-06-30", "18:00", "Estadio BBVA",            "Monterrey"),
+    # Group F (simultaneous)
+    ("F", "Netherlands",     "Sweden",              "2026-06-30", "20:00", "SoFi Stadium",            "Inglewood"),
+    ("F", "Japan",           "Tunisia",             "2026-06-30", "20:00", "AT&T Stadium",            "Arlington"),
+    # Group G (simultaneous)
+    ("G", "Belgium",         "New Zealand",         "2026-07-01", "16:00", "Lincoln Financial Field", "Philadelphia"),
+    ("G", "Egypt",           "Iran",                "2026-07-01", "16:00", "Arrowhead Stadium",       "Kansas City"),
+    # Group H (simultaneous)
+    ("H", "Spain",           "Uruguay",             "2026-07-01", "18:00", "Estadio Azteca",          "Mexico City"),
+    ("H", "Cabo Verde",      "Saudi Arabia",        "2026-07-01", "18:00", "Levi's Stadium",          "Santa Clara"),
+    # Group I (simultaneous)
+    ("I", "France",          "Iraq",                "2026-07-01", "20:00", "MetLife Stadium",         "East Rutherford"),
+    ("I", "Senegal",         "Norway",              "2026-07-01", "20:00", "Estadio Akron",           "Guadalajara"),
+    # Group J (simultaneous)
+    ("J", "Argentina",       "Jordan",              "2026-07-02", "16:00", "Rose Bowl",               "Pasadena"),
+    ("J", "Algeria",         "Austria",             "2026-07-02", "16:00", "AT&T Stadium",            "Arlington"),
+    # Group K (simultaneous)
+    ("K", "Portugal",        "Congo DR",            "2026-07-02", "18:00", "SoFi Stadium",            "Inglewood"),
+    ("K", "Colombia",        "Uzbekistan",          "2026-07-02", "18:00", "Hard Rock Stadium",       "Miami Gardens"),
+    # Group L (simultaneous)
+    ("L", "England",         "Panama",              "2026-07-02", "20:00", "MetLife Stadium",         "East Rutherford"),
+    ("L", "Croatia",         "Ghana",               "2026-07-02", "20:00", "Camping World Stadium",   "Orlando"),
 ]
 
 assert len(MATCHES) == 72, f"Expected 72 matches, got {len(MATCHES)}"

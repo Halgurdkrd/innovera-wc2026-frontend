@@ -103,7 +103,7 @@ export default function GroupStandingsPreview({ standings, language }: GroupStan
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-[#E6EDF3]">{t.title}</h2>
         <Link
-          href="/standings"
+          href="/explore?tab=group_stage"
           className="text-sm text-[#F0A500] hover:text-[#D4920A] font-medium transition-colors"
         >
           {t.viewAll} →

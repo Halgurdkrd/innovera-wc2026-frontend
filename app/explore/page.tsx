@@ -27,24 +27,27 @@ interface RawSimulation {
 // ── Confederation lookup ───────────────────────────────────────────────────────
 
 const CONFEDERATION_MAP: Record<string, string> = {
+  // CONCACAF
   USA: 'CONCACAF', Canada: 'CONCACAF', Mexico: 'CONCACAF',
-  'Costa Rica': 'CONCACAF', Honduras: 'CONCACAF', Jamaica: 'CONCACAF',
-  Panama: 'CONCACAF', Haiti: 'CONCACAF',
+  Panama: 'CONCACAF', Haiti: 'CONCACAF', Curaçao: 'CONCACAF',
+  // CONMEBOL
   Brazil: 'CONMEBOL', Argentina: 'CONMEBOL', Uruguay: 'CONMEBOL',
-  Colombia: 'CONMEBOL', Chile: 'CONMEBOL', Ecuador: 'CONMEBOL',
-  Peru: 'CONMEBOL', Venezuela: 'CONMEBOL', Bolivia: 'CONMEBOL', Paraguay: 'CONMEBOL',
+  Colombia: 'CONMEBOL', Ecuador: 'CONMEBOL', Paraguay: 'CONMEBOL',
+  // UEFA
   Germany: 'UEFA', France: 'UEFA', England: 'UEFA', Spain: 'UEFA',
-  Portugal: 'UEFA', Netherlands: 'UEFA', Italy: 'UEFA', Belgium: 'UEFA',
-  Switzerland: 'UEFA', Croatia: 'UEFA', Denmark: 'UEFA', Poland: 'UEFA',
-  Austria: 'UEFA', Serbia: 'UEFA', Ukraine: 'UEFA', Turkey: 'UEFA',
-  Hungary: 'UEFA', Scotland: 'UEFA', Norway: 'UEFA', Sweden: 'UEFA',
-  Slovakia: 'UEFA', Romania: 'UEFA', Czech: 'UEFA', Wales: 'UEFA',
+  Portugal: 'UEFA', Netherlands: 'UEFA', Belgium: 'UEFA',
+  Switzerland: 'UEFA', Croatia: 'UEFA', Austria: 'UEFA', Turkey: 'UEFA',
+  Scotland: 'UEFA', Norway: 'UEFA', Sweden: 'UEFA',
+  'Czech Republic': 'UEFA', 'Bosnia-Herzegovina': 'UEFA',
+  // AFC
   Japan: 'AFC', 'South Korea': 'AFC', Australia: 'AFC', Iran: 'AFC',
-  'Saudi Arabia': 'AFC', Qatar: 'AFC', 'China PR': 'AFC', Iraq: 'AFC',
-  Jordan: 'AFC', Indonesia: 'AFC', Uzbekistan: 'AFC',
-  Morocco: 'CAF', Senegal: 'CAF', Nigeria: 'CAF', Egypt: 'CAF',
-  Cameroon: 'CAF', Ghana: 'CAF', Tunisia: 'CAF', Algeria: 'CAF',
-  'Ivory Coast': 'CAF', Mali: 'CAF', Comoros: 'CAF',
+  'Saudi Arabia': 'AFC', Qatar: 'AFC', Iraq: 'AFC',
+  Jordan: 'AFC', Uzbekistan: 'AFC',
+  // CAF
+  Morocco: 'CAF', Senegal: 'CAF', Egypt: 'CAF', Ghana: 'CAF',
+  Tunisia: 'CAF', Algeria: 'CAF', "Côte d'Ivoire": 'CAF',
+  'South Africa': 'CAF', 'Cabo Verde': 'CAF', 'Congo DR': 'CAF',
+  // OFC
   'New Zealand': 'OFC',
 }
 
@@ -94,6 +97,12 @@ const labels = {
 export default function ExplorePage() {
   const { language, changeLanguage } = useLanguage()
   const [activeTab, setActiveTab] = useState<Tab>('teams')
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const tab = params.get('tab') as Tab | null
+    if (tab && tab in tabLabels) setActiveTab(tab)
+  }, [])
   const [standings, setStandings] = useState<GroupStanding[]>([])
   const [luckScores, setLuckScores] = useState<LuckScore[]>([])
   const [bracketSlots, setBracketSlots] = useState<BracketSlot[]>([])

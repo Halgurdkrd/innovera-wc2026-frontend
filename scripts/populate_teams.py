@@ -45,66 +45,67 @@ print(f"[URL] {SUPABASE_URL}")
 # ── 48 teams ──────────────────────────────────────────────────────────────────
 
 TEAMS = [
-    # (group, team_name, flag, confederation, fifa_rank, position)
-    ("A", "USA",          "US", "CONCACAF",  12, 1),
-    ("A", "Panama",       "PA", "CONCACAF",  44, 2),
-    ("A", "Albania",      "AL", "UEFA",      45, 3),
-    ("A", "Ukraine",      "UA", "UEFA",      26, 4),
-
-    ("B", "Mexico",       "MX", "CONCACAF",  16, 1),
-    ("B", "Jamaica",      "JM", "CONCACAF",  40, 2),
-    ("B", "Venezuela",    "VE", "CONMEBOL",  33, 3),
-    ("B", "Ecuador",      "EC", "CONMEBOL",  20, 4),
-
-    ("C", "Canada",       "CA", "CONCACAF",  34, 1),
-    ("C", "Honduras",     "HN", "CONCACAF",  46, 2),
-    ("C", "Morocco",      "MA", "CAF",       13, 3),
-    ("C", "Portugal",     "PT", "UEFA",       5, 4),
-
-    ("D", "Spain",        "ES", "UEFA",       8, 1),
-    ("D", "Japan",        "JP", "AFC",       17, 2),
-    ("D", "Congo DR",     "CD", "CAF",       43, 3),
-    ("D", "New Zealand",  "NZ", "OFC",       48, 4),
-
-    ("E", "Germany",      "DE", "UEFA",       9, 1),
-    ("E", "Australia",    "AU", "AFC",       21, 2),
-    ("E", "Argentina",    "AR", "CONMEBOL",   1, 3),
-    ("E", "Chile",        "CL", "CONMEBOL",  32, 4),
-
-    ("F", "France",       "FR", "UEFA",       2, 1),
-    ("F", "Algeria",      "DZ", "CAF",       27, 2),
-    ("F", "Nigeria",      "NG", "CAF",       36, 3),
-    ("F", "Paraguay",     "PY", "CONMEBOL",  35, 4),
-
-    ("G", "England",      "GB-ENG", "UEFA",   3, 1),
-    ("G", "Serbia",       "RS", "UEFA",      25, 2),
-    ("G", "Cameroon",     "CM", "CAF",       42, 3),
-    ("G", "Senegal",      "SN", "CAF",       18, 4),
-
-    ("H", "Netherlands",  "NL", "UEFA",       7, 1),
-    ("H", "Finland",      "FI", "UEFA",      47, 2),
-    ("H", "Saudi Arabia", "SA", "AFC",       39, 3),
-    ("H", "Peru",         "PE", "CONMEBOL",  31, 4),
-
-    ("I", "Brazil",       "BR", "CONMEBOL",   4, 1),
-    ("I", "Uruguay",      "UY", "CONMEBOL",  15, 2),
-    ("I", "Colombia",     "CO", "CONMEBOL",  14, 3),
-    ("I", "South Korea",  "KR", "AFC",       24, 4),
-
-    ("J", "Belgium",      "BE", "UEFA",       6, 1),
-    ("J", "Egypt",        "EG", "CAF",       41, 2),
-    ("J", "Qatar",        "QA", "AFC",       37, 3),
-    ("J", "Slovakia",     "SK", "UEFA",      30, 4),
-
-    ("K", "Croatia",      "HR", "UEFA",      11, 1),
-    ("K", "Iran",         "IR", "AFC",       38, 2),
-    ("K", "Poland",       "PL", "UEFA",      22, 3),
-    ("K", "Tunisia",      "TN", "CAF",       28, 4),
-
-    ("L", "Italy",        "IT", "UEFA",      10, 1),
-    ("L", "Turkey",       "TR", "UEFA",      23, 2),
-    ("L", "Slovenia",     "SI", "UEFA",      29, 3),
-    ("L", "Switzerland",  "CH", "UEFA",      19, 4),
+    # (group, team_name, flag_cc, confederation, fifa_rank, position)
+    # Group A: Mexico, South Korea, South Africa, Czech Republic
+    ("A", "Mexico",             "MX",     "CONCACAF", 14, 1),
+    ("A", "South Korea",        "KR",     "AFC",       23, 2),
+    ("A", "South Africa",       "ZA",     "CAF",       57, 3),
+    ("A", "Czech Republic",     "CZ",     "UEFA",      36, 4),
+    # Group B: Canada, Switzerland, Qatar, Bosnia-Herzegovina
+    ("B", "Canada",             "CA",     "CONCACAF", 24, 1),
+    ("B", "Switzerland",        "CH",     "UEFA",      15, 2),
+    ("B", "Qatar",              "QA",     "AFC",       35, 3),
+    ("B", "Bosnia-Herzegovina", "BA",     "UEFA",      51, 4),
+    # Group C: Brazil, Morocco, Scotland, Haiti
+    ("C", "Brazil",             "BR",     "CONMEBOL",   5, 1),
+    ("C", "Morocco",            "MA",     "CAF",        12, 2),
+    ("C", "Scotland",           "GB-SCT", "UEFA",       42, 3),
+    ("C", "Haiti",              "HT",     "CONCACAF",   79, 4),
+    # Group D: USA, Paraguay, Australia, Turkey
+    ("D", "USA",                "US",     "CONCACAF",  13, 1),
+    ("D", "Paraguay",           "PY",     "CONMEBOL",  40, 2),
+    ("D", "Australia",          "AU",     "AFC",        22, 3),
+    ("D", "Turkey",             "TR",     "UEFA",       32, 4),
+    # Group E: Germany, Curaçao, Côte d'Ivoire, Ecuador
+    ("E", "Germany",            "DE",     "UEFA",       16, 1),
+    ("E", "Curaçao",            "CW",     "CONCACAF",  82, 2),
+    ("E", "Côte d'Ivoire",      "CI",     "CAF",        45, 3),
+    ("E", "Ecuador",            "EC",     "CONMEBOL",  21, 4),
+    # Group F: Netherlands, Japan, Tunisia, Sweden
+    ("F", "Netherlands",        "NL",     "UEFA",        7, 1),
+    ("F", "Japan",              "JP",     "AFC",         18, 2),
+    ("F", "Tunisia",            "TN",     "CAF",         30, 3),
+    ("F", "Sweden",             "SE",     "UEFA",        36, 4),
+    # Group G: Belgium, Egypt, Iran, New Zealand
+    ("G", "Belgium",            "BE",     "UEFA",         6, 1),
+    ("G", "Egypt",              "EG",     "CAF",          41, 2),
+    ("G", "Iran",               "IR",     "AFC",          25, 3),
+    ("G", "New Zealand",        "NZ",     "OFC",          43, 4),
+    # Group H: Spain, Cabo Verde, Saudi Arabia, Uruguay
+    ("H", "Spain",              "ES",     "UEFA",          3, 1),
+    ("H", "Cabo Verde",         "CV",     "CAF",           64, 2),
+    ("H", "Saudi Arabia",       "SA",     "AFC",           32, 3),
+    ("H", "Uruguay",            "UY",     "CONMEBOL",     17, 4),
+    # Group I: France, Senegal, Norway, Iraq
+    ("I", "France",             "FR",     "UEFA",           2, 1),
+    ("I", "Senegal",            "SN",     "CAF",            19, 2),
+    ("I", "Norway",             "NO",     "UEFA",           38, 3),
+    ("I", "Iraq",               "IQ",     "AFC",            68, 4),
+    # Group J: Argentina, Algeria, Austria, Jordan
+    ("J", "Argentina",          "AR",     "CONMEBOL",        1, 1),
+    ("J", "Algeria",            "DZ",     "CAF",             37, 2),
+    ("J", "Austria",            "AT",     "UEFA",            28, 3),
+    ("J", "Jordan",             "JO",     "AFC",             74, 4),
+    # Group K: Portugal, Colombia, Uzbekistan, Congo DR
+    ("K", "Portugal",           "PT",     "UEFA",             8, 1),
+    ("K", "Colombia",           "CO",     "CONMEBOL",         9, 2),
+    ("K", "Uzbekistan",         "UZ",     "AFC",              76, 3),
+    ("K", "Congo DR",           "CD",     "CAF",              72, 4),
+    # Group L: England, Croatia, Ghana, Panama
+    ("L", "England",            "GB-ENG", "UEFA",              4, 1),
+    ("L", "Croatia",            "HR",     "UEFA",             11, 2),
+    ("L", "Ghana",              "GH",     "CAF",              33, 3),
+    ("L", "Panama",             "PA",     "CONCACAF",         46, 4),
 ]
 
 # ── Mode B: no service key — print manual instructions ────────────────────────
