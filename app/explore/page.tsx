@@ -364,6 +364,7 @@ function ExplorePageContent() {
         {activeTab === 'group_stage' && (
           <GroupStagePredictions
             groups={simulation?.groups ?? []}
+            stageAppearances={rawSim?.stage_appearances ?? {}}
             standings={standings}
             loading={loading || simLoading}
             language={language}

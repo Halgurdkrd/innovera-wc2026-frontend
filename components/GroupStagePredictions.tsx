@@ -86,6 +86,7 @@ for (const g of FALLBACK_GROUPS) FALLBACK_BY_GROUP[g.group] = g.teams
 
 interface Props {
   groups: TournamentGroup[]
+  stageAppearances?: Record<string, Record<string, number>>
   standings: GroupStanding[]
   loading: boolean
   language: Language
@@ -301,7 +302,7 @@ function AiGroupCard({
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export default function GroupStagePredictions({ groups, standings, loading, language }: Props) {
+export default function GroupStagePredictions({ groups, stageAppearances, standings, loading, language }: Props) {
   const t = labels[language]
 
   if (loading) {
@@ -328,19 +329,25 @@ export default function GroupStagePredictions({ groups, standings, loading, lang
   }
 
   // Merge: FALLBACK_GROUPS is always the source of truth for team names + flags.
-  // API data only contributes qualify_prob/predicted_pts/gd/gf.
-  // This makes stale API cache harmless — wrong team names from cache are ignored.
+  // qualify_prob comes from stageAppearances[fbTeam.team].R32 — keyed by the FALLBACK
+  // team name directly, so stale API cache with wrong group assignments can't cause misses.
+  // Predicted pts/gd/gf fall back to the per-group API match (same-name only).
   const aiByGroup: Record<string, TournamentGroupTeam[]> = {}
   for (const fb of FALLBACK_GROUPS) {
     const apiTeams = apiByGroup[fb.group] ?? []
     const apiStatsByTeam: Record<string, TournamentGroupTeam> = {}
     for (const t of apiTeams) apiStatsByTeam[t.team] = t
-    aiByGroup[fb.group] = fb.teams.map((fbTeam) => ({
-      ...fbTeam,
-      ...(apiStatsByTeam[fbTeam.team] ?? {}),
-      team: fbTeam.team,  // always keep official name from FALLBACK
-      flag: fbTeam.flag,  // always keep official flag from FALLBACK
-    }))
+    aiByGroup[fb.group] = fb.teams.map((fbTeam) => {
+      const saProb = stageAppearances?.[fbTeam.team]?.R32
+      const apiStats = apiStatsByTeam[fbTeam.team]
+      return {
+        ...fbTeam,
+        ...(apiStats ?? {}),
+        qualify_prob: saProb != null ? saProb : (apiStats?.qualify_prob ?? 0.5),
+        team: fbTeam.team,
+        flag: fbTeam.flag,
+      }
+    })
   }
 
   // Always render all 12 groups A–L (fallback guarantees they exist)
