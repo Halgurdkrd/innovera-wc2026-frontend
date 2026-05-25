@@ -12,7 +12,7 @@ interface GroupStandingsPreviewProps {
 const labels = {
   EN: {
     title: 'Group Standings',
-    viewAll: 'View All Groups',
+    viewAll: 'View All 12 Groups',
     pos: '#',
     team: 'Team',
     p: 'P',
@@ -23,7 +23,7 @@ const labels = {
   },
   KU: {
     title: 'پلەبەندی گروپەکان',
-    viewAll: 'هەموو گروپەکان',
+    viewAll: 'هەموو ١٢ گروپەکان',
     pos: '#',
     team: 'تیم',
     p: 'پ',

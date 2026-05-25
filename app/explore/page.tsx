@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import Navbar from '@/components/Navbar'
 import { useLanguage } from '@/hooks/useLanguage'
 import TeamCard from '@/components/TeamCard'
@@ -97,11 +97,18 @@ const labels = {
 export default function ExplorePage() {
   const { language, changeLanguage } = useLanguage()
   const [activeTab, setActiveTab] = useState<Tab>('teams')
+  const tabsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const tab = params.get('tab') as Tab | null
-    if (tab && tab in tabLabels) setActiveTab(tab)
+    if (tab && tab in tabLabels) {
+      setActiveTab(tab)
+      // Scroll the tab bar into view so the user sees group content immediately
+      setTimeout(() => {
+        tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
+    }
   }, [])
   const [standings, setStandings] = useState<GroupStanding[]>([])
   const [luckScores, setLuckScores] = useState<LuckScore[]>([])
@@ -272,7 +279,7 @@ export default function ExplorePage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-1 bg-[#161B22] border border-[#30363D] p-1 rounded-xl w-fit">
+        <div ref={tabsRef} className="flex items-center gap-1 bg-[#161B22] border border-[#30363D] p-1 rounded-xl w-fit">
           {(Object.keys(tabLabels) as Tab[]).map((tab) => (
             <button
               key={tab}

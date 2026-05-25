@@ -327,13 +327,20 @@ export default function GroupStagePredictions({ groups, standings, loading, lang
     apiByGroup[g.group] = g.teams
   }
 
-  // Merge: use API teams only when they have non-empty names; otherwise use fallback.
-  // This guarantees team names are always visible even when the API is down or returns empty data.
+  // Merge: FALLBACK_GROUPS is always the source of truth for team names + flags.
+  // API data only contributes qualify_prob/predicted_pts/gd/gf.
+  // This makes stale API cache harmless — wrong team names from cache are ignored.
   const aiByGroup: Record<string, TournamentGroupTeam[]> = {}
   for (const fb of FALLBACK_GROUPS) {
     const apiTeams = apiByGroup[fb.group] ?? []
-    const apiHasNames = apiTeams.length > 0 && apiTeams.some(t => t.team && t.team.trim() !== '')
-    aiByGroup[fb.group] = apiHasNames ? apiTeams : fb.teams
+    const apiStatsByTeam: Record<string, TournamentGroupTeam> = {}
+    for (const t of apiTeams) apiStatsByTeam[t.team] = t
+    aiByGroup[fb.group] = fb.teams.map((fbTeam) => ({
+      ...fbTeam,
+      ...(apiStatsByTeam[fbTeam.team] ?? {}),
+      team: fbTeam.team,  // always keep official name from FALLBACK
+      flag: fbTeam.flag,  // always keep official flag from FALLBACK
+    }))
   }
 
   // Always render all 12 groups A–L (fallback guarantees they exist)
