@@ -229,13 +229,46 @@ export default function MatchDetailPage() {
 
   useEffect(() => {
     console.log('[match-detail] useEffect fired — match_id:', match_id)
+
+    // Wrap any thenable with a hard timeout so Supabase can never hang forever
+    function withTimeout<T>(p: PromiseLike<T>, ms: number, label: string): Promise<T> {
+      return Promise.race([
+        Promise.resolve(p),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+        ),
+      ])
+    }
+
     async function fetchData() {
       setLoading(true)
       console.log('[match-detail] fetchData start — match_id:', match_id, '| typeof:', typeof match_id)
+
+      // ── Diagnostic: confirm what URL/key the client is using ─────────────
+      console.log('[match-detail] supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+
+      // ── Diagnostic: simple list query (no filter) — does the client work at all?
+      try {
+        const probe = await withTimeout(
+          supabase.from('matches').select('match_id,home_team').limit(1),
+          8000,
+          'probe'
+        )
+        console.log('[match-detail] probe result → data:', probe.data, '| error:', probe.error?.message ?? 'none')
+      } catch (e) {
+        console.error('[match-detail] probe FAILED (client broken or key wrong):', e)
+      }
+
       try {
         const [matchRes, predRes] = await Promise.all([
-          supabase.from('matches').select('*').eq('match_id', match_id).maybeSingle(),
-          supabase.from('predictions').select('*').eq('match_id', match_id).maybeSingle(),
+          withTimeout(
+            supabase.from('matches').select('*').eq('match_id', match_id).maybeSingle(),
+            10000, 'matches query'
+          ),
+          withTimeout(
+            supabase.from('predictions').select('*').eq('match_id', match_id).maybeSingle(),
+            10000, 'predictions query'
+          ),
         ])
         console.log('[match-detail] match result → data:', matchRes.data, '| error:', matchRes.error?.message ?? 'none')
 
@@ -244,7 +277,6 @@ export default function MatchDetailPage() {
 
         const raw = matchRes.data as Record<string, unknown> | null
         if (raw) {
-          // Build a clean Match object without mutating the Supabase response
           const m: Match = {
             ...(raw as unknown as Match),
             match_id: raw.match_id as string | undefined,
@@ -252,7 +284,6 @@ export default function MatchDetailPage() {
           }
           setMatch(m)
 
-          // Fetch luck scores — use eq on the date portion only
           const matchDateStr = (m.match_date ?? '').split('T')[0]
           if (matchDateStr) {
             const luckRes = await supabase
