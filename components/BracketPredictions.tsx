@@ -9,6 +9,7 @@ import type {
   UserBracketResponse,
 } from '@/types'
 import type { Language } from './Navbar'
+import WinnerProbsList from './WinnerProbsList'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -719,6 +720,15 @@ export default function BracketPredictions({ simulation, realSlots, loading, lan
     <div className="space-y-6">
       {/* Predicted Champion */}
       {champion && <ChampionCard champion={champion} t={t} />}
+
+      {/* Tournament win probabilities ranked list */}
+      {simulation?.winner_probs && Object.keys(simulation.winner_probs).length > 0 && (
+        <WinnerProbsList
+          winnerProbs={simulation.winner_probs}
+          flagMap={simulation.flag_map ?? flagMap}
+          language={language}
+        />
+      )}
 
       {/* Legend + submit button */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

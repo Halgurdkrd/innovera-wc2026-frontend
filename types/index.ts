@@ -173,6 +173,8 @@ export interface TournamentSimulation {
   groups?: TournamentGroup[]
   bracket?: TournamentBracketMatch[]
   predicted_champion?: TournamentChampion
+  winner_probs?: Record<string, number>
+  flag_map?: Record<string, string>
 }
 
 // ── User Bracket ──────────────────────────────────────────────────────────────

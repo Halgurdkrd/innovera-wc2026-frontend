@@ -170,6 +170,8 @@ function ExplorePageContent() {
       predicted_champion: champion
         ? { team: champion, flag: flagLookup[champion], probability: rawSim.winner_probs?.[champion] ?? 0 }
         : undefined,
+      winner_probs: rawSim.winner_probs ?? {},
+      flag_map: flagLookup,
     }
   }, [rawSim, standings])
 

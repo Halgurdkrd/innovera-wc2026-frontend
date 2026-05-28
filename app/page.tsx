@@ -6,6 +6,7 @@ import { useLanguage } from '@/hooks/useLanguage'
 import MatchCard from '@/components/MatchCard'
 import LuckScoreSection from '@/components/LuckScoreSection'
 import GroupStandingsPreview from '@/components/GroupStandingsPreview'
+import WinnerProbsList from '@/components/WinnerProbsList'
 import { supabase } from '@/lib/supabase'
 import type { Match, LuckScore, GroupStanding } from '@/types'
 
@@ -34,6 +35,8 @@ export default function HomePage() {
   const [luckScores, setLuckScores] = useState<LuckScore[]>([])
   const [standings, setStandings] = useState<GroupStanding[]>([])
   const [loading, setLoading] = useState(true)
+  const [winnerProbs, setWinnerProbs] = useState<Record<string, number>>({})
+  const [winnerFlagMap, setWinnerFlagMap] = useState<Record<string, string>>({})
 
   const t = labels[language]
 
@@ -62,8 +65,28 @@ export default function HomePage() {
 
       if (matchRes.data) setMatches(matchRes.data as Match[])
       if (luckRes.data) setLuckScores(luckRes.data as LuckScore[])
-      if (standingsRes.data) setStandings(standingsRes.data as GroupStanding[])
+      const standingsData = standingsRes.data as GroupStanding[] | null
+      if (standingsData) setStandings(standingsData)
       setLoading(false)
+
+      // Fetch simulation probabilities — non-blocking, no spinner
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL
+      if (apiUrl) {
+        fetch(`${apiUrl}/simulate/tournament`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((data) => {
+            if (data?.winner_probs) {
+              setWinnerProbs(data.winner_probs)
+              // Build flag lookup from standings
+              const flagMap: Record<string, string> = {}
+              for (const row of standingsData ?? []) {
+                if (row.team_flag) flagMap[row.team_name] = row.team_flag
+              }
+              setWinnerFlagMap(flagMap)
+            }
+          })
+          .catch(() => {})
+      }
     }
 
     fetchData()
@@ -175,6 +198,15 @@ export default function HomePage() {
           <div className="h-64 bg-[#161B22] border border-[#30363D] rounded-xl animate-pulse" />
         ) : (
           <GroupStandingsPreview standings={standings} language={language} />
+        )}
+
+        {/* ── Tournament Win Probability ── */}
+        {Object.keys(winnerProbs).length > 0 && (
+          <WinnerProbsList
+            winnerProbs={winnerProbs}
+            flagMap={winnerFlagMap}
+            language={language}
+          />
         )}
       </main>
 
