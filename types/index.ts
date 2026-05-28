@@ -1,20 +1,28 @@
 export interface Match {
-  id: string
+  // DB primary key — matches table uses match_id (UUID)
+  match_id?: string
+  // id kept for backward compat (components that use match.id)
+  id?: string
   home_team: string
   away_team: string
   home_team_flag?: string
   away_team_flag?: string
-  match_time: string
-  match_date: string
+  // match_date is a timestamptz (contains both date + time); match_time is a legacy alias
+  match_date?: string
+  match_time?: string
+  tournament_stage?: string
   venue?: string
   group_name?: string
-  home_win_probability: number
-  away_win_probability: number
-  draw_probability: number
-  ai_confidence: number
-  status: 'upcoming' | 'live' | 'finished'
+  // Probability fields — optional; may not be in DB yet
+  home_win_probability?: number
+  away_win_probability?: number
+  draw_probability?: number
+  ai_confidence?: number
+  // 'scheduled' = DB value, 'upcoming' = legacy alias used in old code
+  status: 'upcoming' | 'scheduled' | 'live' | 'finished'
   home_score?: number
   away_score?: number
+  narrative?: string
 }
 
 export interface LuckScore {

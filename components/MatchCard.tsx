@@ -27,10 +27,12 @@ const statusBadge = (status: Match['status'], lang: Language) => {
 }
 
 export default function MatchCard({ match, language }: MatchCardProps) {
-  const confidence = confidenceLabel(match.ai_confidence, language)
+  const confidence = confidenceLabel(match.ai_confidence ?? 0, language)
   const live = statusBadge(match.status, language)
-  const timeStr = match.match_time
-    ? new Date(match.match_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const matchId = match.match_id ?? match.id ?? ''
+  const datetime = match.match_date ?? match.match_time
+  const timeStr = datetime
+    ? new Date(datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : '--:--'
 
   return (
@@ -58,9 +60,9 @@ export default function MatchCard({ match, language }: MatchCardProps) {
           <span className="text-sm font-semibold text-[#E6EDF3] leading-tight">{match.home_team}</span>
           {match.status === 'finished' && match.home_score !== undefined ? (
             <span className="text-xl font-extrabold text-[#E6EDF3]">{match.home_score}</span>
-          ) : (
+          ) : match.home_win_probability != null ? (
             <span className="text-xs font-bold text-[#F0A500]">{Math.round(match.home_win_probability)}%</span>
-          )}
+          ) : null}
         </div>
 
         {/* VS / Score */}
@@ -85,14 +87,14 @@ export default function MatchCard({ match, language }: MatchCardProps) {
           <span className="text-sm font-semibold text-[#E6EDF3] leading-tight">{match.away_team}</span>
           {match.status === 'finished' && match.away_score !== undefined ? (
             <span className="text-xl font-extrabold text-[#E6EDF3]">{match.away_score}</span>
-          ) : (
+          ) : match.away_win_probability != null ? (
             <span className="text-xs font-bold text-[#F0A500]">{Math.round(match.away_win_probability)}%</span>
-          )}
+          ) : null}
         </div>
       </div>
 
       {/* Probability bars (hide for finished matches) */}
-      {match.status !== 'finished' && (
+      {match.status !== 'finished' && match.home_win_probability != null && (
         <div className="space-y-1.5">
           <div className="flex gap-0.5 h-2 rounded-full overflow-hidden">
             <div
@@ -101,16 +103,16 @@ export default function MatchCard({ match, language }: MatchCardProps) {
             />
             <div
               className="bg-[#8B949E] transition-all duration-700"
-              style={{ width: `${match.draw_probability}%` }}
+              style={{ width: `${match.draw_probability ?? 0}%` }}
             />
             <div
               className="bg-[#F85149] rounded-r-full transition-all duration-700"
-              style={{ width: `${match.away_win_probability}%` }}
+              style={{ width: `${match.away_win_probability ?? 0}%` }}
             />
           </div>
           <div className="flex justify-between text-[10px] text-[#8B949E]">
             <span>{language === 'KU' ? 'ماڵ' : 'Home'}</span>
-            <span>{language === 'KU' ? 'یەکسان' : 'Draw'} {Math.round(match.draw_probability)}%</span>
+            <span>{language === 'KU' ? 'یەکسان' : 'Draw'} {Math.round(match.draw_probability ?? 0)}%</span>
             <span>{language === 'KU' ? 'دەرەوە' : 'Away'}</span>
           </div>
         </div>
@@ -118,7 +120,7 @@ export default function MatchCard({ match, language }: MatchCardProps) {
 
       {/* Predict button → links to match detail */}
       <Link
-        href={`/match/${match.id}`}
+        href={`/match/${matchId}`}
         className="w-full block text-center bg-[#F0A500] hover:bg-[#D4920A] text-[#0D1117] font-semibold text-sm py-2.5 rounded-lg transition-colors"
       >
         {language === 'KU'

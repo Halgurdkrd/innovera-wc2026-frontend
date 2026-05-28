@@ -1,187 +1,303 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
+import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import CardModal from '@/components/CardModal'
-import { useLanguage } from '@/hooks/useLanguage'
-import type { Language } from '@/lib/translations'
 import ShapCard from '@/components/ShapCard'
 import MomentumBar from '@/components/MomentumBar'
 import LuckScoreBar from '@/components/LuckScoreBar'
 import UserPrediction from '@/components/UserPrediction'
+import { Sk } from '@/components/SkeletonCard'
+import { useLanguage } from '@/hooks/useLanguage'
 import { supabase } from '@/lib/supabase'
-import type { Match, Prediction } from '@/types'
+import type { Match, Prediction, LuckScore } from '@/types'
 
-// ── helpers ────────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-const confidenceConfig = (score: number, lang: Language) => {
-  if (score >= 80) return {
-    label: lang === 'KU' ? 'زۆر دڵنیا' : 'High Confidence',
-    color: '#2EA043',
-  }
-  if (score >= 60) return {
-    label: lang === 'KU' ? 'دڵنیا' : 'Moderate Confidence',
-    color: '#F0A500',
-  }
-  return {
-    label: lang === 'KU' ? 'نادڵنیا' : 'Low Confidence',
-    color: '#8B949E',
-  }
+function fmtDateTime(iso?: string) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleString([], {
+    weekday: 'short', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
 }
 
-const formatMatchTime = (iso: string) =>
-  new Date(iso).toLocaleString([], {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+function fmtDate(iso?: string) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString([], {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   })
+}
 
-const labels = {
+function confidenceCfg(score?: number) {
+  if (!score) return { label: 'LOW', labelKU: 'کەم', color: '#8B949E' }
+  if (score >= 75) return { label: 'HIGH', labelKU: 'بەرز', color: '#2EA043' }
+  if (score >= 50) return { label: 'MEDIUM', labelKU: 'مامناوەند', color: '#F0A500' }
+  return { label: 'LOW', labelKU: 'کەم', color: '#8B949E' }
+}
+
+function luckLabel(score?: number): 'Lucky' | 'Deserved' | 'Unlucky' {
+  if (score == null) return 'Deserved'
+  if (score > 1) return 'Lucky'
+  if (score < -1) return 'Unlucky'
+  return 'Deserved'
+}
+
+// ── Labels ────────────────────────────────────────────────────────────────────
+
+const L = {
   EN: {
-    back: '← All Matches',
+    back: '← Back',
+    scheduled: 'Scheduled',
     live: '🔴 LIVE',
     finished: 'Full Time',
-    upcoming: 'Upcoming',
-    aiAnalysis: 'AI Analysis',
-    shapTitle: 'Key Prediction Factors',
+    group: 'Group',
+    aiCard: 'AI Prediction',
+    homeWin: 'Home Win', draw: 'Draw', awayWin: 'Away Win',
+    confidence: 'AI Confidence',
+    scorelines: 'Most Likely Scorelines',
+    shapTitle: 'Why AI Thinks This',
     shapSub: 'Powered by SHAP explainability',
-    scorelineTitle: 'Most Likely Scorelines',
-    momentumTitle: 'Team Momentum',
-    keyPlayerTitle: 'Key Player Spotlight',
-    impactScore: 'Impact Score',
-    postMatchTitle: 'Post-Match Analysis',
+    momentum: 'Team Momentum',
+    keyPlayer: 'Key Player Spotlight',
+    impact: 'Impact',
+    postMatch: 'Post-Match Analysis',
+    luckTitle: 'Luck Scores',
     narrative: 'AI Match Narrative',
-    shareCard: 'Share Prediction Card',
-    shareDownload: 'Download Card',
+    share: 'Share Prediction Card',
+    shareDownload: 'View Card',
     shareLoading: 'Generating…',
-    noData: 'Prediction data not yet available for this match.',
+    noPred: 'AI prediction not yet available.',
+    noPredSoon: 'Prediction arrives ~2 hours before kickoff.',
+    noMatch: 'Match not found.',
   },
   KU: {
-    back: '← هەموو یارییەکان',
+    back: '← گەڕانەوە',
+    scheduled: 'بەرنامەریزیکراو',
     live: '🔴 ڕاستەوخۆ',
     finished: 'تەواوبوو',
-    upcoming: 'داهاتوو',
-    aiAnalysis: 'شیکاری AI',
-    shapTitle: 'هۆکارەکانی پێشبینی',
+    group: 'گروپ',
+    aiCard: 'پێشبینی AI',
+    homeWin: 'ماڵ دەبەرێت', draw: 'یەکسان', awayWin: 'میوان دەبەرێت',
+    confidence: 'دڵنیایی AI',
+    scorelines: 'ئەنجامە پێشبینیکراوەکان',
+    shapTitle: 'بۆچی AI ئەمە پێشبینی دەکات',
     shapSub: 'بە هێزی SHAP',
-    scorelineTitle: 'ئەنجامە پێشبینیکراوەکان',
-    momentumTitle: 'مۆمێنتەمی تیمەکان',
-    keyPlayerTitle: 'لاعبی گرنگ',
-    impactScore: 'خەمەی کاریگەری',
-    postMatchTitle: 'شیکاری دوای یاری',
+    momentum: 'مۆمێنتەمی تیمەکان',
+    keyPlayer: 'لاعبی گرنگ',
+    impact: 'کاریگەری',
+    postMatch: 'شیکاری دوای یاری',
+    luckTitle: 'خەمەی بەخت',
     narrative: 'چیرۆکی یاری بە AI',
-    shareCard: 'کارتی پێشبینی بەشبکە',
-    shareDownload: 'داگرتن',
+    share: 'کارتی پێشبینی بەشبکە',
+    shareDownload: 'بینینی کارت',
     shareLoading: 'ئامادەکردن…',
-    noData: 'داتای پێشبینی بۆ ئەم یارییە بەردەست نیە.',
+    noPred: 'پێشبینی AI بۆ ئەم یارییە بەردەست نیە.',
+    noPredSoon: 'پێشبینی نزیکەی ٢ کاتژمێر پێش دەستپێکردن دێت.',
+    noMatch: 'یاری نەدۆزرایەوە.',
   },
 }
 
-// ── Scoreline card ─────────────────────────────────────────────────────────────
+// ── Sub-components ────────────────────────────────────────────────────────────
 
-function ScorelineCard({
-  home, away, homeFlag, awayFlag, prob, rank,
-}: {
-  home: string; away: string; homeFlag?: string; awayFlag?: string
-  prob: number; rank: number
-}) {
-  const colors = ['#F0A500', '#8B949E', '#CD7F32'] // gold, silver, bronze
-  const color = colors[rank - 1] ?? '#30363D'
-
+function StatusBadge({ status, lang }: { status: Match['status']; lang: 'EN' | 'KU' }) {
+  const t = L[lang]
+  if (status === 'live') return (
+    <span className="flex items-center gap-1.5 text-xs font-bold text-[#F85149] bg-[#F85149]/10 border border-[#F85149]/30 px-3 py-1 rounded-full">
+      <span className="h-1.5 w-1.5 rounded-full bg-[#F85149] animate-ping" />
+      {t.live}
+    </span>
+  )
+  if (status === 'finished') return (
+    <span className="text-xs font-semibold text-[#8B949E] bg-[#30363D]/50 px-3 py-1 rounded-full">
+      {t.finished}
+    </span>
+  )
   return (
-    <div
-      className="flex items-center justify-between bg-[#0D1117] border rounded-xl px-4 py-3 gap-3"
-      style={{ borderColor: color + '50' }}
-    >
-      <div className="flex items-center gap-2 flex-1 min-w-0">
-        <span
-          className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold flex-shrink-0"
-          style={{ color, backgroundColor: color + '20' }}
-        >
-          {rank}
-        </span>
-        <span className="text-base">{homeFlag || '🏳️'}</span>
-        <span
-          className="text-xl font-extrabold"
-          style={{ color }}
-        >
-          {home}–{away}
-        </span>
-        <span className="text-base">{awayFlag || '🏳️'}</span>
+    <span className="text-xs font-semibold text-[#F0A500] bg-[#F0A500]/10 border border-[#F0A500]/30 px-3 py-1 rounded-full">
+      {t.scheduled}
+    </span>
+  )
+}
+
+function ProbBar({ homeProb, drawProb, awayProb, homeName, awayName, lang }: {
+  homeProb: number; drawProb: number; awayProb: number
+  homeName: string; awayName: string; lang: 'EN' | 'KU'
+}) {
+  const t = L[lang]
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-0.5 h-3 rounded-full overflow-hidden">
+        <div className="bg-[#2EA043] rounded-l-full transition-all duration-1000" style={{ width: `${homeProb}%` }} />
+        <div className="bg-[#8B949E] transition-all duration-1000" style={{ width: `${drawProb}%` }} />
+        <div className="bg-[#F85149] rounded-r-full transition-all duration-1000" style={{ width: `${awayProb}%` }} />
       </div>
-      <span
-        className="text-sm font-bold flex-shrink-0"
-        style={{ color }}
-      >
-        {prob.toFixed(0)}%
-      </span>
+      <div className="flex justify-between text-xs">
+        <span className="text-[#2EA043] font-semibold">{homeName} {Math.round(homeProb)}%</span>
+        <span className="text-[#8B949E]">{t.draw} {Math.round(drawProb)}%</span>
+        <span className="text-[#F85149] font-semibold">{Math.round(awayProb)}% {awayName}</span>
+      </div>
     </div>
   )
 }
 
-// ── Main page ──────────────────────────────────────────────────────────────────
-
-export default function MatchDetailPage({
-  params,
-}: {
-  params: { match_id: string }
+function ScorelineRow({ home, away, homeFlag, awayFlag, prob, rank }: {
+  home: number; away: number; homeFlag?: string; awayFlag?: string
+  prob: number; rank: number
 }) {
+  const colors = ['#F0A500', '#8B949E', '#CD7F32']
+  const color = colors[rank - 1] ?? '#30363D'
+  return (
+    <div className="flex items-center gap-3 bg-[#0D1117] border rounded-xl px-4 py-3" style={{ borderColor: color + '50' }}>
+      <span className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold flex-shrink-0"
+        style={{ color, backgroundColor: color + '20' }}>
+        {rank}
+      </span>
+      <span className="text-base flex-shrink-0">{homeFlag || '🏳️'}</span>
+      <span className="text-xl font-extrabold flex-1" style={{ color }}>
+        {home} – {away}
+      </span>
+      <span className="text-base flex-shrink-0">{awayFlag || '🏳️'}</span>
+      <span className="text-sm font-bold tabular-nums" style={{ color }}>{(prob * 100).toFixed(0)}%</span>
+    </div>
+  )
+}
+
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+
+function MatchSkeleton({ lang }: { lang: 'EN' | 'KU' }) {
+  return (
+    <div className="space-y-6">
+      {/* Header card */}
+      <div className="bg-[#161B22] border border-[#30363D] rounded-2xl p-6 space-y-6">
+        <div className="flex justify-between">
+          <Sk className="h-7 w-24 rounded-full" />
+          <Sk className="h-7 w-20 rounded-full" />
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col items-center gap-2 flex-1">
+            <Sk className="h-14 w-14 rounded-full" />
+            <Sk className="h-4 w-20" />
+            <Sk className="h-5 w-10" />
+          </div>
+          <div className="flex flex-col items-center gap-2">
+            <Sk className="h-8 w-16" />
+            <Sk className="h-3 w-24" />
+          </div>
+          <div className="flex flex-col items-center gap-2 flex-1">
+            <Sk className="h-14 w-14 rounded-full" />
+            <Sk className="h-4 w-20" />
+            <Sk className="h-5 w-10" />
+          </div>
+        </div>
+        <Sk className="h-3 w-full rounded-full" />
+      </div>
+      {/* AI card skeleton */}
+      {[1, 2, 3].map(i => (
+        <div key={i} className="bg-[#161B22] border border-[#30363D] rounded-xl p-5 space-y-3">
+          <Sk className="h-5 w-40" />
+          <Sk className="h-3 w-full rounded-full" />
+          <Sk className="h-3 w-3/4 rounded-full" />
+        </div>
+      ))}
+      <p className="text-center text-xs text-[#8B949E]">
+        {lang === 'KU' ? 'پێشبینییەکانی ئەی ئای بارئەکرێت…' : 'AI predictions loading…'}
+      </p>
+    </div>
+  )
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
+export default function MatchDetailPage({ params }: { params: { match_id: string } }) {
   const { language, changeLanguage } = useLanguage()
+  const router = useRouter()
+  const { match_id } = params
+  const t = L[language]
+
   const [match, setMatch] = useState<Match | null>(null)
   const [prediction, setPrediction] = useState<Prediction | null>(null)
+  const [homeLuck, setHomeLuck] = useState<LuckScore | null>(null)
+  const [awayLuck, setAwayLuck] = useState<LuckScore | null>(null)
   const [loading, setLoading] = useState(true)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [shareLoading, setShareLoading] = useState(false)
   const [showCardModal, setShowCardModal] = useState(false)
-
-  const t = labels[language]
-  const { match_id } = params
+  const probBarRef = useRef<HTMLDivElement>(null)
+  const [probsVisible, setProbsVisible] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
       const [matchRes, predRes] = await Promise.all([
-        supabase.from('matches').select('*').eq('id', match_id).single(),
+        supabase.from('matches').select('*').eq('match_id', match_id).single(),
         supabase.from('predictions').select('*').eq('match_id', match_id).single(),
       ])
-      if (matchRes.data) setMatch(matchRes.data as Match)
+
+      const m = matchRes.data as (Match & { match_id?: string }) | null
+      if (m) {
+        // Ensure id is populated for components that use match.id
+        m.id = m.id ?? m.match_id
+        setMatch(m)
+
+        // Fetch luck scores for both teams once we know the match date
+        const matchDateStr = m.match_date?.split('T')[0]
+        if (matchDateStr) {
+          const luckRes = await supabase
+            .from('luck_scores')
+            .select('*')
+            .in('team_name', [m.home_team, m.away_team])
+            .gte('match_date', matchDateStr)
+            .lt('match_date', matchDateStr + 'T23:59:59')
+          if (luckRes.data) {
+            const rows = luckRes.data as LuckScore[]
+            setHomeLuck(rows.find(r => r.team_name === m.home_team) ?? null)
+            setAwayLuck(rows.find(r => r.team_name === m.away_team) ?? null)
+          }
+        }
+      }
+
       if (predRes.data) setPrediction(predRes.data as Prediction)
       setLoading(false)
     }
     fetchData()
   }, [match_id])
 
+  // Animate prob bars on mount
+  useEffect(() => {
+    const timer = setTimeout(() => setProbsVisible(true), 150)
+    return () => clearTimeout(timer)
+  }, [])
+
   const handleShareCard = async () => {
     if (!match) return
     setShareLoading(true)
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL
-      const res = await fetch(`${apiUrl}/card?match_id=${match_id}`)
+      const res = await fetch(`${apiUrl}/cards/card?match_id=${match_id}`)
       if (res.ok) {
         const data = await res.json()
         const url = data.url ?? data.download_url ?? null
         setShareUrl(url)
         if (url) setShowCardModal(true)
       }
-    } catch {
-      // share card is best-effort
-    } finally {
-      setShareLoading(false)
-    }
+    } catch { /* share is best-effort */ }
+    finally { setShareLoading(false) }
   }
+
+  // ── Loading ──────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0D1117]">
         <Navbar language={language} onLanguageChange={changeLanguage} />
-        <div className="mx-auto max-w-4xl px-4 py-12 space-y-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-32 rounded-xl bg-[#161B22] border border-[#30363D] animate-pulse" />
-          ))}
-        </div>
+        <main className="mx-auto max-w-4xl px-4 sm:px-6 py-8 space-y-6">
+          <button onClick={() => router.back()} className="text-sm text-[#8B949E] hover:text-[#F0A500] transition-colors">
+            {t.back}
+          </button>
+          <MatchSkeleton lang={language} />
+        </main>
       </div>
     )
   }
@@ -190,98 +306,104 @@ export default function MatchDetailPage({
     return (
       <div className="min-h-screen bg-[#0D1117]">
         <Navbar language={language} onLanguageChange={changeLanguage} />
-        <div className="mx-auto max-w-4xl px-4 py-24 text-center">
-          <p className="text-[#8B949E]">Match not found.</p>
-          <Link href="/" className="mt-4 inline-block text-[#F0A500] hover:underline">{t.back}</Link>
+        <div className="mx-auto max-w-4xl px-4 py-24 text-center space-y-4">
+          <p className="text-4xl">🏟️</p>
+          <p className="text-[#8B949E]">{t.noMatch}</p>
+          <button onClick={() => router.back()} className="text-[#F0A500] hover:underline text-sm">
+            {t.back}
+          </button>
         </div>
       </div>
     )
   }
 
-  const confidence = confidenceConfig(match.ai_confidence, language)
   const isFinished = match.status === 'finished'
   const isLive = match.status === 'live'
+  const isScheduled = match.status === 'scheduled' || match.status === 'upcoming'
+  const datetime = match.match_date ?? match.match_time
+  const confidence = confidenceCfg(match.ai_confidence)
+
+  const hasProbs = match.home_win_probability != null
 
   return (
     <div className="min-h-screen bg-[#0D1117]">
       <Navbar language={language} onLanguageChange={changeLanguage} />
 
       {showCardModal && shareUrl && (
-        <CardModal
-          imageUrl={shareUrl}
-          language={language}
-          onClose={() => setShowCardModal(false)}
-        />
+        <CardModal imageUrl={shareUrl} language={language} onClose={() => setShowCardModal(false)} />
       )}
 
       <main className="mx-auto max-w-4xl px-4 sm:px-6 py-8 space-y-8">
-        {/* Back */}
-        <Link href="/" className="inline-flex items-center gap-1 text-sm text-[#8B949E] hover:text-[#F0A500] transition-colors">
-          {t.back}
-        </Link>
 
-        {/* ── Match Header ─────────────────────────────────────────────────── */}
+        {/* Back */}
+        <button
+          onClick={() => router.back()}
+          className="inline-flex items-center gap-1 text-sm text-[#8B949E] hover:text-[#F0A500] transition-colors"
+        >
+          {t.back}
+        </button>
+
+        {/* ── SECTION 1: Match Header ──────────────────────────────────────── */}
         <div className="bg-[#161B22] border border-[#30363D] rounded-2xl p-6 space-y-6">
-          {/* Status + venue */}
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              {isLive ? (
-                <span className="flex items-center gap-1.5 text-xs font-bold text-[#F85149] bg-[#F85149]/10 border border-[#F85149]/30 px-3 py-1 rounded-full">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#F85149] animate-ping inline-block" />
-                  {t.live}
-                </span>
-              ) : isFinished ? (
-                <span className="text-xs font-semibold text-[#8B949E] bg-[#30363D]/50 px-3 py-1 rounded-full">
-                  {t.finished}
-                </span>
-              ) : (
-                <span className="text-xs font-semibold text-[#F0A500] bg-[#F0A500]/10 border border-[#F0A500]/30 px-3 py-1 rounded-full">
-                  {t.upcoming} · {formatMatchTime(match.match_time)}
+
+          {/* Status row */}
+          <div className="flex items-center flex-wrap gap-2 justify-between">
+            <div className="flex items-center gap-2 flex-wrap">
+              <StatusBadge status={match.status} lang={language} />
+              {match.tournament_stage && (
+                <span className="text-xs text-[#8B949E] bg-[#0D1117] border border-[#30363D] px-2.5 py-1 rounded-full">
+                  {match.tournament_stage}
                 </span>
               )}
               {match.group_name && (
                 <span className="text-xs text-[#8B949E] bg-[#0D1117] border border-[#30363D] px-2.5 py-1 rounded-full">
-                  {match.group_name}
+                  {t.group} {match.group_name}
                 </span>
               )}
             </div>
-            {/* AI Confidence badge */}
-            <span
-              className="text-xs font-bold px-3 py-1 rounded-full border"
-              style={{ color: confidence.color, borderColor: confidence.color + '40', backgroundColor: confidence.color + '15' }}
-            >
-              {confidence.label}
-            </span>
+            {match.ai_confidence != null && (
+              <span
+                className="text-xs font-bold px-3 py-1 rounded-full border"
+                style={{ color: confidence.color, borderColor: confidence.color + '40', backgroundColor: confidence.color + '15' }}
+              >
+                {t.confidence}: {language === 'KU' ? confidence.labelKU : confidence.label}
+              </span>
+            )}
           </div>
 
-          {/* Teams row */}
+          {/* Date + venue */}
+          {datetime && (
+            <p className="text-xs text-[#8B949E]">
+              {fmtDateTime(datetime)}
+              {match.venue && <> · {match.venue}</>}
+            </p>
+          )}
+
+          {/* Teams */}
           <div className="flex items-center justify-between gap-4">
             {/* Home */}
             <div className="flex flex-col items-center gap-2 flex-1 text-center">
               <span className="text-5xl sm:text-6xl">{match.home_team_flag || '🏳️'}</span>
               <span className="text-base sm:text-xl font-bold text-[#E6EDF3]">{match.home_team}</span>
-              {isFinished || isLive ? (
+              {(isFinished || isLive) ? (
                 <span className="text-4xl font-extrabold text-[#E6EDF3]">{match.home_score ?? 0}</span>
-              ) : (
-                <span className="text-lg font-bold text-[#F0A500]">{Math.round(match.home_win_probability)}%</span>
-              )}
+              ) : hasProbs ? (
+                <span className="text-lg font-bold text-[#F0A500]">{Math.round(match.home_win_probability!)}%</span>
+              ) : null}
             </div>
 
             {/* Centre */}
-            <div className="flex flex-col items-center gap-1 flex-shrink-0">
+            <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
               {isLive ? (
                 <span className="text-3xl font-extrabold text-[#F85149] animate-pulse">
-                  {match.home_score ?? 0} — {match.away_score ?? 0}
+                  {match.home_score ?? 0} – {match.away_score ?? 0}
                 </span>
               ) : isFinished ? (
                 <span className="text-3xl font-extrabold text-[#E6EDF3]">
-                  {match.home_score} — {match.away_score}
+                  {match.home_score ?? 0} – {match.away_score ?? 0}
                 </span>
               ) : (
                 <span className="text-2xl font-bold text-[#30363D]">VS</span>
-              )}
-              {match.venue && (
-                <span className="text-xs text-[#8B949E] text-center max-w-[120px]">{match.venue}</span>
               )}
             </div>
 
@@ -289,55 +411,86 @@ export default function MatchDetailPage({
             <div className="flex flex-col items-center gap-2 flex-1 text-center">
               <span className="text-5xl sm:text-6xl">{match.away_team_flag || '🏳️'}</span>
               <span className="text-base sm:text-xl font-bold text-[#E6EDF3]">{match.away_team}</span>
-              {isFinished || isLive ? (
+              {(isFinished || isLive) ? (
                 <span className="text-4xl font-extrabold text-[#E6EDF3]">{match.away_score ?? 0}</span>
-              ) : (
-                <span className="text-lg font-bold text-[#F0A500]">{Math.round(match.away_win_probability)}%</span>
-              )}
+              ) : hasProbs ? (
+                <span className="text-lg font-bold text-[#F0A500]">{Math.round(match.away_win_probability!)}%</span>
+              ) : null}
             </div>
           </div>
 
-          {/* Win probability bars */}
-          {!isFinished && (
-            <div className="space-y-2">
-              <div className="flex gap-0.5 h-3 rounded-full overflow-hidden">
-                <div
-                  className="bg-[#2EA043] rounded-l-full transition-all duration-1000"
-                  style={{ width: `${match.home_win_probability}%` }}
-                />
-                <div
-                  className="bg-[#8B949E] transition-all duration-1000"
-                  style={{ width: `${match.draw_probability}%` }}
-                />
-                <div
-                  className="bg-[#F85149] rounded-r-full transition-all duration-1000"
-                  style={{ width: `${match.away_win_probability}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-xs text-[#8B949E]">
-                <span className="text-[#2EA043] font-semibold">
-                  {Math.round(match.home_win_probability)}% {language === 'KU' ? 'ماڵ' : 'Home'}
-                </span>
-                <span>
-                  {Math.round(match.draw_probability)}% {language === 'KU' ? 'یەکسان' : 'Draw'}
-                </span>
-                <span className="text-[#F85149] font-semibold">
-                  {language === 'KU' ? 'دەرەوە' : 'Away'} {Math.round(match.away_win_probability)}%
-                </span>
-              </div>
+          {/* Animated prob bars */}
+          {hasProbs && !isFinished && (
+            <div ref={probBarRef}>
+              <ProbBar
+                homeProb={probsVisible ? match.home_win_probability! : 0}
+                drawProb={probsVisible ? (match.draw_probability ?? 0) : 0}
+                awayProb={probsVisible ? match.away_win_probability! : 0}
+                homeName={match.home_team}
+                awayName={match.away_team}
+                lang={language}
+              />
             </div>
           )}
         </div>
 
-        {/* ── AI Analysis sections (need prediction data) ──────────────────── */}
+        {/* ── SECTION 2: AI Prediction Card ───────────────────────────────── */}
         {!prediction ? (
-          <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-8 text-center">
-            <span className="text-3xl">🤖</span>
-            <p className="mt-3 text-[#8B949E]">{t.noData}</p>
+          <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-8 text-center space-y-2">
+            <span className="text-4xl">🤖</span>
+            <p className="text-[#8B949E]">{t.noPred}</p>
+            {isScheduled && (
+              <p className="text-xs text-[#8B949E]/60">{t.noPredSoon}</p>
+            )}
           </div>
         ) : (
           <>
-            {/* SHAP reasons */}
+            {/* Win prob bars inside AI card (from prediction if match has no prob cols) */}
+            {hasProbs && (
+              <section className="bg-[#161B22] border border-[#30363D] rounded-xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-bold text-[#E6EDF3]">{t.aiCard}</h2>
+                  {match.ai_confidence != null && (
+                    <span
+                      className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border"
+                      style={{ color: confidence.color, borderColor: confidence.color + '40', backgroundColor: confidence.color + '15' }}
+                    >
+                      {language === 'KU' ? confidence.labelKU : confidence.label}
+                    </span>
+                  )}
+                </div>
+                <ProbBar
+                  homeProb={match.home_win_probability!}
+                  drawProb={match.draw_probability ?? 0}
+                  awayProb={match.away_win_probability!}
+                  homeName={match.home_team}
+                  awayName={match.away_team}
+                  lang={language}
+                />
+              </section>
+            )}
+
+            {/* Scorelines */}
+            {prediction.scorelines && prediction.scorelines.length > 0 && (
+              <section className="space-y-3">
+                <h2 className="text-lg font-bold text-[#E6EDF3]">{t.scorelines}</h2>
+                <div className="space-y-2">
+                  {prediction.scorelines.slice(0, 3).map((s, i) => (
+                    <ScorelineRow
+                      key={i}
+                      rank={i + 1}
+                      home={s.home_score}
+                      away={s.away_score}
+                      homeFlag={match.home_team_flag}
+                      awayFlag={match.away_team_flag}
+                      prob={s.probability}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* ── SECTION 3: SHAP reasons ───────────────────────────────── */}
             {prediction.shap_reasons && prediction.shap_reasons.length > 0 && (
               <section className="space-y-4">
                 <div>
@@ -352,30 +505,10 @@ export default function MatchDetailPage({
               </section>
             )}
 
-            {/* Most likely scorelines */}
-            {prediction.scorelines && prediction.scorelines.length > 0 && (
-              <section className="space-y-4">
-                <h2 className="text-lg font-bold text-[#E6EDF3]">{t.scorelineTitle}</h2>
-                <div className="space-y-2">
-                  {prediction.scorelines.slice(0, 3).map((s, i) => (
-                    <ScorelineCard
-                      key={i}
-                      rank={i + 1}
-                      home={String(s.home_score)}
-                      away={String(s.away_score)}
-                      homeFlag={match.home_team_flag}
-                      awayFlag={match.away_team_flag}
-                      prob={s.probability * 100}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Momentum */}
+            {/* ── SECTION 4: Momentum ───────────────────────────────────── */}
             {prediction.momentum && prediction.momentum.length > 0 && (
-              <section className="space-y-4">
-                <h2 className="text-lg font-bold text-[#E6EDF3]">{t.momentumTitle}</h2>
+              <section className="space-y-3">
+                <h2 className="text-lg font-bold text-[#E6EDF3]">{t.momentum}</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {prediction.momentum.slice(0, 2).map((m, i) => (
                     <MomentumBar key={i} momentum={m} language={language} />
@@ -384,10 +517,10 @@ export default function MatchDetailPage({
               </section>
             )}
 
-            {/* Key player */}
+            {/* ── SECTION 5: Key Player ─────────────────────────────────── */}
             {prediction.key_player && (
-              <section className="space-y-4">
-                <h2 className="text-lg font-bold text-[#E6EDF3]">{t.keyPlayerTitle}</h2>
+              <section className="space-y-3">
+                <h2 className="text-lg font-bold text-[#E6EDF3]">{t.keyPlayer}</h2>
                 <div className="bg-[#161B22] border border-[#F0A500]/30 rounded-xl p-5">
                   <div className="flex items-center gap-4">
                     <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F0A500]/10 border-2 border-[#F0A500]/40 text-3xl flex-shrink-0">
@@ -406,7 +539,7 @@ export default function MatchDetailPage({
                       <span className="text-2xl font-extrabold text-[#F0A500]">
                         {prediction.key_player.impact_score.toFixed(1)}
                       </span>
-                      <span className="text-[10px] text-[#8B949E]">{t.impactScore}</span>
+                      <span className="text-[10px] text-[#8B949E]">{t.impact}</span>
                     </div>
                   </div>
                 </div>
@@ -415,51 +548,89 @@ export default function MatchDetailPage({
           </>
         )}
 
-        {/* ── User Prediction (only for upcoming matches) ───────────────────── */}
-        <UserPrediction match={match} language={language} />
+        {/* ── SECTION 6: User Prediction (scheduled only) ─────────────────── */}
+        {(isScheduled || isLive) && <UserPrediction match={match} language={language} />}
 
-        {/* ── Post-Match Analysis ───────────────────────────────────────────── */}
-        {isFinished && prediction && (
-          <section className="space-y-4">
-            <h2 className="text-lg font-bold text-[#E6EDF3]">{t.postMatchTitle}</h2>
+        {/* ── SECTION 7: Post-Match (finished only) ───────────────────────── */}
+        {isFinished && (
+          <section className="space-y-5">
+            <h2 className="text-lg font-bold text-[#E6EDF3]">{t.postMatch}</h2>
 
-            {prediction.luck_score !== undefined && (
-              <LuckScoreBar
-                score={prediction.luck_score}
-                label={prediction.luck_label}
-                language={language}
-              />
+            {/* Luck bars — one per team */}
+            {(homeLuck || awayLuck) && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-[#8B949E] uppercase tracking-wide">{t.luckTitle}</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {homeLuck && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-[#E6EDF3] flex items-center gap-1.5">
+                        <span>{match.home_team_flag || '🏳️'}</span>
+                        {match.home_team}
+                      </p>
+                      <LuckScoreBar
+                        score={homeLuck.luck_score}
+                        label={luckLabel(homeLuck.luck_score)}
+                        language={language}
+                      />
+                    </div>
+                  )}
+                  {awayLuck && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-[#E6EDF3] flex items-center gap-1.5">
+                        <span>{match.away_team_flag || '🏳️'}</span>
+                        {match.away_team}
+                      </p>
+                      <LuckScoreBar
+                        score={awayLuck.luck_score}
+                        label={luckLabel(awayLuck.luck_score)}
+                        language={language}
+                      />
+                    </div>
+                  )}
+                  {/* Fallback: luck from predictions table */}
+                  {!homeLuck && !awayLuck && prediction?.luck_score != null && (
+                    <LuckScoreBar
+                      score={prediction.luck_score}
+                      label={prediction.luck_label}
+                      language={language}
+                    />
+                  )}
+                </div>
+              </div>
             )}
 
-            {prediction.ai_narrative && (
+            {/* AI Narrative */}
+            {(prediction?.ai_narrative || match.narrative) && (
               <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-5 space-y-3">
                 <div className="flex items-center gap-2">
                   <span className="text-base">🤖</span>
                   <h3 className="text-sm font-semibold text-[#E6EDF3]">{t.narrative}</h3>
                 </div>
                 <p className="text-sm text-[#8B949E] leading-relaxed whitespace-pre-line">
-                  {prediction.ai_narrative}
+                  {prediction?.ai_narrative ?? match.narrative}
                 </p>
               </div>
             )}
 
-            {/* Share card — opens CardModal once generated */}
-            <button
-              onClick={handleShareCard}
-              disabled={shareLoading}
-              className="inline-flex items-center gap-2 bg-[#161B22] border border-[#30363D] hover:border-[#F0A500]/50 text-[#E6EDF3] hover:text-[#F0A500] text-sm font-semibold px-5 py-2.5 rounded-lg transition-all disabled:opacity-60"
-            >
-              <span>📤</span>
-              {shareLoading ? t.shareLoading : t.shareCard}
-            </button>
-            {shareUrl && !showCardModal && (
+            {/* ── SECTION 8: Share Card ─────────────────────────────────── */}
+            <div className="flex items-center gap-3 flex-wrap">
               <button
-                onClick={() => setShowCardModal(true)}
-                className="inline-flex items-center gap-2 bg-[#F0A500] hover:bg-[#D4920A] text-[#0D1117] font-semibold text-sm px-5 py-2.5 rounded-lg transition-colors"
+                onClick={handleShareCard}
+                disabled={shareLoading}
+                className="inline-flex items-center gap-2 bg-[#161B22] border border-[#30363D] hover:border-[#F0A500]/50 text-[#E6EDF3] hover:text-[#F0A500] text-sm font-semibold px-5 py-2.5 rounded-lg transition-all disabled:opacity-60"
               >
-                👁 {t.shareDownload}
+                <span>📤</span>
+                {shareLoading ? t.shareLoading : t.share}
               </button>
-            )}
+              {shareUrl && !showCardModal && (
+                <button
+                  onClick={() => setShowCardModal(true)}
+                  className="inline-flex items-center gap-2 bg-[#F0A500] hover:bg-[#D4920A] text-[#0D1117] font-semibold text-sm px-5 py-2.5 rounded-lg transition-colors"
+                >
+                  👁 {t.shareDownload}
+                </button>
+              )}
+            </div>
           </section>
         )}
       </main>

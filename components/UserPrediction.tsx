@@ -58,8 +58,9 @@ export default function UserPrediction({ match, language }: UserPredictionProps)
   const [locked, setLocked] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const pastKickoff =
-    match.status !== 'upcoming' || new Date(match.match_time) < new Date()
+  const isScheduled = match.status === 'scheduled' || match.status === 'upcoming'
+  const kickoffTime = match.match_date ?? match.match_time
+  const pastKickoff = !isScheduled || (kickoffTime ? new Date(kickoffTime) < new Date() : false)
 
   const canLock = !locked && !pastKickoff && outcome !== null
 
@@ -74,7 +75,7 @@ export default function UserPrediction({ match, language }: UserPredictionProps)
       await supabase.from('user_predictions').upsert(
         {
           user_id: user.id,
-          match_id: match.id,
+          match_id: match.match_id ?? match.id,
           predicted_outcome: outcome,
           predicted_home_score: homeScore !== '' ? Number(homeScore) : null,
           predicted_away_score: awayScore !== '' ? Number(awayScore) : null,
