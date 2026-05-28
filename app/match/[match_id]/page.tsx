@@ -230,36 +230,48 @@ export default function MatchDetailPage({ params }: { params: { match_id: string
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
-      const [matchRes, predRes] = await Promise.all([
-        supabase.from('matches').select('*').eq('match_id', match_id).single(),
-        supabase.from('predictions').select('*').eq('match_id', match_id).single(),
-      ])
+      try {
+        const [matchRes, predRes] = await Promise.all([
+          supabase.from('matches').select('*').eq('match_id', match_id).maybeSingle(),
+          supabase.from('predictions').select('*').eq('match_id', match_id).maybeSingle(),
+        ])
 
-      const m = matchRes.data as (Match & { match_id?: string }) | null
-      if (m) {
-        // Ensure id is populated for components that use match.id
-        m.id = m.id ?? m.match_id
-        setMatch(m)
+        if (matchRes.error) console.error('[match] fetch error:', matchRes.error.message)
+        if (predRes.error) console.error('[prediction] fetch error:', predRes.error.message)
 
-        // Fetch luck scores for both teams once we know the match date
-        const matchDateStr = m.match_date?.split('T')[0]
-        if (matchDateStr) {
-          const luckRes = await supabase
-            .from('luck_scores')
-            .select('*')
-            .in('team_name', [m.home_team, m.away_team])
-            .gte('match_date', matchDateStr)
-            .lt('match_date', matchDateStr + 'T23:59:59')
-          if (luckRes.data) {
-            const rows = luckRes.data as LuckScore[]
-            setHomeLuck(rows.find(r => r.team_name === m.home_team) ?? null)
-            setAwayLuck(rows.find(r => r.team_name === m.away_team) ?? null)
+        const raw = matchRes.data as Record<string, unknown> | null
+        if (raw) {
+          // Build a clean Match object without mutating the Supabase response
+          const m: Match = {
+            ...(raw as unknown as Match),
+            match_id: raw.match_id as string | undefined,
+            id: (raw.id ?? raw.match_id) as string | undefined,
+          }
+          setMatch(m)
+
+          // Fetch luck scores — use eq on the date portion only
+          const matchDateStr = (m.match_date ?? '').split('T')[0]
+          if (matchDateStr) {
+            const luckRes = await supabase
+              .from('luck_scores')
+              .select('*')
+              .in('team_name', [m.home_team, m.away_team])
+              .eq('match_date', matchDateStr)
+            if (luckRes.data) {
+              const rows = luckRes.data as LuckScore[]
+              setHomeLuck(rows.find(r => r.team_name === m.home_team) ?? null)
+              setAwayLuck(rows.find(r => r.team_name === m.away_team) ?? null)
+            }
           }
         }
-      }
 
-      if (predRes.data) setPrediction(predRes.data as Prediction)
-      setLoading(false)
+        if (predRes.data) setPrediction(predRes.data as Prediction)
+      } catch (err) {
+        console.error('[match-detail] unexpected error:', err)
+      } finally {
+        // Always clear loading — prevents infinite spinner on any error
+        setLoading(false)
+      }
     }
     fetchData()
   }, [match_id])
