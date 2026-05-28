@@ -37,6 +37,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [winnerProbs, setWinnerProbs] = useState<Record<string, number>>({})
   const [winnerFlagMap, setWinnerFlagMap] = useState<Record<string, string>>({})
+  const [simLoading, setSimLoading] = useState(true)
 
   const t = labels[language]
 
@@ -69,7 +70,7 @@ export default function HomePage() {
       if (standingsData) setStandings(standingsData)
       setLoading(false)
 
-      // Fetch simulation probabilities — non-blocking, no spinner
+      // Fetch simulation probabilities — non-blocking, skeleton shows while waiting
       const apiUrl = process.env.NEXT_PUBLIC_API_URL
       if (apiUrl) {
         fetch(`${apiUrl}/simulate/tournament`)
@@ -77,7 +78,6 @@ export default function HomePage() {
           .then((data) => {
             if (data?.winner_probs) {
               setWinnerProbs(data.winner_probs)
-              // Build flag lookup from standings
               const flagMap: Record<string, string> = {}
               for (const row of standingsData ?? []) {
                 if (row.team_flag) flagMap[row.team_name] = row.team_flag
@@ -86,6 +86,9 @@ export default function HomePage() {
             }
           })
           .catch(() => {})
+          .finally(() => setSimLoading(false))
+      } else {
+        setSimLoading(false)
       }
     }
 
@@ -194,20 +197,15 @@ export default function HomePage() {
         )}
 
         {/* ── Group Standings Preview ── */}
-        {loading ? (
-          <div className="h-64 bg-[#161B22] border border-[#30363D] rounded-xl animate-pulse" />
-        ) : (
-          <GroupStandingsPreview standings={standings} language={language} />
-        )}
+        <GroupStandingsPreview standings={standings} language={language} loading={loading} />
 
         {/* ── Tournament Win Probability ── */}
-        {Object.keys(winnerProbs).length > 0 && (
-          <WinnerProbsList
-            winnerProbs={winnerProbs}
-            flagMap={winnerFlagMap}
-            language={language}
-          />
-        )}
+        <WinnerProbsList
+          winnerProbs={winnerProbs}
+          flagMap={winnerFlagMap}
+          language={language}
+          loading={simLoading}
+        />
       </main>
 
       {/* Footer */}

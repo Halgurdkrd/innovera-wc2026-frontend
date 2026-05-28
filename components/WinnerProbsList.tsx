@@ -1,12 +1,14 @@
 'use client'
 
 import type { Language } from './Navbar'
+import { SkProbRow } from './SkeletonCard'
 
 interface Props {
   winnerProbs: Record<string, number>
   flagMap?: Record<string, string>
   language: Language
   topN?: number
+  loading?: boolean
 }
 
 const labels = {
@@ -20,8 +22,25 @@ const labels = {
   },
 }
 
-export default function WinnerProbsList({ winnerProbs, flagMap, language, topN = 8 }: Props) {
+export default function WinnerProbsList({ winnerProbs, flagMap, language, topN = 8, loading = false }: Props) {
   const t = labels[language]
+
+  if (loading) {
+    return (
+      <section className="space-y-4">
+        <div>
+          <div className="animate-pulse bg-[#21262D] rounded h-6 w-56" />
+          <div className="animate-pulse bg-[#21262D] rounded h-3 w-48 mt-2" />
+        </div>
+        <div className="bg-[#161B22] border border-[#30363D] rounded-xl overflow-hidden divide-y divide-[#30363D]/40">
+          {Array.from({ length: 8 }).map((_, i) => <SkProbRow key={i} />)}
+        </div>
+        <p className="text-center text-xs text-[#8B949E]">
+          {language === 'KU' ? 'پێشبینییەکانی ئەی ئای بارئەکرێت…' : 'AI predictions loading…'}
+        </p>
+      </section>
+    )
+  }
 
   const sorted = Object.entries(winnerProbs)
     .sort(([, a], [, b]) => b - a)

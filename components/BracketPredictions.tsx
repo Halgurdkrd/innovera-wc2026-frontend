@@ -10,6 +10,7 @@ import type {
 } from '@/types'
 import type { Language } from './Navbar'
 import WinnerProbsList from './WinnerProbsList'
+import { Sk, SkProbRow } from './SkeletonCard'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -709,9 +710,49 @@ export default function BracketPredictions({ simulation, realSlots, loading, lan
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="h-24 rounded-2xl bg-[#161B22] border border-[#30363D] animate-pulse" />
-        <div className="h-48 rounded-xl bg-[#161B22] border border-[#30363D] animate-pulse" />
+      <div className="space-y-6">
+        {/* Champion card skeleton */}
+        <div className="bg-[#161B22] border border-[#30363D]/60 rounded-2xl p-5 flex items-center gap-5">
+          <Sk className="h-14 w-14 rounded-2xl flex-shrink-0" />
+          <div className="flex-1 space-y-2">
+            <Sk className="h-3 w-28" />
+            <Sk className="h-5 w-40" />
+            <Sk className="h-2 w-full rounded-full mt-3" />
+          </div>
+        </div>
+        {/* Winner probs skeleton */}
+        <div className="space-y-3">
+          <Sk className="h-5 w-52" />
+          <Sk className="h-3 w-44" />
+          <div className="bg-[#161B22] border border-[#30363D] rounded-xl overflow-hidden divide-y divide-[#30363D]/40">
+            {Array.from({ length: 8 }).map((_, i) => <SkProbRow key={i} />)}
+          </div>
+        </div>
+        {/* Bracket slots skeleton */}
+        <div className="overflow-x-auto pb-4">
+          <div className="flex gap-6 min-w-max py-2">
+            {Array.from({ length: 5 }).map((_, col) => (
+              <div key={col} className="flex flex-col gap-3">
+                <Sk className="h-4 w-24 mb-1" />
+                {Array.from({ length: Math.max(1, 8 >> col) }).map((_, row) => (
+                  <div key={row} className="w-44 bg-[#161B22] border border-[#30363D] rounded-lg overflow-hidden">
+                    <div className="flex items-center gap-2 px-2.5 py-2 border-b border-[#30363D]/50">
+                      <Sk className="h-4 w-4 rounded-full" />
+                      <Sk className="h-3 flex-1" />
+                    </div>
+                    <div className="flex items-center gap-2 px-2.5 py-2">
+                      <Sk className="h-4 w-4 rounded-full" />
+                      <Sk className="h-3 flex-1" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+        <p className="text-center text-xs text-[#8B949E]">
+          {language === 'KU' ? 'پێشبینییەکانی ئەی ئای بارئەکرێت…' : 'AI predictions loading…'}
+        </p>
       </div>
     )
   }

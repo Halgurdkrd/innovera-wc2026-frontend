@@ -2,6 +2,7 @@
 
 import type { TournamentGroup, TournamentGroupTeam, GroupStanding } from '@/types'
 import type { Language } from './Navbar'
+import { SkGroupCard } from './SkeletonCard'
 
 // ── Fallback: all 48 WC2026 teams — always visible, even when API is down ──────
 // qualify_prob 0.5 = equal chance pre-tournament (top 2 of 4 advance)
@@ -307,10 +308,13 @@ export default function GroupStagePredictions({ groups, stageAppearances, standi
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-52 rounded-xl bg-[#161B22] border border-[#30363D] animate-pulse" />
-        ))}
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {Array.from({ length: 4 }).map((_, i) => <SkGroupCard key={i} rows={4} />)}
+        </div>
+        <p className="text-center text-xs text-[#8B949E]">
+          {language === 'KU' ? 'پێشبینییەکانی ئەی ئای بارئەکرێت…' : 'AI predictions loading…'}
+        </p>
       </div>
     )
   }

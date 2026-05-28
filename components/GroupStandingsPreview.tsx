@@ -3,10 +3,12 @@
 import type { GroupStanding } from '@/types'
 import type { Language } from './Navbar'
 import Link from 'next/link'
+import { SkGroupCard } from './SkeletonCard'
 
 interface GroupStandingsPreviewProps {
   standings: GroupStanding[]
   language: Language
+  loading?: boolean
 }
 
 const labels = {
@@ -87,8 +89,22 @@ function GroupTable({ groupName, rows, t, language }: {
   )
 }
 
-export default function GroupStandingsPreview({ standings, language }: GroupStandingsPreviewProps) {
+export default function GroupStandingsPreview({ standings, language, loading = false }: GroupStandingsPreviewProps) {
   const t = labels[language]
+
+  if (loading) {
+    return (
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-[#E6EDF3]">{t.title}</h2>
+          <div className="animate-pulse bg-[#21262D] rounded h-4 w-28" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => <SkGroupCard key={i} rows={4} />)}
+        </div>
+      </section>
+    )
+  }
 
   const groups = standings.reduce<Record<string, GroupStanding[]>>((acc, row) => {
     if (!acc[row.group_name]) acc[row.group_name] = []
