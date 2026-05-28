@@ -5,7 +5,6 @@ import { useSearchParams } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import { useLanguage } from '@/hooks/useLanguage'
 import TeamCard from '@/components/TeamCard'
-import TeamProfile from '@/components/TeamProfile'
 import GroupStagePredictions from '@/components/GroupStagePredictions'
 import BracketPredictions from '@/components/BracketPredictions'
 import { supabase } from '@/lib/supabase'
@@ -180,7 +179,6 @@ function ExplorePageContent() {
 
   const [search, setSearch] = useState('')
   const [confFilter, setConfFilter] = useState<Conf>('All')
-  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
 
   const t = labels[language]
 
@@ -273,11 +271,6 @@ function ExplorePageContent() {
     <div className="min-h-screen bg-[#0D1117]">
       <Navbar language={language} onLanguageChange={changeLanguage} />
 
-      {/* Team profile overlay */}
-      {selectedTeam && (
-        <TeamProfile team={selectedTeam} language={language} onClose={() => setSelectedTeam(null)} />
-      )}
-
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Header */}
         <div className="space-y-1">
@@ -358,7 +351,7 @@ function ExplorePageContent() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 {filteredTeams.map((team) => (
-                  <TeamCard key={team.name} team={team} language={language} onClick={setSelectedTeam} />
+                  <TeamCard key={team.name} team={team} language={language} />
                 ))}
               </div>
             )}

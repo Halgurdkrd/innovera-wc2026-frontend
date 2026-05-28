@@ -1,22 +1,23 @@
 'use client'
 
+import Link from 'next/link'
 import type { Team } from '@/types'
 import type { Language } from './Navbar'
 
 interface TeamCardProps {
   team: Team
   language: Language
-  onClick: (team: Team) => void
+  onClick?: (team: Team) => void  // kept for backward compat; Link takes priority
 }
 
 const formColor = (r: string) =>
   r === 'W' ? '#2EA043' : r === 'L' ? '#F85149' : '#8B949E'
 
-export default function TeamCard({ team, language, onClick }: TeamCardProps) {
+export default function TeamCard({ team, language }: TeamCardProps) {
   return (
-    <button
-      onClick={() => onClick(team)}
-      className="w-full text-left bg-[#161B22] border border-[#30363D] rounded-xl p-4 hover:border-[#F0A500]/50 hover:bg-[#1C2128] transition-all group space-y-3"
+    <Link
+      href={`/team/${encodeURIComponent(team.name)}`}
+      className="block w-full text-left bg-[#161B22] border border-[#30363D] rounded-xl p-4 hover:border-[#F0A500]/50 hover:bg-[#1C2128] transition-all group space-y-3"
     >
       {/* Flag + name */}
       <div className="flex items-center gap-3">
@@ -65,6 +66,6 @@ export default function TeamCard({ team, language, onClick }: TeamCardProps) {
           </span>
         )}
       </div>
-    </button>
+    </Link>
   )
 }
