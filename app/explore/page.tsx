@@ -163,14 +163,17 @@ function ExplorePageContent() {
       })
     }
 
-    const champion = rawSim.predicted_bracket?.champion
+    const probs = rawSim.winner_probs ?? {}
+    // Use the highest-probability team from the aggregate, not the last single-run winner
+    const topEntry = Object.entries(probs).sort(([, a], [, b]) => b - a)[0]
+    const champion = topEntry?.[0] ?? rawSim.predicted_bracket?.champion
     return {
       groups,
       bracket,
       predicted_champion: champion
-        ? { team: champion, flag: flagLookup[champion], probability: rawSim.winner_probs?.[champion] ?? 0 }
+        ? { team: champion, flag: flagLookup[champion], probability: probs[champion] ?? 0 }
         : undefined,
-      winner_probs: rawSim.winner_probs ?? {},
+      winner_probs: probs,
       flag_map: flagLookup,
     }
   }, [rawSim, standings])

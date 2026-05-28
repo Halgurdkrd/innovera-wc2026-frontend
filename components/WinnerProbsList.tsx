@@ -12,11 +12,11 @@ interface Props {
 const labels = {
   EN: {
     title: 'Tournament Win Probability',
-    subtitle: 'Based on 200 simulations · Updates after each match',
+    subtitle: 'Based on 500 simulations · Updates after each match',
   },
   KU: {
     title: 'ئەگەری بردنەوەی نازناوەکە',
-    subtitle: 'لەسەر بنەمای ٢٠٠ شێوەکاری · دواتر نوێ دەبێتەوە',
+    subtitle: 'لەسەر بنەمای ٥٠٠ شێوەکاری · دواتر نوێ دەبێتەوە',
   },
 }
 
