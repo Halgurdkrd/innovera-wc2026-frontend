@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import CardModal from '@/components/CardModal'
 import ShapCard from '@/components/ShapCard'
@@ -210,10 +210,11 @@ function MatchSkeleton({ lang }: { lang: 'EN' | 'KU' }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function MatchDetailPage({ params }: { params: { match_id: string } }) {
+export default function MatchDetailPage() {
   const { language, changeLanguage } = useLanguage()
   const router = useRouter()
-  const { match_id } = params
+  const routeParams = useParams()
+  const match_id = routeParams.match_id as string
   const t = L[language]
 
   const [match, setMatch] = useState<Match | null>(null)
@@ -230,11 +231,13 @@ export default function MatchDetailPage({ params }: { params: { match_id: string
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
+      console.log('[match-detail] looking up match_id:', match_id)
       try {
         const [matchRes, predRes] = await Promise.all([
           supabase.from('matches').select('*').eq('match_id', match_id).maybeSingle(),
           supabase.from('predictions').select('*').eq('match_id', match_id).maybeSingle(),
         ])
+        console.log('[match-detail] match data:', matchRes.data, 'error:', matchRes.error?.message)
 
         if (matchRes.error) console.error('[match] fetch error:', matchRes.error.message)
         if (predRes.error) console.error('[prediction] fetch error:', predRes.error.message)
