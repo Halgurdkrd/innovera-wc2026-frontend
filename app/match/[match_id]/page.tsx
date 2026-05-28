@@ -217,6 +217,11 @@ export default function MatchDetailPage() {
   const match_id = routeParams.match_id as string
   const t = L[language]
 
+  // Diagnostic — fires on every render; visible in F12 Console immediately
+  if (typeof window !== 'undefined') {
+    console.log('[MatchDetailPage] render — match_id from useParams:', match_id, typeof match_id)
+  }
+
   const [match, setMatch] = useState<Match | null>(null)
   const [prediction, setPrediction] = useState<Prediction | null>(null)
   const [homeLuck, setHomeLuck] = useState<LuckScore | null>(null)
@@ -229,15 +234,16 @@ export default function MatchDetailPage() {
   const [probsVisible, setProbsVisible] = useState(false)
 
   useEffect(() => {
+    console.log('[match-detail] useEffect fired — match_id:', match_id)
     async function fetchData() {
       setLoading(true)
-      console.log('[match-detail] looking up match_id:', match_id)
+      console.log('[match-detail] fetchData start — match_id:', match_id, '| typeof:', typeof match_id)
       try {
         const [matchRes, predRes] = await Promise.all([
           supabase.from('matches').select('*').eq('match_id', match_id).maybeSingle(),
           supabase.from('predictions').select('*').eq('match_id', match_id).maybeSingle(),
         ])
-        console.log('[match-detail] match data:', matchRes.data, 'error:', matchRes.error?.message)
+        console.log('[match-detail] match result → data:', matchRes.data, '| error:', matchRes.error?.message ?? 'none')
 
         if (matchRes.error) console.error('[match] fetch error:', matchRes.error.message)
         if (predRes.error) console.error('[prediction] fetch error:', predRes.error.message)
@@ -270,9 +276,9 @@ export default function MatchDetailPage() {
 
         if (predRes.data) setPrediction(predRes.data as Prediction)
       } catch (err) {
-        console.error('[match-detail] unexpected error:', err)
+        console.error('[match-detail] caught error:', err)
       } finally {
-        // Always clear loading — prevents infinite spinner on any error
+        console.log('[match-detail] finally — calling setLoading(false)')
         setLoading(false)
       }
     }
