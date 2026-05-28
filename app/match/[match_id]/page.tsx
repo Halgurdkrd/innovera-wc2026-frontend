@@ -23,12 +23,6 @@ function fmtDateTime(iso?: string) {
   })
 }
 
-function fmtDate(iso?: string) {
-  if (!iso) return ''
-  return new Date(iso).toLocaleDateString([], {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  })
-}
 
 function confidenceCfg(score?: number) {
   if (!score) return { label: 'LOW', labelKU: 'کەم', color: '#8B949E' }
