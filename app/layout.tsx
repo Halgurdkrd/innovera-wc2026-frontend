@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import BottomNav from "@/components/BottomNav";
 import WarmupBanner from "@/components/WarmupBanner";
+import ChatWidget from "@/components/ChatWidget";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -79,6 +80,7 @@ export default function RootLayout({
             {children}
           </div>
           <BottomNav />
+          <ChatWidget />
         </AuthProvider>
       </body>
     </html>
