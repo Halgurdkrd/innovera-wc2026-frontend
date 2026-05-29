@@ -7,6 +7,9 @@ import MatchCard from '@/components/MatchCard'
 import LuckScoreSection from '@/components/LuckScoreSection'
 import GroupStandingsPreview from '@/components/GroupStandingsPreview'
 import WinnerProbsList from '@/components/WinnerProbsList'
+import CountdownTimer, { isTournamentStarted } from '@/components/CountdownTimer'
+import PickWinner from '@/components/PickWinner'
+import GroupPreviewTeaser from '@/components/GroupPreviewTeaser'
 import { supabase } from '@/lib/supabase'
 import type { Match, LuckScore, GroupStanding } from '@/types'
 
@@ -37,7 +40,9 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [winnerProbs, setWinnerProbs] = useState<Record<string, number>>({})
   const [winnerFlagMap, setWinnerFlagMap] = useState<Record<string, string>>({})
+  const [stageAppearances, setStageAppearances] = useState<Record<string, Record<string, number>>>({})
   const [simLoading, setSimLoading] = useState(true)
+  const tournamentStarted = isTournamentStarted()
 
   const t = labels[language]
 
@@ -83,6 +88,9 @@ export default function HomePage() {
                 if (row.team_flag) flagMap[row.team_name] = row.team_flag
               }
               setWinnerFlagMap(flagMap)
+            }
+            if (data?.stage_appearances) {
+              setStageAppearances(data.stage_appearances)
             }
           })
           .catch(() => {})
@@ -157,6 +165,22 @@ export default function HomePage() {
             ))}
           </div>
         </section>
+
+        {/* ── Pre-tournament engagement ── */}
+        {!tournamentStarted && (
+          <div className="space-y-8">
+            <CountdownTimer language={language} />
+            <PickWinner
+              winnerProbs={winnerProbs}
+              language={language}
+            />
+            <GroupPreviewTeaser
+              stageAppearances={stageAppearances}
+              language={language}
+              loading={simLoading}
+            />
+          </div>
+        )}
 
         {/* ── Today's Matches ── */}
         <section id="matches" className="space-y-6 scroll-mt-20">
