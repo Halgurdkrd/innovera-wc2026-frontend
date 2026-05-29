@@ -6,6 +6,27 @@ import { useLanguage } from '@/hooks/useLanguage'
 
 const tabs = [
   {
+    href: '/my-predictions',
+    labelEN: 'Me',
+    labelKU: 'من',
+    exact: false,
+    icon: (active: boolean) => (
+      <svg
+        viewBox="0 0 24 24"
+        fill={active ? '#F0A500' : 'none'}
+        stroke={active ? '#F0A500' : '#8B949E'}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-6 w-6"
+        aria-hidden="true"
+      >
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    ),
+  },
+  {
     href: '/',
     labelEN: 'Predictions',
     labelKU: 'پێشبینی',

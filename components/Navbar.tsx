@@ -82,6 +82,11 @@ export default function Navbar({ language, onLanguageChange }: NavbarProps) {
             <Link href="/leaderboard" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
               {tr('nav_leaderboard', language)}
             </Link>
+            {user && (
+              <Link href="/my-predictions" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
+                {language === 'KU' ? 'پێشبینییەکانم' : 'My Predictions'}
+              </Link>
+            )}
           </div>
 
           {/* Right side */}
