@@ -192,7 +192,7 @@ export default function ChatWidget() {
       const res = await fetch(`${apiUrl}/chat/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmed, language: chatLang === 'EN' ? 'en' : 'ku' }),
+        body: JSON.stringify({ question: trimmed, language: chatLang === 'EN' ? 'en' : 'ku' }),
         signal: controller.signal,
       })
       clearTimeout(tid)
@@ -201,7 +201,7 @@ export default function ChatWidget() {
       let aiText = c.emptyErr
       if (res.ok) {
         const data = await res.json()
-        aiText = data.response || c.emptyErr
+        aiText = data.answer || data.response || c.emptyErr
       } else {
         aiText = c.netErr
       }
