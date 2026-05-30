@@ -10,6 +10,7 @@ import LuckScoreBar from '@/components/LuckScoreBar'
 import UserPrediction from '@/components/UserPrediction'
 import { Sk } from '@/components/SkeletonCard'
 import LineupBadge from '@/components/LineupBadge'
+import PredictedScorers from '@/components/PredictedScorers'
 import { useLanguage } from '@/hooks/useLanguage'
 import { supabase } from '@/lib/supabase'
 import type { Match, Prediction, LuckScore } from '@/types'
@@ -534,6 +535,13 @@ export default function MatchDetailPage() {
                   lineupInfo={activeLineupInfo}
                   homeTeam={match.home_team}
                   awayTeam={match.away_team}
+                  language={language}
+                />
+                <PredictedScorers
+                  matchId={match.match_id ?? match.id ?? ''}
+                  homeTeam={match.home_team}
+                  awayTeam={match.away_team}
+                  isFinished={isFinished}
                   language={language}
                 />
               </section>
