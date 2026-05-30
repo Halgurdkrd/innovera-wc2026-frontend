@@ -76,11 +76,13 @@ export default function HomePage() {
       if (standingsData) setStandings(standingsData)
       setLoading(false)
 
-      // Fetch simulation probabilities — non-blocking, skeleton shows while waiting
-      const apiUrl = API_BASE
-      fetch(`${apiUrl}/simulate/tournament`)
+      // Fetch simulation probabilities — 10s timeout, always unblocks skeleton
+      const simCtrl = new AbortController()
+      const simTid = setTimeout(() => simCtrl.abort(), 10000)
+      fetch(`${API_BASE}/simulate/tournament`, { signal: simCtrl.signal })
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
+          clearTimeout(simTid)
           if (data?.winner_probs) {
             setWinnerProbs(data.winner_probs)
             const flagMap: Record<string, string> = {}
@@ -89,11 +91,9 @@ export default function HomePage() {
             }
             setWinnerFlagMap(flagMap)
           }
-          if (data?.stage_appearances) {
-            setStageAppearances(data.stage_appearances)
-          }
+          if (data?.stage_appearances) setStageAppearances(data.stage_appearances)
         })
-        .catch(() => {})
+        .catch(() => clearTimeout(simTid))
         .finally(() => setSimLoading(false))
     }
 

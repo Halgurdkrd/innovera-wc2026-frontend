@@ -18,7 +18,7 @@ export default function WarmupBanner() {
     const start = Date.now()
     const controller = new AbortController()
 
-    fetch(`${API_BASE}/`, { method: 'HEAD', signal: controller.signal })
+    fetch(`${API_BASE}/`, { signal: controller.signal })
       .then(() => {
         const elapsed = Date.now() - start
         if (elapsed >= FAST_MS) {
