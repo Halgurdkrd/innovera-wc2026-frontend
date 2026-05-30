@@ -44,12 +44,22 @@ export default function MatchCard({ match, language }: MatchCardProps) {
         ) : (
           <span className="text-xs text-[#8B949E] font-medium">{timeStr}</span>
         )}
-        <span
-          className="text-xs font-semibold px-2.5 py-0.5 rounded-full border"
-          style={{ color: confidence.color, borderColor: confidence.color + '40', backgroundColor: confidence.color + '15' }}
-        >
-          {confidence.label}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {match.lineup_updated && (
+            <span
+              title="Updated with confirmed lineups"
+              className="text-[10px] text-[#F0A500] bg-[#F0A500]/10 border border-[#F0A500]/30 rounded-full px-1.5 py-0.5 font-bold leading-none"
+            >
+              ⚡
+            </span>
+          )}
+          <span
+            className="text-xs font-semibold px-2.5 py-0.5 rounded-full border"
+            style={{ color: confidence.color, borderColor: confidence.color + '40', backgroundColor: confidence.color + '15' }}
+          >
+            {confidence.label}
+          </span>
+        </div>
       </div>
 
       {/* Teams row */}

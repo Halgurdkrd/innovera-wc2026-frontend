@@ -23,6 +23,7 @@ export interface Match {
   home_score?: number
   away_score?: number
   narrative?: string
+  lineup_updated?: boolean  // true when confirmed lineups have been applied
 }
 
 export interface LuckScore {
@@ -91,6 +92,23 @@ export interface KeyPlayer {
   stat?: string
 }
 
+export interface MissingPlayerDetail {
+  player: string
+  xg_per90: number
+  impact: number
+  data_source: string
+}
+
+export interface LineupInfo {
+  lineup_used: boolean
+  home_missing: string[]
+  away_missing: string[]
+  home_attack_adj: number
+  away_attack_adj: number
+  prob_shift: number
+  missing_details?: MissingPlayerDetail[]
+}
+
 export interface Prediction {
   id: string
   match_id: string
@@ -101,6 +119,7 @@ export interface Prediction {
   ai_narrative?: string
   luck_score?: number    // –10 … +10 (post-match only)
   luck_label?: 'Lucky' | 'Deserved' | 'Unlucky'
+  lineup_info?: LineupInfo
 }
 
 // ── Explore / Teams ───────────────────────────────────────────────────────────

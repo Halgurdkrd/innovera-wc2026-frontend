@@ -9,6 +9,7 @@ import MomentumBar from '@/components/MomentumBar'
 import LuckScoreBar from '@/components/LuckScoreBar'
 import UserPrediction from '@/components/UserPrediction'
 import { Sk } from '@/components/SkeletonCard'
+import LineupBadge from '@/components/LineupBadge'
 import { useLanguage } from '@/hooks/useLanguage'
 import { supabase } from '@/lib/supabase'
 import type { Match, Prediction, LuckScore } from '@/types'
@@ -372,6 +373,21 @@ export default function MatchDetailPage() {
 
   const hasProbs = match.home_win_probability != null
 
+  // TEMP: mock lineup_info so the badge is visible in dev before June 11
+  // Remove this block once real lineup data flows from the API.
+  const devLineupInfo = process.env.NODE_ENV === 'development'
+    ? {
+        lineup_used: true,
+        home_missing: ['Mbappé'],
+        away_missing: [],
+        home_attack_adj: 0.859,
+        away_attack_adj: 1.0,
+        prob_shift: -0.049,
+        missing_details: [{ player: 'Mbappé', xg_per90: 0.902, impact: 0.141, data_source: 'understat' }],
+      }
+    : null
+  const activeLineupInfo = prediction?.lineup_info ?? devLineupInfo
+
   return (
     <div className="min-h-screen bg-[#0D1117]">
       <Navbar language={language} onLanguageChange={changeLanguage} />
@@ -513,6 +529,12 @@ export default function MatchDetailPage() {
                   homeName={match.home_team}
                   awayName={match.away_team}
                   lang={language}
+                />
+                <LineupBadge
+                  lineupInfo={activeLineupInfo}
+                  homeTeam={match.home_team}
+                  awayTeam={match.away_team}
+                  language={language}
                 />
               </section>
             )}
