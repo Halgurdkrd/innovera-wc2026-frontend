@@ -320,7 +320,7 @@ export default function MatchDetailPage() {
     if (!match) return
     setShareLoading(true)
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/vps'
       const res = await fetch(`${apiUrl}/cards/card?match_id=${match_id}`)
       if (res.ok) {
         const data = await res.json()

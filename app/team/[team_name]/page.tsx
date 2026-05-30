@@ -252,8 +252,8 @@ export default function TeamProfilePage() {
 
   // Fetch win probability from HF API — non-blocking, 10s timeout
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL
-    if (!apiUrl || !teamName) return
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/vps'
+    if (!teamName) return
     const controller = new AbortController()
     const tid = setTimeout(() => controller.abort(), 10000)
     fetch(`${apiUrl}/simulate/tournament`, { signal: controller.signal })

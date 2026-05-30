@@ -502,7 +502,7 @@ function UserBracketForm({ simBracket, flagMap, tournamentStarted, onClose, lang
       }))
     )
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/vps'
       const res = await fetch(`${apiUrl}/simulate/user-bracket`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

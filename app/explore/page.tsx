@@ -201,8 +201,7 @@ function ExplorePageContent() {
 
   // ── Fetch tournament simulation ───────────────────────────────────────────
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL
-    if (!apiUrl) { setSimLoading(false); return }
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/vps'
 
     fetch(`${apiUrl}/simulate/tournament`)
       .then((res) => (res.ok ? res.json() : null))

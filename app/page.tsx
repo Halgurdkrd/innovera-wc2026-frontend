@@ -76,28 +76,24 @@ export default function HomePage() {
       setLoading(false)
 
       // Fetch simulation probabilities — non-blocking, skeleton shows while waiting
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL
-      if (apiUrl) {
-        fetch(`${apiUrl}/simulate/tournament`)
-          .then((r) => (r.ok ? r.json() : null))
-          .then((data) => {
-            if (data?.winner_probs) {
-              setWinnerProbs(data.winner_probs)
-              const flagMap: Record<string, string> = {}
-              for (const row of standingsData ?? []) {
-                if (row.team_flag) flagMap[row.team_name] = row.team_flag
-              }
-              setWinnerFlagMap(flagMap)
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/vps'
+      fetch(`${apiUrl}/simulate/tournament`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data?.winner_probs) {
+            setWinnerProbs(data.winner_probs)
+            const flagMap: Record<string, string> = {}
+            for (const row of standingsData ?? []) {
+              if (row.team_flag) flagMap[row.team_name] = row.team_flag
             }
-            if (data?.stage_appearances) {
-              setStageAppearances(data.stage_appearances)
-            }
-          })
-          .catch(() => {})
-          .finally(() => setSimLoading(false))
-      } else {
-        setSimLoading(false)
-      }
+            setWinnerFlagMap(flagMap)
+          }
+          if (data?.stage_appearances) {
+            setStageAppearances(data.stage_appearances)
+          }
+        })
+        .catch(() => {})
+        .finally(() => setSimLoading(false))
     }
 
     fetchData()

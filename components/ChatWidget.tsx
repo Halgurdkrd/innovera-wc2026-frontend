@@ -188,7 +188,7 @@ export default function ChatWidget() {
     const tid = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/vps'
       const res = await fetch(`${apiUrl}/chat/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -155,17 +155,15 @@ export default function LeaderboardPage() {
 
     try {
       // Try API rank-card first
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL
-      if (apiUrl) {
-        const res = await fetch(`${apiUrl}/rank-card?user_id=${userProfile.id}&rank=${rank}&points=${pts}`)
-        if (res.ok) {
-          const data = await res.json()
-          const shareUrl = data.url ?? data.download_url
-          if (shareUrl && navigator.share) {
-            await navigator.share({ title: 'My Innovera Rank', url: shareUrl, text })
-            setShareState('idle')
-            return
-          }
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/vps'
+      const res = await fetch(`${apiUrl}/rank-card?user_id=${userProfile.id}&rank=${rank}&points=${pts}`)
+      if (res.ok) {
+        const data = await res.json()
+        const shareUrl = data.url ?? data.download_url
+        if (shareUrl && navigator.share) {
+          await navigator.share({ title: 'My Innovera Rank', url: shareUrl, text })
+          setShareState('idle')
+          return
         }
       }
     } catch {
