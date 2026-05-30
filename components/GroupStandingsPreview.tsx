@@ -80,7 +80,11 @@ function GroupTable({ groupName, rows, t, language }: {
               <td className="px-3 py-2.5 text-center text-[#2EA043]">{row.won}</td>
               <td className="px-3 py-2.5 text-center text-[#8B949E]">{row.drawn}</td>
               <td className="px-3 py-2.5 text-center text-[#F85149]">{row.lost}</td>
-              <td className="px-3 py-2.5 text-center font-bold text-[#E6EDF3]">{row.points}</td>
+              <td className="px-3 py-2.5 text-center font-bold text-[#E6EDF3]">
+                {row.played === 0 && row.avg_points != null
+                  ? Number(row.avg_points).toFixed(1)
+                  : row.points}
+              </td>
             </tr>
           ))}
         </tbody>

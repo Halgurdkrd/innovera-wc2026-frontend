@@ -101,7 +101,7 @@ const labels = {
     gd: 'GD',
     gf: 'GF',
     qualify: 'Qualify',
-    advanceAI: 'Top 2 advance · AI prediction',
+    advanceAI: 'Expected standings across simulations',
     advanceReal: 'Top 2 advance · Live standings',
     noData: 'Tournament simulation not available yet',
     aiTag: 'AI',
@@ -115,7 +115,7 @@ const labels = {
     gd: 'جیاوازی',
     gf: 'گۆل',
     qualify: 'بەشداری',
-    advanceAI: 'سەرووی ٢ بەرزدەبنەوە · پێشبینی AI',
+    advanceAI: 'چاوەڕوانکراوی شێوەکاری',
     advanceReal: 'سەرووی ٢ بەرزدەبنەوە · پلەبەندی بەکردەوە',
     noData: 'شبیهسازی تورنووان هێشتا بەردەست نیە',
     aiTag: 'AI',
@@ -278,12 +278,12 @@ function AiGroupCard({
                     </div>
                   </td>
                   <td className={`px-3 py-2.5 text-center font-extrabold ${isTop2 ? 'text-[#E6EDF3]' : 'text-[#8B949E]'}`}>
-                    {team.predicted_pts}
+                    {Number(team.predicted_pts).toFixed(1)}
                   </td>
                   <td className="px-3 py-2.5 text-center text-[#8B949E]">
-                    {team.predicted_gd > 0 ? '+' : ''}{team.predicted_gd}
+                    {team.predicted_gd > 0 ? '+' : ''}{Number(team.predicted_gd).toFixed(1)}
                   </td>
-                  <td className="px-3 py-2.5 text-center text-[#8B949E]">{team.predicted_gf}</td>
+                  <td className="px-3 py-2.5 text-center text-[#8B949E]">{Number(team.predicted_gf).toFixed(1)}</td>
                   <td className="px-3 py-2.5 text-center">
                     <QualProb prob={team.qualify_prob} />
                   </td>

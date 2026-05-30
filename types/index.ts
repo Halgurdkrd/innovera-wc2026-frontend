@@ -50,6 +50,12 @@ export interface GroupStanding {
   points: number
   position: number
   confederation?: string
+  // Average expected standings — populated by the simulation engine
+  avg_points?: number
+  avg_gf?: number
+  avg_ga?: number
+  avg_gd?: number
+  expected_rank?: number
 }
 
 // ── Prediction / Match Detail ─────────────────────────────────────────────────

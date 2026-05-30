@@ -16,7 +16,10 @@ import type {
 
 // ── Raw simulation API shape (before mapping to TournamentSimulation) ────────
 
-interface RawGroupTeam { team: string; pts: number; gd: number; gf: number }
+interface RawGroupTeam {
+  team: string; pts: number; gd: number; gf: number
+  avg_pts?: number; avg_gd?: number; avg_gf?: number; expected_rank?: number
+}
 interface RawMatchResult { team_a?: string; team_b?: string; winner?: string }
 interface RawSimulation {
   group_tables?: Record<string, RawGroupTeam[]>
@@ -135,9 +138,9 @@ function ExplorePageContent() {
         teams: rawTeams.map((t) => ({
           team: t.team,
           flag: flagLookup[t.team] ?? '🏳️',
-          predicted_pts: t.pts ?? 0,
-          predicted_gd: t.gd ?? 0,
-          predicted_gf: t.gf ?? 0,
+          predicted_pts: t.avg_pts ?? t.pts ?? 0,
+          predicted_gd: t.avg_gd ?? t.gd ?? 0,
+          predicted_gf: t.avg_gf ?? t.gf ?? 0,
           qualify_prob: rawSim.stage_appearances?.[t.team]?.R32 ?? 0.5,
         })),
       })
