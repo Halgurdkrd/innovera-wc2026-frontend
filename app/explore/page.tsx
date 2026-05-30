@@ -8,6 +8,7 @@ import TeamCard from '@/components/TeamCard'
 import GroupStagePredictions from '@/components/GroupStagePredictions'
 import BracketPredictions from '@/components/BracketPredictions'
 import { supabase } from '@/lib/supabase'
+import { API_BASE } from '@/lib/api'
 import type {
   GroupStanding, LuckScore, Team, BracketSlot,
   TournamentSimulation, TournamentGroup, TournamentBracketMatch,
@@ -201,7 +202,7 @@ function ExplorePageContent() {
 
   // ── Fetch tournament simulation ───────────────────────────────────────────
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/vps'
+    const apiUrl = API_BASE
 
     fetch(`${apiUrl}/simulate/tournament`)
       .then((res) => (res.ok ? res.json() : null))

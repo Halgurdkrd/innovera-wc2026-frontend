@@ -8,6 +8,7 @@ import { useLanguage } from '@/hooks/useLanguage'
 import { supabase } from '@/lib/supabase'
 import { Sk } from '@/components/SkeletonCard'
 import type { Match, GroupStanding } from '@/types'
+import { API_BASE } from '@/lib/api'
 
 // ── Static maps ───────────────────────────────────────────────────────────────
 
@@ -252,7 +253,7 @@ export default function TeamProfilePage() {
 
   // Fetch win probability from HF API — non-blocking, 10s timeout
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/vps'
+    const apiUrl = API_BASE
     if (!teamName) return
     const controller = new AbortController()
     const tid = setTimeout(() => controller.abort(), 10000)

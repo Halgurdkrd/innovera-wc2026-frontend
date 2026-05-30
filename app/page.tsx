@@ -12,6 +12,7 @@ import PickWinner from '@/components/PickWinner'
 import GroupPreviewTeaser from '@/components/GroupPreviewTeaser'
 import { supabase } from '@/lib/supabase'
 import type { Match, LuckScore, GroupStanding } from '@/types'
+import { API_BASE } from '@/lib/api'
 
 const labels = {
   EN: {
@@ -76,7 +77,7 @@ export default function HomePage() {
       setLoading(false)
 
       // Fetch simulation probabilities — non-blocking, skeleton shows while waiting
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/vps'
+      const apiUrl = API_BASE
       fetch(`${apiUrl}/simulate/tournament`)
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {

@@ -12,6 +12,7 @@ import { Sk } from '@/components/SkeletonCard'
 import { useLanguage } from '@/hooks/useLanguage'
 import { supabase } from '@/lib/supabase'
 import type { Match, Prediction, LuckScore } from '@/types'
+import { API_BASE } from '@/lib/api'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -320,7 +321,7 @@ export default function MatchDetailPage() {
     if (!match) return
     setShareLoading(true)
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/vps'
+      const apiUrl = API_BASE
       const res = await fetch(`${apiUrl}/cards/card?match_id=${match_id}`)
       if (res.ok) {
         const data = await res.json()

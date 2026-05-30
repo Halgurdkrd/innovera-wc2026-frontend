@@ -5,6 +5,7 @@ import Navbar from '@/components/Navbar'
 import { useLanguage } from '@/hooks/useLanguage'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
+import { API_BASE } from '@/lib/api'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -155,7 +156,7 @@ export default function LeaderboardPage() {
 
     try {
       // Try API rank-card first
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/vps'
+      const apiUrl = API_BASE
       const res = await fetch(`${apiUrl}/rank-card?user_id=${userProfile.id}&rank=${rank}&points=${pts}`)
       if (res.ok) {
         const data = await res.json()
