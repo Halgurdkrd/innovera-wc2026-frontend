@@ -1,15 +1,45 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { API_BASE } from '@/lib/api'
 
 const STORAGE_KEY = 'innovera_warmup_dismissed'
+// Threshold: if API responds faster than this, auto-dismiss without showing anything
+const FAST_MS = 3000
 
 export default function WarmupBanner() {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    if (!localStorage.getItem(STORAGE_KEY)) {
-      setVisible(true)
+    // Already dismissed — never show again
+    if (localStorage.getItem(STORAGE_KEY)) return
+
+    // Check how fast the API responds
+    const start = Date.now()
+    const controller = new AbortController()
+
+    fetch(`${API_BASE}/`, { method: 'HEAD', signal: controller.signal })
+      .then(() => {
+        const elapsed = Date.now() - start
+        if (elapsed >= FAST_MS) {
+          // Slow API (HF sleep) — show banner
+          setVisible(true)
+        } else {
+          // Fast API (VPS) — silently dismiss so banner never appears again
+          localStorage.setItem(STORAGE_KEY, '1')
+        }
+      })
+      .catch(() => {
+        // Request failed or aborted — show banner as cautious fallback
+        setVisible(true)
+      })
+
+    // If API hasn't responded in 3s, show banner immediately
+    const tid = setTimeout(() => setVisible(true), FAST_MS)
+
+    return () => {
+      controller.abort()
+      clearTimeout(tid)
     }
   }, [])
 
@@ -29,7 +59,7 @@ export default function WarmupBanner() {
             <span className="font-semibold text-[#E6EDF3]">First load may take 1–2 minutes</span>
             {' '}while the AI model warms up. Skeleton cards will fill in as data arrives.
           </p>
-          <p className="text-xs text-[#8B949E] leading-relaxed" dir="rtl">
+          <p className="text-xs text-[#8B949E] leading-relaxed">
             <span className="font-semibold text-[#E6EDF3]">بارکردنی یەکەم کات ١–٢ خولەک دووای خۆی دەبێت</span>
             {' '}بۆ گەرمکردنەوەی مۆدێلی ئەی ئای. داتا بەم زووانەیە دەگاتەوە.
           </p>

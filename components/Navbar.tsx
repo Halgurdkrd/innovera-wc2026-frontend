@@ -150,6 +150,14 @@ export default function Navbar({ language, onLanguageChange }: NavbarProps) {
                       <p className="text-[10px] text-[#8B949E] truncate">{user.email}</p>
                     </div>
                     <Link
+                      href="/my-predictions"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 text-sm text-[#8B949E] hover:text-[#E6EDF3] hover:bg-[#21262D] transition-colors"
+                    >
+                      <span>⭐</span>
+                      {language === 'KU' ? 'پێشبینییەکانم' : 'My Predictions'}
+                    </Link>
+                    <Link
                       href="/leaderboard"
                       onClick={() => setMenuOpen(false)}
                       className="flex items-center gap-2.5 px-3 py-2 text-sm text-[#8B949E] hover:text-[#E6EDF3] hover:bg-[#21262D] transition-colors"
