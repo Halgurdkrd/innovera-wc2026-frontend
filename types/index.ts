@@ -173,6 +173,7 @@ export interface TournamentGroupTeam {
   qualify_prob: number       // 0–1
   qualified?: boolean
   eliminated?: boolean
+  expected_rank?: number     // 1–4, from average of all simulations
 }
 
 export interface TournamentGroup {

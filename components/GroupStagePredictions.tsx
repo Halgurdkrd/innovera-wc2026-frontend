@@ -97,9 +97,9 @@ const labels = {
   EN: {
     rank: '#',
     team: 'Team',
-    pts: 'Pts',
-    gd: 'GD',
-    gf: 'GF',
+    pts: 'Exp.Pts',
+    gd: 'Exp.GD',
+    gf: 'xGF',
     qualify: 'Qualify',
     advanceAI: 'Expected standings across simulations',
     advanceReal: 'Top 2 advance · Live standings',
@@ -230,9 +230,11 @@ function AiGroupCard({
   aiTeams: TournamentGroupTeam[]
   t: typeof labels['EN']
 }) {
-  const sorted = [...aiTeams].sort(
-    (a, b) => b.predicted_pts - a.predicted_pts || b.predicted_gd - a.predicted_gd || b.predicted_gf - a.predicted_gf
-  )
+  // Sort by expected_rank (Supabase average) when available, fall back to predicted_pts
+  const sorted = [...aiTeams].sort((a, b) => {
+    if (a.expected_rank != null && b.expected_rank != null) return a.expected_rank - b.expected_rank
+    return b.predicted_pts - a.predicted_pts || b.predicted_gd - a.predicted_gd || b.predicted_gf - a.predicted_gf
+  })
   return (
     <div className="bg-[#161B22] border border-[#30363D] rounded-xl overflow-hidden">
       <div className="px-4 py-3 border-b border-[#30363D] flex items-center justify-between">
@@ -326,6 +328,10 @@ export default function GroupStagePredictions({ groups, stageAppearances, standi
     realByGroup[row.group_name].push(row)
   }
 
+  // Build team name → Supabase standing (for avg_points / expected_rank)
+  const standingsMap: Record<string, GroupStanding> = {}
+  for (const row of standings) standingsMap[row.team_name] = row
+
   // Build group name → AI teams map (from API)
   const apiByGroup: Record<string, TournamentGroupTeam[]> = {}
   for (const g of groups) {
@@ -333,9 +339,8 @@ export default function GroupStagePredictions({ groups, stageAppearances, standi
   }
 
   // Merge: FALLBACK_GROUPS is always the source of truth for team names + flags.
-  // qualify_prob comes from stageAppearances[fbTeam.team].R32 — keyed by the FALLBACK
-  // team name directly, so stale API cache with wrong group assignments can't cause misses.
-  // Predicted pts/gd/gf fall back to the per-group API match (same-name only).
+  // Priority for pts/gd: Supabase avg_points > simulation API avg_pts > single-run pts > 0
+  // expected_rank from Supabase controls sort order in AiGroupCard.
   const aiByGroup: Record<string, TournamentGroupTeam[]> = {}
   for (const fb of FALLBACK_GROUPS) {
     const apiTeams = apiByGroup[fb.group] ?? []
@@ -344,12 +349,15 @@ export default function GroupStagePredictions({ groups, stageAppearances, standi
     aiByGroup[fb.group] = fb.teams.map((fbTeam) => {
       const saProb = stageAppearances?.[fbTeam.team]?.R32
       const apiStats = apiStatsByTeam[fbTeam.team]
-      if (saProb == null && apiStats?.qualify_prob == null) {
-        console.log(`[GroupStage] qualify_prob fallback 50% — team not found in API: "${fbTeam.team}" (group ${fb.group})`)
-      }
+      const sbRow = standingsMap[fbTeam.team]   // Supabase avg data
       return {
         ...fbTeam,
         ...(apiStats ?? {}),
+        // Supabase avg_points takes priority — ensures simulation averages always shown
+        predicted_pts: sbRow?.avg_points ?? apiStats?.predicted_pts ?? 0,
+        predicted_gd:  sbRow?.avg_gd    ?? apiStats?.predicted_gd  ?? 0,
+        predicted_gf:  sbRow?.avg_gf    ?? apiStats?.predicted_gf  ?? 0,
+        expected_rank: sbRow?.expected_rank ?? apiStats?.expected_rank,
         qualify_prob: saProb != null ? saProb : (apiStats?.qualify_prob ?? 0.5),
         team: fbTeam.team,
         flag: fbTeam.flag,
