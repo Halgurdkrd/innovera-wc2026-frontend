@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Navbar from '@/components/Navbar'
 import { useLanguage } from '@/hooks/useLanguage'
 import MatchCard from '@/components/MatchCard'
@@ -40,13 +40,20 @@ export default function HomePage() {
   const [standings, setStandings] = useState<GroupStanding[]>([])
   const [loading, setLoading] = useState(true)
   const [winnerProbs, setWinnerProbs] = useState<Record<string, number>>({})
-  const [winnerFlagMap, setWinnerFlagMap] = useState<Record<string, string>>({})
   const [stageAppearances, setStageAppearances] = useState<Record<string, Record<string, number>>>({})
   const [simLoading, setSimLoading] = useState(true)
   const tournamentStarted = isTournamentStarted()
 
+  // Derive flag map reactively from standings — no extra state needed
+  const winnerFlagMap = useMemo(() => {
+    const m: Record<string, string> = {}
+    for (const row of standings) { if (row.team_flag) m[row.team_name] = row.team_flag }
+    return m
+  }, [standings])
+
   const t = labels[language]
 
+  // ── Supabase fetch (matches, luck, standings) ─────────────────────────────
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
@@ -54,50 +61,58 @@ export default function HomePage() {
       const yesterday = new Date(Date.now() - 864e5).toISOString().split('T')[0]
 
       const [matchRes, luckRes, standingsRes] = await Promise.all([
-        supabase
-          .from('matches')
-          .select('*')
-          .eq('match_date', today)
-          .order('match_time', { ascending: true }),
-        supabase
-          .from('luck_scores')
-          .select('*')
-          .eq('match_date', yesterday),
-        supabase
-          .from('group_standings')
-          .select('*')
-          .order('group_name')
-          .order('position'),
+        supabase.from('matches').select('*').eq('match_date', today).order('match_time', { ascending: true }),
+        supabase.from('luck_scores').select('*').eq('match_date', yesterday),
+        supabase.from('group_standings').select('*').order('group_name').order('position'),
       ])
 
       if (matchRes.data) setMatches(matchRes.data as Match[])
       if (luckRes.data) setLuckScores(luckRes.data as LuckScore[])
-      const standingsData = standingsRes.data as GroupStanding[] | null
-      if (standingsData) setStandings(standingsData)
+      if (standingsRes.data) setStandings(standingsRes.data as GroupStanding[])
       setLoading(false)
-
-      // Fetch simulation probabilities — 10s timeout, always unblocks skeleton
-      const simCtrl = new AbortController()
-      const simTid = setTimeout(() => simCtrl.abort(), 10000)
-      fetch(`${API_BASE}/simulate/tournament`, { signal: simCtrl.signal })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((data) => {
-          clearTimeout(simTid)
-          if (data?.winner_probs) {
-            setWinnerProbs(data.winner_probs)
-            const flagMap: Record<string, string> = {}
-            for (const row of standingsData ?? []) {
-              if (row.team_flag) flagMap[row.team_name] = row.team_flag
-            }
-            setWinnerFlagMap(flagMap)
-          }
-          if (data?.stage_appearances) setStageAppearances(data.stage_appearances)
-        })
-        .catch(() => clearTimeout(simTid))
-        .finally(() => setSimLoading(false))
     }
-
     fetchData()
+  }, [])
+
+  // ── Simulation fetch — runs immediately on mount, parallel to Supabase ────
+  // Uses sessionStorage cache so repeat visits show data in <5ms.
+  useEffect(() => {
+    const SIM_CACHE_KEY = 'innovera_sim_cache'
+    const SIM_CACHE_TTL = 30 * 60 * 1000 // 30 minutes
+
+    // Try sessionStorage first — instant display on repeat visits
+    try {
+      const raw = sessionStorage.getItem(SIM_CACHE_KEY)
+      if (raw) {
+        const { data, ts } = JSON.parse(raw) as { data: Record<string, unknown>; ts: number }
+        if (Date.now() - ts < SIM_CACHE_TTL) {
+          if (data.winner_probs) setWinnerProbs(data.winner_probs as Record<string, number>)
+          if (data.stage_appearances) setStageAppearances(data.stage_appearances as Record<string, Record<string, number>>)
+          setSimLoading(false)
+          return  // cache hit — no network needed
+        }
+      }
+    } catch { /* sessionStorage unavailable (private mode etc.) */ }
+
+    // Cache miss — fetch from VPS
+    const ctrl = new AbortController()
+    const tid = setTimeout(() => ctrl.abort(), 10000)
+
+    fetch(`${API_BASE}/simulate/tournament`, { signal: ctrl.signal })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        clearTimeout(tid)
+        if (data?.winner_probs) {
+          setWinnerProbs(data.winner_probs)
+          if (data?.stage_appearances) setStageAppearances(data.stage_appearances)
+          // Cache for 30 min so next page load is instant
+          try { sessionStorage.setItem(SIM_CACHE_KEY, JSON.stringify({ data, ts: Date.now() })) } catch { }
+        }
+      })
+      .catch(() => clearTimeout(tid))
+      .finally(() => setSimLoading(false))
+
+    return () => { ctrl.abort(); clearTimeout(tid) }
   }, [])
 
   return (
