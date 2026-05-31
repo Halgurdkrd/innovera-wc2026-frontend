@@ -57,11 +57,16 @@ export default function HomePage() {
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
-      const today = new Date().toISOString().split('T')[0]
+      const today = new Date().toISOString().split('T')[0]           // '2026-06-11'
+      const tomorrow = new Date(Date.now() + 864e5).toISOString().split('T')[0]
       const yesterday = new Date(Date.now() - 864e5).toISOString().split('T')[0]
 
       const [matchRes, luckRes, standingsRes] = await Promise.all([
-        supabase.from('matches').select('*').eq('match_date', today).order('match_time', { ascending: true }),
+        // match_date is timestamptz — use gte/lt range not eq on plain date string
+        supabase.from('matches').select('*')
+          .gte('match_date', today + 'T00:00:00+00:00')
+          .lt('match_date', tomorrow + 'T00:00:00+00:00')
+          .order('match_date', { ascending: true }),    // match_time column does not exist
         supabase.from('luck_scores').select('*').eq('match_date', yesterday),
         supabase.from('group_standings').select('*').order('group_name').order('position'),
       ])

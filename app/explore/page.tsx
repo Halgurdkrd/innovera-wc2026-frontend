@@ -190,14 +190,17 @@ function ExplorePageContent() {
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
-      const [standingsRes, luckRes, bracketRes] = await Promise.all([
+      const [standingsRes, luckRes] = await Promise.all([
         supabase.from('group_standings').select('*').order('group_name').order('position'),
         supabase.from('luck_scores').select('*'),
-        supabase.from('bracket').select('*').order('round').order('slot_number'),
       ])
       if (standingsRes.data) setStandings(standingsRes.data as GroupStanding[])
       if (luckRes.data) setLuckScores(luckRes.data as LuckScore[])
-      if (bracketRes.data) setBracketSlots(bracketRes.data as BracketSlot[])
+
+      // bracket table may not exist yet — fetch separately so a 404 doesn't block standings
+      Promise.resolve(supabase.from('bracket').select('*').order('round'))
+        .then(({ data }) => { if (data) setBracketSlots(data as BracketSlot[]) })
+        .catch(() => { /* bracket table not created yet — silently skip */ })
       setLoading(false)
     }
     fetchData()
