@@ -349,15 +349,17 @@ export default function GroupStagePredictions({ groups, stageAppearances, standi
     aiByGroup[fb.group] = fb.teams.map((fbTeam) => {
       const saProb = stageAppearances?.[fbTeam.team]?.R32
       const apiStats = apiStatsByTeam[fbTeam.team]
-      const sbRow = standingsMap[fbTeam.team]   // Supabase avg data
+      const sbRow = standingsMap[fbTeam.team]
+      // API avg_pts takes priority (from avg_group_tables — accurate across all runs).
+      // Supabase avg_points only used if API value is missing (Supabase avg_points=0 is
+      // skipped with || so a true zero never blocks a real API value).
       return {
         ...fbTeam,
         ...(apiStats ?? {}),
-        // Supabase avg_points takes priority — ensures simulation averages always shown
-        predicted_pts: sbRow?.avg_points ?? apiStats?.predicted_pts ?? 0,
-        predicted_gd:  sbRow?.avg_gd    ?? apiStats?.predicted_gd  ?? 0,
-        predicted_gf:  sbRow?.avg_gf    ?? apiStats?.predicted_gf  ?? 0,
-        expected_rank: sbRow?.expected_rank ?? apiStats?.expected_rank,
+        predicted_pts: apiStats?.predicted_pts || sbRow?.avg_points || 0,
+        predicted_gd:  apiStats?.predicted_gd  || sbRow?.avg_gd    || 0,
+        predicted_gf:  apiStats?.predicted_gf  || sbRow?.avg_gf    || 0,
+        expected_rank: apiStats?.expected_rank ?? sbRow?.expected_rank,
         qualify_prob: saProb != null ? saProb : (apiStats?.qualify_prob ?? 0.5),
         team: fbTeam.team,
         flag: fbTeam.flag,

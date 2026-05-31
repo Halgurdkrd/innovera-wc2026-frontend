@@ -20,9 +20,16 @@ interface RawGroupTeam {
   team: string; pts: number; gd: number; gf: number
   avg_pts?: number; avg_gd?: number; avg_gf?: number; expected_rank?: number
 }
+interface RawAvgGroupTeam {
+  team: string; avg_pts: number; avg_gd: number; avg_gf: number
+  avg_ga: number; expected_rank: number
+  // single-run fields present for compat but prefer avg_*
+  pts?: number; gd?: number; gf?: number
+}
 interface RawMatchResult { team_a?: string; team_b?: string; winner?: string }
 interface RawSimulation {
   group_tables?: Record<string, RawGroupTeam[]>
+  avg_group_tables?: Record<string, RawAvgGroupTeam[]>   // averages across all simulations
   stage_appearances?: Record<string, Record<string, number>>
   predicted_bracket?: Record<string, RawMatchResult[]> & { champion?: string }
   winner_probs?: Record<string, number>
@@ -132,17 +139,24 @@ function ExplorePageContent() {
       if (s.team_flag) flagLookup[s.team_name] = s.team_flag
     }
 
-    const groups: TournamentGroup[] = Object.entries(rawSim.group_tables ?? {}).map(
+    // Prefer avg_group_tables (averages across all runs) over group_tables (single run)
+    const sourceGroups = rawSim.avg_group_tables ?? rawSim.group_tables ?? {}
+    const groups: TournamentGroup[] = Object.entries(sourceGroups).map(
       ([group, rawTeams]) => ({
         group,
-        teams: rawTeams.map((t) => ({
-          team: t.team,
-          flag: flagLookup[t.team] ?? '🏳️',
-          predicted_pts: t.avg_pts ?? t.pts ?? 0,
-          predicted_gd: t.avg_gd ?? t.gd ?? 0,
-          predicted_gf: t.avg_gf ?? t.gf ?? 0,
-          qualify_prob: rawSim.stage_appearances?.[t.team]?.R32 ?? 0.5,
-        })),
+        teams: (rawTeams as (RawAvgGroupTeam | RawGroupTeam)[]).map((t) => {
+          const avg = t as RawAvgGroupTeam
+          const single = t as RawGroupTeam
+          return {
+            team: t.team,
+            flag: flagLookup[t.team] ?? '🏳️',
+            predicted_pts: avg.avg_pts ?? single.avg_pts ?? single.pts ?? 0,
+            predicted_gd:  avg.avg_gd  ?? single.avg_gd  ?? single.gd  ?? 0,
+            predicted_gf:  avg.avg_gf  ?? single.avg_gf  ?? single.gf  ?? 0,
+            expected_rank: avg.expected_rank ?? undefined,
+            qualify_prob: rawSim.stage_appearances?.[t.team]?.R32 ?? 0.5,
+          }
+        }),
       })
     )
 
