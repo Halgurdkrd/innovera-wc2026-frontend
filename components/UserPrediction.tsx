@@ -132,8 +132,8 @@ export default function UserPrediction({ match, language }: UserPredictionProps)
           disabled={locked || pastKickoff}
         >
           <span className="text-xl">{match.home_team_flag || '🏳️'}</span>
-          <span>{t.homeWin}</span>
-          <span className="text-xs opacity-70">{match.home_team}</span>
+          <span className="text-xs font-semibold leading-tight text-center">{match.home_team}</span>
+          <span className="text-[10px] opacity-60">{language === 'KU' ? 'دەبەرێت' : 'Win'}</span>
         </button>
 
         <button
@@ -152,8 +152,8 @@ export default function UserPrediction({ match, language }: UserPredictionProps)
           disabled={locked || pastKickoff}
         >
           <span className="text-xl">{match.away_team_flag || '🏳️'}</span>
-          <span>{t.awayWin}</span>
-          <span className="text-xs opacity-70">{match.away_team}</span>
+          <span className="text-xs font-semibold leading-tight text-center">{match.away_team}</span>
+          <span className="text-[10px] opacity-60">{language === 'KU' ? 'دەبەرێت' : 'Win'}</span>
         </button>
       </div>
 

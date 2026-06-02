@@ -152,9 +152,15 @@ function computeBadge(preds: UserPrediction[]): BadgeKey {
 
 // ── Outcome label ─────────────────────────────────────────────────────────────
 
-function OutcomeLabel({ outcome, lang }: { outcome: string; lang: 'EN' | 'KU' }) {
-  const t = L[lang]
-  const map: Record<string, string> = { home: t.home, draw: t.draw, away: t.away }
+function OutcomeLabel({ outcome, lang, homeTeam, awayTeam }: {
+  outcome: string; lang: 'EN' | 'KU'; homeTeam?: string; awayTeam?: string
+}) {
+  const winSuffix = lang === 'KU' ? ' دەبەرێت' : ' Win'
+  const map: Record<string, string> = {
+    home: homeTeam ? homeTeam + winSuffix : (lang === 'KU' ? 'ماڵ دەبەرێت' : 'Home Win'),
+    draw: lang === 'KU' ? 'یەکسان' : 'Draw',
+    away: awayTeam ? awayTeam + winSuffix : (lang === 'KU' ? 'میوان دەبەرێت' : 'Away Win'),
+  }
   return <span className="font-semibold">{map[outcome] ?? outcome}</span>
 }
 
@@ -208,7 +214,7 @@ function PredCard({ pred, lang }: { pred: UserPrediction; lang: 'EN' | 'KU' }) {
             : isWrong ? 'bg-[#F85149]/20 text-[#F85149]'
             : 'bg-[#F0A500]/15 text-[#F0A500]'
           }`}>
-            <OutcomeLabel outcome={pred.predicted_outcome} lang={lang} />
+            <OutcomeLabel outcome={pred.predicted_outcome} lang={lang} homeTeam={m?.home_team} awayTeam={m?.away_team} />
           </span>
         </div>
         <div className="flex items-center gap-2">
