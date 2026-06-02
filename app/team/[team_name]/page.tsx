@@ -424,6 +424,20 @@ export default function TeamProfilePage() {
           </div>
         )}
 
+        {/* ── Squad link ───────────────────────────────────────────────────── */}
+        <Link
+          href={`/team/${encodeURIComponent(teamName)}/squad`}
+          className="flex items-center justify-between bg-[#161B22] border border-[#30363D] hover:border-[#F0A500]/40 rounded-xl px-5 py-3.5 transition-colors group"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-lg">👥</span>
+            <span className="text-sm font-semibold text-[#E6EDF3] group-hover:text-[#F0A500] transition-colors">
+              {language === 'KU' ? 'تیمی تەواو' : 'View Full Squad'}
+            </span>
+          </div>
+          <span className="text-[#F0A500] text-sm">→</span>
+        </Link>
+
         {/* ── S5: Key Players ──────────────────────────────────────────────── */}
         <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-5 space-y-3">
           <h2 className="text-base font-bold text-[#E6EDF3]">{t.keyPlayers}</h2>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import CardModal from '@/components/CardModal'
 import ShapCard from '@/components/ShapCard'
@@ -62,6 +63,8 @@ const L = {
     momentum: 'Team Momentum',
     keyPlayer: 'Key Player Spotlight',
     impact: 'Impact',
+    squads: 'Team Squads',
+    viewSquad: 'Full squad →',
     postMatch: 'Post-Match Analysis',
     luckTitle: 'Luck Scores',
     narrative: 'AI Match Narrative',
@@ -87,6 +90,8 @@ const L = {
     momentum: 'مۆمێنتەمی تیمەکان',
     keyPlayer: 'لاعبی گرنگ',
     impact: 'کاریگەری',
+    squads: 'تیمەکان',
+    viewSquad: 'تیمی تەواو →',
     postMatch: 'شیکاری دوای یاری',
     luckTitle: 'خەمەی بەخت',
     narrative: 'چیرۆکی یاری بە AI',
@@ -629,6 +634,29 @@ export default function MatchDetailPage() {
             )}
           </>
         )}
+
+        {/* ── SECTION 5b: Team Squads ──────────────────────────────────────── */}
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold text-[#E6EDF3]">{t.squads}</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { team: match.home_team, flag: match.home_team_flag ?? '🏳️' },
+              { team: match.away_team, flag: match.away_team_flag ?? '🏳️' },
+            ].map(({ team, flag }) => (
+              <Link
+                key={team}
+                href={`/team/${encodeURIComponent(team)}/squad`}
+                className="flex items-center gap-2.5 bg-[#161B22] border border-[#30363D] hover:border-[#F0A500]/40 rounded-xl px-4 py-3 transition-colors group"
+              >
+                <span className="text-2xl flex-shrink-0">{flag}</span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-[#E6EDF3] group-hover:text-[#F0A500] truncate transition-colors">{team}</p>
+                  <p className="text-[10px] text-[#8B949E]">{t.viewSquad}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
 
         {/* ── SECTION 6: User Prediction (scheduled only) ─────────────────── */}
         {(isScheduled || isLive) && (
