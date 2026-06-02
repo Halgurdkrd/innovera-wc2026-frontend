@@ -8,6 +8,7 @@ import { useLanguage } from '@/hooks/useLanguage'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Sk } from '@/components/SkeletonCard'
+import PredictionCard from '@/components/PredictionCard'
 import type { Match } from '@/types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -429,6 +430,7 @@ export default function MyPredictionsPage() {
   }
 
   const visiblePreds = predictions.slice(0, page * PAGE_SIZE)
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
 
   return (
     <div className="min-h-screen bg-[#0D1117]">
@@ -556,7 +558,51 @@ export default function MyPredictionsPage() {
                 <>
                   <div className="space-y-3">
                     {visiblePreds.map(pred => (
-                      <PredCard key={pred.id} pred={pred} lang={language} />
+                      <div key={pred.id} className="space-y-2">
+                        {/* Prediction row with 📥 toggle button */}
+                        <div className="relative">
+                          <PredCard pred={pred} lang={language} />
+                          <button
+                            onClick={() => setExpandedCardId(expandedCardId === pred.id ? null : pred.id)}
+                            title={expandedCardId === pred.id ? 'Close card' : 'Download prediction card'}
+                            className="absolute top-2 right-2 text-[10px] font-bold text-[#0D1117] bg-[#F0A500] hover:bg-[#D4920A] px-1.5 py-0.5 rounded-full transition-colors leading-none"
+                          >
+                            {expandedCardId === pred.id ? '✕' : '📥'}
+                          </button>
+                        </div>
+
+                        {/* Expanded PredictionCard */}
+                        {expandedCardId === pred.id && pred.match && (
+                          <div className="flex justify-center pt-1">
+                            <PredictionCard
+                              homeTeam={pred.match.home_team}
+                              awayTeam={pred.match.away_team}
+                              homeFlag={pred.match.home_team_flag ?? '🏳️'}
+                              awayFlag={pred.match.away_team_flag ?? '🏳️'}
+                              matchDate={pred.match.match_date
+                                ? new Date(pred.match.match_date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+                                : ''}
+                              groupName={pred.match.group_name ?? ''}
+                              aiHomeWinProb={pred.match.home_win_probability ?? 0.33}
+                              aiDrawProb={pred.match.draw_probability ?? 0.34}
+                              aiAwayWinProb={pred.match.away_win_probability ?? 0.33}
+                              userName={displayName}
+                              userPrediction={pred.predicted_outcome}
+                              userHomeScore={pred.predicted_home_score ?? undefined}
+                              userAwayScore={pred.predicted_away_score ?? undefined}
+                              isFinished={pred.match.status === 'finished'}
+                              actualHomeScore={pred.match.home_score}
+                              actualAwayScore={pred.match.away_score}
+                              pointsEarned={pred.points_earned ?? undefined}
+                              humanBeatAI={pred.beat_ai ?? undefined}
+                              userCorrect={pred.actual_outcome != null
+                                ? pred.predicted_outcome === pred.actual_outcome
+                                : undefined}
+                              language={language}
+                            />
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                   {predictions.length > visiblePreds.length && (
