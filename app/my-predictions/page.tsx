@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
@@ -371,6 +371,8 @@ export default function MyPredictionsPage() {
     user.email?.split('@')[0] ??
     'Predictor'
 
+  const badgeRef = useRef<HTMLDivElement>(null)
+
   const handleShare = async () => {
     const msg = t.shareMsg(displayName, totalPoints, badge.nameEN)
     if (navigator.share) {
@@ -378,6 +380,52 @@ export default function MyPredictionsPage() {
     } else {
       await navigator.clipboard.writeText(msg)
     }
+  }
+
+  const downloadBadge = async () => {
+    if (!badgeRef.current) return
+    const html2canvas = (await import('html2canvas')).default
+    const canvas = await html2canvas(badgeRef.current, {
+      backgroundColor: '#0D1117',
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    })
+    const link = document.createElement('a')
+    link.download = 'innovera-wc2026-badge.png'
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+  }
+
+  const shareBadge = async () => {
+    if (!badgeRef.current) return
+    const html2canvas = (await import('html2canvas')).default
+    const canvas = await html2canvas(badgeRef.current, {
+      backgroundColor: '#0D1117',
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    })
+    canvas.toBlob(async (blob) => {
+      if (!blob) return
+      if (navigator.share && typeof navigator.canShare === 'function') {
+        const file = new File([blob], 'innovera-badge.png', { type: 'image/png' })
+        try {
+          await navigator.share({
+            title: 'My Innovera WC2026 Badge',
+            text: `${displayName} — ${badge.nameEN} on Innovera WC2026 Predictor!`,
+            files: [file],
+          })
+          return
+        } catch { /* fallthrough to download */ }
+      }
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.download = 'innovera-wc2026-badge.png'
+      link.href = url
+      link.click()
+      URL.revokeObjectURL(url)
+    })
   }
 
   const visiblePreds = predictions.slice(0, page * PAGE_SIZE)
@@ -420,8 +468,17 @@ export default function MyPredictionsPage() {
             </div>
 
             {/* ── S3: Football Identity Badge ───────────────────────────── */}
-            <div className="bg-gradient-to-br from-[#161B22] to-[#0D1117] border border-[#F0A500]/30 rounded-2xl p-6 text-center space-y-3"
-              style={{ boxShadow: '0 0 40px rgba(240,165,0,0.07)' }}>
+            <div
+              ref={badgeRef}
+              className="bg-gradient-to-br from-[#161B22] to-[#0D1117] border border-[#F0A500]/30 rounded-2xl p-6 text-center space-y-3"
+              style={{ boxShadow: '0 0 40px rgba(240,165,0,0.07)' }}
+            >
+              {/* Branding header — included in PNG */}
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-bold text-[#F0A500] tracking-widest uppercase">🏆 Innovera WC2026</span>
+                <span className="text-[10px] text-[#8B949E]">innovera.ai</span>
+              </div>
+
               <p className="text-xs font-semibold text-[#F0A500] uppercase tracking-widest">{t.identity}</p>
               <span className="text-6xl block leading-none">{badge.emoji}</span>
               <p className="text-xl font-extrabold text-[#F0A500]">
@@ -430,6 +487,32 @@ export default function MyPredictionsPage() {
               <p className="text-sm text-[#8B949E] max-w-xs mx-auto leading-relaxed">
                 {language === 'KU' ? badge.descKU : badge.descEN}
               </p>
+
+              {/* User name + mini stats */}
+              <div className="pt-2 border-t border-[#30363D]/50 space-y-1">
+                <p className="text-sm font-bold text-[#E6EDF3]">{displayName}</p>
+                <p className="text-xs text-[#8B949E]">
+                  {totalPoints} {language === 'KU' ? 'خاڵ' : 'pts'}
+                  {accuracy != null && ` · ${accuracy}% ${language === 'KU' ? 'تەواوی' : 'accuracy'}`}
+                </p>
+                <p className="text-[9px] text-[#30363D] tracking-widest font-medium select-none">FIFA WORLD CUP 2026</p>
+              </div>
+            </div>
+
+            {/* Download + Share buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={downloadBadge}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-[#F0A500] hover:bg-[#D4920A] text-[#0D1117] font-bold text-sm py-2.5 rounded-xl transition-colors"
+              >
+                📥 {language === 'KU' ? 'داگرتن' : 'Download Badge'}
+              </button>
+              <button
+                onClick={shareBadge}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-[#161B22] hover:bg-[#21262D] text-[#E6EDF3] font-bold text-sm py-2.5 rounded-xl border border-[#30363D] hover:border-[#F0A500]/40 transition-all"
+              >
+                📤 {language === 'KU' ? 'هاوبەشکردن' : 'Share Badge'}
+              </button>
             </div>
 
             {/* ── S4: Bracket Status ───────────────────────────────────── */}
