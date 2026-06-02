@@ -11,7 +11,10 @@ import UserPrediction from '@/components/UserPrediction'
 import { Sk } from '@/components/SkeletonCard'
 import LineupBadge from '@/components/LineupBadge'
 import PredictedScorers from '@/components/PredictedScorers'
+import PredictionCard from '@/components/PredictionCard'
+import type { LockedPrediction } from '@/components/UserPrediction'
 import { useLanguage } from '@/hooks/useLanguage'
+import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import type { Match, Prediction, LuckScore } from '@/types'
 import { API_BASE } from '@/lib/api'
@@ -224,6 +227,8 @@ export default function MatchDetailPage() {
   const [homeLuck, setHomeLuck] = useState<LuckScore | null>(null)
   const [awayLuck, setAwayLuck] = useState<LuckScore | null>(null)
   const [loading, setLoading] = useState(true)
+  const [lockedPrediction, setLockedPrediction] = useState<LockedPrediction | null>(null)
+  const { user } = useAuth()
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [shareLoading, setShareLoading] = useState(false)
   const [showCardModal, setShowCardModal] = useState(false)
@@ -626,7 +631,36 @@ export default function MatchDetailPage() {
         )}
 
         {/* ── SECTION 6: User Prediction (scheduled only) ─────────────────── */}
-        {(isScheduled || isLive) && <UserPrediction match={match} language={language} />}
+        {(isScheduled || isLive) && (
+          <UserPrediction
+            match={match}
+            language={language}
+            onLock={setLockedPrediction}
+          />
+        )}
+
+        {/* Prediction card — appears after user locks their pick */}
+        {lockedPrediction && (
+          <PredictionCard
+            homeTeam={match.home_team}
+            awayTeam={match.away_team}
+            homeFlag={match.home_team_flag ?? '🏳️'}
+            awayFlag={match.away_team_flag ?? '🏳️'}
+            matchDate={match.match_date ? new Date(match.match_date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : ''}
+            groupName={match.group_name ?? ''}
+            aiHomeWinProb={match.home_win_probability ?? 0.33}
+            aiDrawProb={match.draw_probability ?? 0.34}
+            aiAwayWinProb={match.away_win_probability ?? 0.33}
+            userName={(user?.user_metadata?.name as string | undefined) ?? user?.email?.split('@')[0] ?? 'You'}
+            userPrediction={lockedPrediction.outcome}
+            userHomeScore={lockedPrediction.homeScore}
+            userAwayScore={lockedPrediction.awayScore}
+            isFinished={isFinished}
+            actualHomeScore={match.home_score}
+            actualAwayScore={match.away_score}
+            language={language}
+          />
+        )}
 
         {/* ── SECTION 7: Post-Match (finished only) ───────────────────────── */}
         {isFinished && (

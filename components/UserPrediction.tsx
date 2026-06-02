@@ -6,9 +6,16 @@ import type { Language } from './Navbar'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 
+export interface LockedPrediction {
+  outcome: 'home' | 'draw' | 'away'
+  homeScore?: number
+  awayScore?: number
+}
+
 interface UserPredictionProps {
   match: Match
   language: Language
+  onLock?: (pred: LockedPrediction) => void
 }
 
 type Outcome = 'home' | 'draw' | 'away' | null
@@ -48,7 +55,7 @@ const labels = {
   },
 }
 
-export default function UserPrediction({ match, language }: UserPredictionProps) {
+export default function UserPrediction({ match, language, onLock }: UserPredictionProps) {
   const t = labels[language]
   const { user, openAuthModal } = useAuth()
 
@@ -67,6 +74,11 @@ export default function UserPrediction({ match, language }: UserPredictionProps)
   const handleLock = async () => {
     if (!canLock) return
     setLocked(true)
+    onLock?.({
+      outcome: outcome as 'home' | 'draw' | 'away',
+      homeScore: homeScore !== '' ? Number(homeScore) : undefined,
+      awayScore: awayScore !== '' ? Number(awayScore) : undefined,
+    })
 
     if (!user) return  // just lock locally if not logged in (UI already handled)
 
