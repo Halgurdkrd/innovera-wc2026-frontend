@@ -336,11 +336,13 @@ export default function MatchDetailPage() {
             }
             // Populate match probabilities from prediction if not already in match row
             if (raw && vps.home_win_prob != null) {
+              // API returns 0-1 scale; frontend displays as percentage (0-100)
+              // Math.round(0.88) = 1% — WRONG. Must multiply by 100 first.
               setMatch(prev => prev ? {
                 ...prev,
-                home_win_probability: vps.home_win_prob,
-                draw_probability: vps.draw_prob,
-                away_win_probability: vps.away_win_prob,
+                home_win_probability: vps.home_win_prob * 100,
+                draw_probability: vps.draw_prob * 100,
+                away_win_probability: vps.away_win_prob * 100,
                 ai_confidence: Math.round((vps.confidence ?? vps.home_win_prob) * 100),
               } : prev)
             }
@@ -715,9 +717,9 @@ export default function MatchDetailPage() {
             awayFlag={match.away_team_flag ?? '🏳️'}
             matchDate={match.match_date ? new Date(match.match_date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : ''}
             groupName={match.group_name ?? ''}
-            aiHomeWinProb={match.home_win_probability ?? 0.33}
-            aiDrawProb={match.draw_probability ?? 0.34}
-            aiAwayWinProb={match.away_win_probability ?? 0.33}
+            aiHomeWinProb={(match.home_win_probability ?? 33) / 100}
+            aiDrawProb={(match.draw_probability ?? 34) / 100}
+            aiAwayWinProb={(match.away_win_probability ?? 33) / 100}
             userName={(user?.user_metadata?.name as string | undefined) ?? user?.email?.split('@')[0] ?? 'You'}
             userPrediction={lockedPrediction.outcome}
             userHomeScore={lockedPrediction.homeScore}
