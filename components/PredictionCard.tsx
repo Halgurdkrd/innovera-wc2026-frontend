@@ -2,211 +2,404 @@
 
 import { useRef } from 'react'
 
-interface PredictionCardProps {
-  homeTeam: string
-  awayTeam: string
-  homeFlag: string
-  awayFlag: string
-  matchDate: string
-  groupName: string
-  aiHomeWinProb: number
-  aiDrawProb: number
-  aiAwayWinProb: number
-  userName: string
-  userPrediction: 'home' | 'draw' | 'away'
-  userHomeScore?: number
-  userAwayScore?: number
-  isFinished?: boolean
-  actualHomeScore?: number
-  actualAwayScore?: number
-  pointsEarned?: number
-  totalPoints?: number
-  humanBeatAI?: boolean
-  userCorrect?: boolean
-  aiCorrect?: boolean
+// ── Design tokens ─────────────────────────────────────────────────────────────
+
+const T = {
+  bg:     '#0f172a',
+  panel:  '#1e293b',
+  border: '#334155',
+  gold:   '#f59e0b',
+  blue:   '#3b82f6',
+  text:   '#f8fafc',
+  muted:  '#94a3b8',
+  green:  '#22c55e',
+  red:    '#ef4444',
+}
+
+// ── html2canvas helpers ───────────────────────────────────────────────────────
+
+async function captureAndDownload(el: HTMLElement, filename: string) {
+  const h2c = (await import('html2canvas')).default
+  const canvas = await h2c(el, { scale: 2, useCORS: true, backgroundColor: T.bg, logging: false })
+  const link = document.createElement('a')
+  link.download = filename
+  link.href = canvas.toDataURL('image/png')
+  link.click()
+}
+
+async function captureAndShare(el: HTMLElement, title: string) {
+  const h2c = (await import('html2canvas')).default
+  const canvas = await h2c(el, { scale: 2, useCORS: true, backgroundColor: T.bg, logging: false })
+  canvas.toBlob(async (blob) => {
+    if (!blob) return
+    if (navigator.share && typeof navigator.canShare === 'function') {
+      try {
+        await navigator.share({ title, files: [new File([blob], 'innovera.png', { type: 'image/png' })] })
+        return
+      } catch { /* fallthrough */ }
+    }
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.download = 'innovera-prediction.png'; a.href = url; a.click()
+    URL.revokeObjectURL(url)
+  })
+}
+
+// ── Shared sub-components (inline styles for html2canvas compat) ──────────────
+
+function Header() {
+  return (
+    <div style={{ background: '#0a0f1e', padding: '14px 20px', borderBottom: `2px solid ${T.gold}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{ fontSize: '18px' }}>⚽</span>
+        <span style={{ color: T.gold, fontWeight: '800', fontSize: '13px', letterSpacing: '1px' }}>INNOVERA</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <span style={{ color: T.muted, fontSize: '11px' }}>WC 2026</span>
+        <span style={{ fontSize: '15px' }}>🏆</span>
+      </div>
+    </div>
+  )
+}
+
+function Footer() {
+  return (
+    <div style={{ padding: '10px 20px', borderTop: `1px solid ${T.border}`, display: 'flex', justifyContent: 'center', gap: '16px' }}>
+      <span style={{ color: T.muted, fontSize: '10px' }}>#WC2026</span>
+      <span style={{ color: T.gold, fontSize: '10px', fontWeight: 'bold' }}>innovera.ai</span>
+    </div>
+  )
+}
+
+function Teams({ homeTeam, awayTeam, homeFlag, awayFlag }: { homeTeam: string; awayTeam: string; homeFlag: string; awayFlag: string }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px' }}>
+      {[{ flag: homeFlag, name: homeTeam }, { flag: awayFlag, name: awayTeam }].map((t, i) => (
+        <div key={i} style={{ textAlign: 'center', flex: 1 }}>
+          <div style={{ fontSize: '44px', lineHeight: 1 }}>{t.flag}</div>
+          <div style={{ fontWeight: '800', fontSize: '13px', marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.5px', color: T.text }}>{t.name}</div>
+        </div>
+      )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, <div key="vs" style={{ color: T.muted, fontWeight: 'bold', fontSize: '16px', flexShrink: 0 }}>VS</div>, el], [] as React.ReactNode[])}
+    </div>
+  )
+}
+
+function MetaRow({ items }: { items: (string | undefined)[] }) {
+  const valid = items.filter(Boolean)
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '8px', flexWrap: 'wrap' }}>
+      {valid.map((v, i) => (
+        <span key={i} style={{ color: T.muted, fontSize: '11px' }}>{v}</span>
+      ))}
+    </div>
+  )
+}
+
+function ConfBadge({ level }: { level: 'HIGH' | 'MEDIUM' | 'LOW' }) {
+  const c = level === 'HIGH' ? T.gold : level === 'MEDIUM' ? T.blue : T.muted
+  return (
+    <span style={{ color: c, border: `1px solid ${c}`, borderRadius: '999px', fontSize: '10px', fontWeight: 'bold', padding: '2px 8px', background: c + '25' }}>
+      {level}
+    </span>
+  )
+}
+
+function ProbRow({ label, pct, color }: { label: string; pct: number; color: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+      <span style={{ color: T.muted, fontSize: '12px', width: '90px', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+      <div style={{ flex: 1, height: '6px', borderRadius: '3px', background: T.bg, overflow: 'hidden' }}>
+        <div style={{ width: `${Math.max(2, pct)}%`, height: '100%', background: color, borderRadius: '3px' }} />
+      </div>
+      <span style={{ color, fontSize: '12px', fontWeight: 'bold', width: '32px', textAlign: 'right', flexShrink: 0 }}>{Math.round(pct)}%</span>
+    </div>
+  )
+}
+
+function LuckBar({ team, score }: { team: string; score: number }) {
+  const positive = score >= 0
+  const color = positive ? T.gold : T.red
+  const pct = Math.min(100, Math.abs(score) / 10 * 100)
+  const label = score > 1 ? '🍀 Lucky' : score < -1 ? '😤 Unlucky' : '✅ Deserved'
+  return (
+    <div style={{ marginBottom: '10px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+        <span style={{ color: T.muted, fontSize: '11px' }}>{team}</span>
+        <span style={{ color, fontSize: '11px', fontWeight: 'bold' }}>{score > 0 ? '+' : ''}{score.toFixed(1)} {label}</span>
+      </div>
+      <div style={{ height: '5px', background: T.bg, borderRadius: '3px', overflow: 'hidden', position: 'relative' }}>
+        {positive
+          ? <div style={{ position: 'absolute', left: 0, width: `${pct}%`, height: '100%', background: color, borderRadius: '3px' }} />
+          : <div style={{ position: 'absolute', right: 0, width: `${pct}%`, height: '100%', background: color, borderRadius: '3px' }} />
+        }
+      </div>
+    </div>
+  )
+}
+
+function ActionButtons({ onDownload, onShare, enabled, isKU }: { onDownload: () => void; onShare: () => void; enabled: boolean; isKU: boolean }) {
+  const btn = (onClick: () => void, icon: string, label: string, primary: boolean) => (
+    <button onClick={onClick} disabled={!enabled} style={{
+      flex: 1, padding: '10px 0', borderRadius: '10px', border: primary ? 'none' : `1px solid ${enabled ? T.gold + '50' : T.border}`,
+      background: primary ? (enabled ? T.gold : T.panel) : T.panel,
+      color: primary ? (enabled ? '#0f172a' : T.muted) : (enabled ? T.text : T.muted),
+      fontWeight: 'bold', fontSize: '12px', cursor: enabled ? 'pointer' : 'not-allowed',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
+      transition: 'all 0.2s',
+    }}>
+      {icon} {label}
+    </button>
+  )
+  return (
+    <div style={{ display: 'flex', gap: '8px', marginTop: '10px', width: '400px' }}>
+      {btn(onDownload, '📥', isKU ? 'داگرتن' : 'Download Card', true)}
+      {btn(onShare,    '📤', isKU ? 'هاوبەشکردن' : 'Share', false)}
+    </div>
+  )
+}
+
+// ── PRE-MATCH CARD ────────────────────────────────────────────────────────────
+
+export interface PreMatchCardProps {
+  homeTeam: string; awayTeam: string
+  homeFlag: string; awayFlag: string
+  matchDate?: string; venue?: string; group?: string
+  homeWinProb: number; drawProb: number; awayWinProb: number
+  aiConfidence?: 'HIGH' | 'MEDIUM' | 'LOW'
+  topScorelines?: string
+  userPrediction?: string    // e.g. "Mexico Win"
+  userScore?: string         // e.g. "1 - 1"
+  isLocked?: boolean
   language?: 'EN' | 'KU'
 }
 
-export default function PredictionCard({
-  homeTeam, awayTeam, homeFlag, awayFlag,
-  matchDate, groupName,
-  aiHomeWinProb, aiDrawProb, aiAwayWinProb,
-  userName,
-  userPrediction, userHomeScore, userAwayScore,
-  isFinished = false,
-  actualHomeScore, actualAwayScore,
-  pointsEarned, totalPoints,
-  humanBeatAI, userCorrect, aiCorrect,
-  language = 'EN',
-}: PredictionCardProps) {
+export function PreMatchCard(props: PreMatchCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
-  const isKU = language === 'KU'
+  const btnRef = useRef<HTMLDivElement>(null)
+  const isKU = props.language === 'KU'
+  const slug = `${props.homeTeam.toLowerCase().replace(/\s+/g,'-')}-vs-${props.awayTeam.toLowerCase().replace(/\s+/g,'-')}`
 
-  const downloadCard = async () => {
-    if (!cardRef.current) return
-    const html2canvas = (await import('html2canvas')).default
-    const canvas = await html2canvas(cardRef.current, {
-      backgroundColor: '#0D1117',
-      scale: 2,
-      useCORS: true,
-      logging: false,
-    })
-    const link = document.createElement('a')
-    link.download = `innovera-${homeTeam}-vs-${awayTeam}.png`
-    link.href = canvas.toDataURL('image/png')
-    link.click()
-  }
-
-  const aiPredText = aiHomeWinProb > 0.45
-    ? `${homeTeam} ${isKU ? 'دەبەرێت' : 'Win'}`
-    : aiHomeWinProb < 0.35
-    ? `${awayTeam} ${isKU ? 'دەبەرێت' : 'Win'}`
-    : (isKU ? 'یەکسان' : 'Draw')
-
-  const userPredText = userPrediction === 'home'
-    ? `${homeTeam} ${isKU ? 'دەبەرێت' : 'Win'}`
-    : userPrediction === 'away'
-    ? `${awayTeam} ${isKU ? 'دەبەرێت' : 'Win'}`
-    : (isKU ? 'یەکسان' : 'Draw')
-
-  const hasExactScore = userHomeScore !== undefined && userAwayScore !== undefined
-
-  const s = {
-    card: {
-      width: '380px',
-      background: 'linear-gradient(135deg, #0D1117 0%, #161B22 100%)',
-      borderRadius: '16px',
-      border: '1.5px solid #F0A500',
-      padding: '20px',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      color: 'white',
-    } as React.CSSProperties,
+  const exec = async (fn: (el: HTMLElement) => Promise<void>) => {
+    if (!cardRef.current || !props.isLocked) return
+    if (btnRef.current) btnRef.current.style.visibility = 'hidden'
+    await fn(cardRef.current)
+    if (btnRef.current) btnRef.current.style.visibility = 'visible'
   }
 
   return (
-    <div className="flex flex-col items-center gap-3 w-full">
+    <div style={{ display: 'inline-block' }}>
+      {/* ── Card ── */}
+      <div ref={cardRef} style={{ width: '400px', background: T.bg, borderRadius: '16px', border: `1px solid ${T.border}`, overflow: 'hidden', fontFamily: 'system-ui,-apple-system,sans-serif', color: T.text }}>
+        <Header />
 
-      {/* ── Card (rendered to PNG) ─────────────────────────────────────────── */}
-      <div ref={cardRef} style={s.card}>
-
-        {/* Header */}
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
-          <span style={{ color:'#F0A500', fontWeight:'bold', fontSize:'13px', letterSpacing:'0.5px' }}>
-            🏆 INNOVERA WC2026
-          </span>
-          <span style={{ color:'#8B949E', fontSize:'11px' }}>innovera.ai</span>
+        {/* Teams */}
+        <div style={{ padding: '22px 20px 14px' }}>
+          <Teams homeTeam={props.homeTeam} awayTeam={props.awayTeam} homeFlag={props.homeFlag} awayFlag={props.awayFlag} />
+          <MetaRow items={[props.group && `Group ${props.group}`, props.matchDate, props.venue]} />
         </div>
 
-        {/* Match teams */}
-        <div style={{ textAlign:'center', marginBottom:'14px' }}>
-          <div style={{ fontSize:'19px', fontWeight:'bold', marginBottom:'4px' }}>
-            {homeFlag} {homeTeam}
-            <span style={{ color:'#8B949E', margin:'0 8px', fontSize:'15px' }}>vs</span>
-            {awayTeam} {awayFlag}
+        {/* AI section */}
+        <div style={{ margin: '0 16px 14px', background: T.panel, borderRadius: '12px', padding: '14px 16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <span style={{ color: T.muted, fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              🤖 {isKU ? 'پێشبینی AI' : 'AI Prediction'}
+            </span>
+            {props.aiConfidence && <ConfBadge level={props.aiConfidence} />}
           </div>
-
-          {isFinished && actualHomeScore !== undefined ? (
-            <div style={{ fontSize:'26px', fontWeight:'bold', color:'#F0A500', margin:'6px 0' }}>
-              {actualHomeScore} — {actualAwayScore}
-              <span style={{ fontSize:'11px', color:'#8B949E', marginLeft:'8px', fontWeight:'normal' }}>
-                {isKU ? 'کۆتایی' : 'FINAL'}
-              </span>
-            </div>
-          ) : (
-            <div style={{ color:'#8B949E', fontSize:'12px' }}>
-              {matchDate}{groupName ? ` • Group ${groupName}` : ''}
+          <ProbRow label={props.homeTeam} pct={props.homeWinProb} color={T.gold} />
+          <ProbRow label={isKU ? 'یەکسان' : 'Draw'}    pct={props.drawProb}    color={T.blue} />
+          <ProbRow label={props.awayTeam} pct={props.awayWinProb} color={T.muted} />
+          {props.topScorelines && (
+            <div style={{ color: T.muted, fontSize: '11px', marginTop: '2px' }}>
+              {isKU ? 'باشترین ئەنجام' : 'Top scorelines'}: {props.topScorelines}
             </div>
           )}
         </div>
 
-        {/* Divider */}
-        <div style={{ height:'1px', background:'#21262D', margin:'10px 0' }} />
-
-        {/* AI prediction */}
-        <div style={{ background:'#161B22', borderRadius:'8px', padding:'10px 12px', marginBottom:'8px', border:'1px solid #21262D' }}>
-          <div style={{ fontSize:'10px', color:'#8B949E', marginBottom:'5px', textTransform:'uppercase', letterSpacing:'0.5px' }}>
-            🤖 {isKU ? 'پێشبینی AI' : 'AI Prediction'}
-          </div>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'6px' }}>
-            <span style={{ fontWeight:'bold', fontSize:'14px' }}>
-              {aiPredText}
-              {isFinished && aiCorrect !== undefined && (
-                <span style={{ marginLeft:'6px' }}>{aiCorrect ? '✅' : '❌'}</span>
-              )}
-            </span>
-            <span style={{ color:'#F0A500', fontSize:'12px' }}>
-              {Math.round(aiHomeWinProb * 100)}% / {Math.round(aiDrawProb * 100)}% / {Math.round(aiAwayWinProb * 100)}%
-            </span>
-          </div>
-          <div style={{ display:'flex', height:'5px', borderRadius:'3px', overflow:'hidden' }}>
-            <div style={{ width:`${aiHomeWinProb*100}%`, background:'#2EA043' }} />
-            <div style={{ width:`${aiDrawProb*100}%`, background:'#8B949E' }} />
-            <div style={{ width:`${aiAwayWinProb*100}%`, background:'#F85149' }} />
-          </div>
-        </div>
-
-        {/* User prediction */}
-        <div style={{ background:'#161B22', borderRadius:'8px', padding:'10px 12px', marginBottom:'10px', border:'1px solid #F0A500' }}>
-          <div style={{ fontSize:'10px', color:'#8B949E', marginBottom:'5px', textTransform:'uppercase', letterSpacing:'0.5px' }}>
-            👤 {userName} {isKU ? 'پێشبینی کرد' : 'Predicted'}
-          </div>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <span style={{ fontWeight:'bold', fontSize:'14px' }}>
-              {hasExactScore
-                ? `${homeTeam} ${userHomeScore} — ${userAwayScore} ${awayTeam}`
-                : userPredText}
-              {isFinished && userCorrect !== undefined && (
-                <span style={{ marginLeft:'6px' }}>{userCorrect ? '✅' : '❌'}</span>
-              )}
-            </span>
-            {isFinished && pointsEarned !== undefined && (
-              <span style={{ color: pointsEarned > 0 ? '#2EA043' : '#8B949E', fontWeight:'bold', fontSize:'13px' }}>
-                +{pointsEarned} {isKU ? 'خاڵ' : 'pts'}
-              </span>
+        {/* User section */}
+        {props.userPrediction ? (
+          <div style={{ margin: '0 16px 14px', background: T.panel, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${T.gold}40` }}>
+            <div style={{ color: T.muted, fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>
+              👤 {isKU ? 'پێشبینیت' : 'Your Prediction'}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '18px' }}>🔒</span>
+              <span style={{ fontWeight: '800', fontSize: '18px', color: T.gold }}>{props.userPrediction}</span>
+            </div>
+            {props.userScore && (
+              <div style={{ color: T.muted, fontSize: '12px', marginTop: '6px' }}>
+                {isKU ? 'ئەنجامی پێشبینیکراو' : 'Predicted score'}: <span style={{ color: T.text }}>{props.userScore}</span>
+              </div>
             )}
           </div>
+        ) : (
+          <div style={{ margin: '0 16px 14px', background: T.panel, borderRadius: '12px', padding: '14px 16px', border: `1px dashed ${T.border}`, textAlign: 'center' }}>
+            <div style={{ color: T.muted, fontSize: '12px' }}>
+              {isKU ? 'پێشبینیەکەت قووڵ بکە بۆ داگرتنی کارت' : 'Lock your prediction to download the card'}
+            </div>
+          </div>
+        )}
+
+        <Footer />
+      </div>
+
+      {/* Action buttons */}
+      <div ref={btnRef}>
+        <ActionButtons
+          onDownload={() => exec(el => captureAndDownload(el, `innovera-${slug}-prediction.png`))}
+          onShare={() => exec(el => captureAndShare(el, `My WC2026 prediction: ${props.homeTeam} vs ${props.awayTeam}`))}
+          enabled={!!props.isLocked}
+          isKU={isKU}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ── POST-MATCH CARD ───────────────────────────────────────────────────────────
+
+export interface PostMatchCardProps {
+  homeTeam: string; awayTeam: string
+  homeFlag: string; awayFlag: string
+  homeScore: number; awayScore: number
+  group?: string
+  aiPrediction?: string
+  aiCorrect?: boolean
+  userPrediction?: string
+  userCorrect?: boolean
+  pointsEarned?: number
+  totalPoints?: number
+  homeLuckScore?: number
+  awayLuckScore?: number
+  userStreak?: number
+  userRank?: number
+  isLoggedIn?: boolean
+  language?: 'EN' | 'KU'
+}
+
+export function PostMatchCard(props: PostMatchCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLDivElement>(null)
+  const isKU = props.language === 'KU'
+  const slug = `${props.homeTeam.toLowerCase().replace(/\s+/g,'-')}-vs-${props.awayTeam.toLowerCase().replace(/\s+/g,'-')}`
+
+  const exec = async (fn: (el: HTMLElement) => Promise<void>) => {
+    if (!cardRef.current) return
+    if (btnRef.current) btnRef.current.style.visibility = 'hidden'
+    await fn(cardRef.current)
+    if (btnRef.current) btnRef.current.style.visibility = 'visible'
+  }
+
+  const Result = ({ correct }: { correct: boolean | undefined }) =>
+    correct == null ? null :
+    <span style={{ fontSize: '16px' }}>{correct ? '✅' : '❌'}</span>
+
+  return (
+    <div style={{ display: 'inline-block' }}>
+      <div ref={cardRef} style={{ width: '400px', background: T.bg, borderRadius: '16px', border: `1px solid ${T.border}`, overflow: 'hidden', fontFamily: 'system-ui,-apple-system,sans-serif', color: T.text }}>
+        <Header />
+
+        {/* Teams + score */}
+        <div style={{ padding: '22px 20px 14px', textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px' }}>
+            <div style={{ textAlign: 'center', flex: 1 }}>
+              <div style={{ fontSize: '40px', lineHeight: 1 }}>{props.homeFlag}</div>
+              <div style={{ fontWeight: '800', fontSize: '12px', marginTop: '5px', textTransform: 'uppercase' }}>{props.homeTeam}</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '42px', fontWeight: '900', color: T.gold, lineHeight: 1 }}>
+                {props.homeScore} — {props.awayScore}
+              </div>
+              <div style={{ color: T.muted, fontSize: '10px', marginTop: '4px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                {isKU ? 'کۆتایی' : 'FINAL'}
+              </div>
+            </div>
+            <div style={{ textAlign: 'center', flex: 1 }}>
+              <div style={{ fontSize: '40px', lineHeight: 1 }}>{props.awayFlag}</div>
+              <div style={{ fontWeight: '800', fontSize: '12px', marginTop: '5px', textTransform: 'uppercase' }}>{props.awayTeam}</div>
+            </div>
+          </div>
+          {props.group && <MetaRow items={[`Group ${props.group}`]} />}
         </div>
 
-        {/* Post-match result banner */}
-        {isFinished && humanBeatAI !== undefined && (
-          <div style={{
-            textAlign:'center', padding:'10px', borderRadius:'8px', marginBottom:'8px',
-            background: humanBeatAI ? 'linear-gradient(135deg,#1A3A1A,#1E4620)' : 'linear-gradient(135deg,#1A1A2E,#16213E)',
-            border: `1px solid ${humanBeatAI ? '#2EA043' : '#F0A500'}`,
-          }}>
-            <div style={{ fontSize:'16px', fontWeight:'bold', color: humanBeatAI ? '#2EA043' : '#F0A500', marginBottom:'3px' }}>
-              {humanBeatAI
-                ? `🏆 ${isKU ? 'مرۆڤ دەستی بکردەسەر AI!' : 'HUMAN BEATS AI!'}`
-                : `🤖 ${isKU ? 'AI بردی!' : 'AI BEATS HUMAN'}`}
+        {/* Result comparison */}
+        <div style={{ margin: '0 16px 14px', background: T.panel, borderRadius: '12px', padding: '14px 16px' }}>
+          <div style={{ color: T.muted, fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
+            {isKU ? 'ئەنجامەکان' : 'RESULT'}
+          </div>
+          {[
+            { icon: '🤖', label: isKU ? 'AI پێشبینی کرد' : 'AI predicted', pred: props.aiPrediction, correct: props.aiCorrect },
+            { icon: '👤', label: isKU ? 'تۆ پێشبینی کرد' : 'You predicted', pred: props.userPrediction, correct: props.userCorrect },
+          ].map(({ icon, label, pred, correct }) => pred ? (
+            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+              <span style={{ fontSize: '14px' }}>{icon}</span>
+              <span style={{ color: T.muted, fontSize: '12px', width: '100px', flexShrink: 0 }}>{label}:</span>
+              <span style={{ fontWeight: 'bold', fontSize: '13px', color: correct ? T.green : correct === false ? T.red : T.text, flex: 1 }}>{pred}</span>
+              <Result correct={correct} />
             </div>
-            <div style={{ fontSize:'12px', color:'#8B949E' }}>
-              {humanBeatAI
-                ? `${userName} ${isKU ? 'دروست پێشبینی کرد!' : 'called it right!'}`
-                : (isKU ? 'جارێکی تر هەوڵ بدە!' : 'Better luck next match!')}
+          ) : null)}
+
+          {props.isLoggedIn && props.pointsEarned !== undefined && (
+            <div style={{ borderTop: `1px solid ${T.border}`, marginTop: '10px', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: T.muted, fontSize: '12px' }}>{isKU ? 'خاڵی ئەم یارییە' : 'Points this match'}</span>
+              <span style={{ color: T.gold, fontWeight: '800', fontSize: '18px' }}>+{props.pointsEarned}</span>
             </div>
-            {totalPoints !== undefined && (
-              <div style={{ fontSize:'12px', color:'#F0A500', marginTop:'3px' }}>
-                {isKU ? 'کۆی خاڵەکان' : 'Total points'}: {totalPoints}
+          )}
+          {props.isLoggedIn && props.totalPoints !== undefined && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+              <span style={{ color: T.muted, fontSize: '12px' }}>{isKU ? 'کۆی خاڵەکان' : 'Total points'}</span>
+              <span style={{ color: T.text, fontWeight: 'bold', fontSize: '14px' }}>🏅 {props.totalPoints}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Luck scores */}
+        {(props.homeLuckScore !== undefined || props.awayLuckScore !== undefined) && (
+          <div style={{ margin: '0 16px 14px', background: T.panel, borderRadius: '12px', padding: '14px 16px' }}>
+            <div style={{ color: T.muted, fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
+              🍀 {isKU ? 'خەمەی بەخت' : 'Luck Score'}
+            </div>
+            {props.homeLuckScore !== undefined && <LuckBar team={props.homeTeam} score={props.homeLuckScore} />}
+            {props.awayLuckScore !== undefined && <LuckBar team={props.awayTeam} score={props.awayLuckScore} />}
+          </div>
+        )}
+
+        {/* User streak + rank */}
+        {props.isLoggedIn && (props.userStreak != null || props.userRank != null) && (
+          <div style={{ margin: '0 16px 14px', display: 'flex', gap: '10px' }}>
+            {props.userStreak != null && (
+              <div style={{ flex: 1, background: T.panel, borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
+                <div style={{ fontSize: '18px' }}>🔥</div>
+                <div style={{ color: T.gold, fontWeight: '800', fontSize: '18px' }}>{props.userStreak}</div>
+                <div style={{ color: T.muted, fontSize: '10px' }}>{isKU ? 'زنجیرە' : 'Streak'}</div>
+              </div>
+            )}
+            {props.userRank != null && (
+              <div style={{ flex: 1, background: T.panel, borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
+                <div style={{ fontSize: '18px' }}>🏆</div>
+                <div style={{ color: T.gold, fontWeight: '800', fontSize: '18px' }}>#{props.userRank}</div>
+                <div style={{ color: T.muted, fontSize: '10px' }}>{isKU ? 'پلە' : 'Rank'}</div>
               </div>
             )}
           </div>
         )}
 
-        {/* Footer */}
-        <div style={{ display:'flex', justifyContent:'space-between', marginTop:'8px' }}>
-          <span style={{ color:'#F0A500', fontSize:'10px', fontWeight:'bold' }}>innovera.ai</span>
-          <span style={{ color:'#8B949E', fontSize:'10px' }}>FIFA World Cup 2026</span>
-        </div>
+        <Footer />
       </div>
 
-      {/* Download button */}
-      <button
-        onClick={downloadCard}
-        className="w-[380px] bg-[#F0A500] hover:bg-[#D4920A] text-[#0D1117] font-bold text-sm py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2"
-      >
-        <span>📥</span>
-        {isKU ? 'کارتی پێشبینی داگرە' : 'Download Prediction Card'}
-      </button>
+      {/* Action buttons — always enabled for post-match */}
+      <div ref={btnRef}>
+        <ActionButtons
+          onDownload={() => exec(el => captureAndDownload(el, `innovera-${slug}-result.png`))}
+          onShare={() => exec(el => captureAndShare(el, `${props.homeTeam} ${props.homeScore}–${props.awayScore} ${props.awayTeam} | WC2026`))}
+          enabled={true}
+          isKU={isKU}
+        />
+      </div>
     </div>
   )
 }
+
+// ── Legacy default export (kept for backward compat) ──────────────────────────
+
+export default PreMatchCard

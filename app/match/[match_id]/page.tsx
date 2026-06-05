@@ -12,7 +12,7 @@ import UserPrediction from '@/components/UserPrediction'
 import { Sk } from '@/components/SkeletonCard'
 import LineupBadge from '@/components/LineupBadge'
 import PredictedScorers from '@/components/PredictedScorers'
-import PredictionCard from '@/components/PredictionCard'
+import { PreMatchCard, PostMatchCard } from '@/components/PredictionCard'
 import type { LockedPrediction } from '@/components/UserPrediction'
 import { useLanguage } from '@/hooks/useLanguage'
 import { useAuth } from '@/context/AuthContext'
@@ -708,27 +708,91 @@ export default function MatchDetailPage() {
           />
         )}
 
-        {/* Prediction card — appears after user locks their pick */}
-        {lockedPrediction && (
-          <PredictionCard
-            homeTeam={match.home_team}
-            awayTeam={match.away_team}
-            homeFlag={match.home_team_flag ?? '🏳️'}
-            awayFlag={match.away_team_flag ?? '🏳️'}
-            matchDate={match.match_date ? new Date(match.match_date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : ''}
-            groupName={match.group_name ?? ''}
-            aiHomeWinProb={(match.home_win_probability ?? 33) / 100}
-            aiDrawProb={(match.draw_probability ?? 34) / 100}
-            aiAwayWinProb={(match.away_win_probability ?? 33) / 100}
-            userName={(user?.user_metadata?.name as string | undefined) ?? user?.email?.split('@')[0] ?? 'You'}
-            userPrediction={lockedPrediction.outcome}
-            userHomeScore={lockedPrediction.homeScore}
-            userAwayScore={lockedPrediction.awayScore}
-            isFinished={isFinished}
-            actualHomeScore={match.home_score}
-            actualAwayScore={match.away_score}
-            language={language}
-          />
+        {/* ── Pre-match card (always shown when scheduled, download unlocks after locking) */}
+        {isScheduled && (
+          <div className="overflow-x-auto pb-2">
+            <PreMatchCard
+              homeTeam={match.home_team}
+              awayTeam={match.away_team}
+              homeFlag={match.home_team_flag ?? '🏳️'}
+              awayFlag={match.away_team_flag ?? '🏳️'}
+              matchDate={match.match_date ? new Date(match.match_date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : undefined}
+              venue={match.venue ?? undefined}
+              group={match.group_name ?? undefined}
+              homeWinProb={match.home_win_probability ?? 33}
+              drawProb={match.draw_probability ?? 34}
+              awayWinProb={match.away_win_probability ?? 33}
+              aiConfidence={
+                (match.ai_confidence ?? 0) >= 75 ? 'HIGH'
+                : (match.ai_confidence ?? 0) >= 50 ? 'MEDIUM' : 'LOW'
+              }
+              topScorelines={
+                prediction?.scorelines?.slice(0, 2)
+                  .map(s => `${s.home_score}-${s.away_score} (${Math.round(s.probability * 100)}%)`)
+                  .join(' · ')
+              }
+              userPrediction={
+                lockedPrediction?.outcome === 'home' ? `${match.home_team} Win`
+                : lockedPrediction?.outcome === 'away' ? `${match.away_team} Win`
+                : lockedPrediction?.outcome === 'draw' ? (language === 'KU' ? 'یەکسان' : 'Draw')
+                : undefined
+              }
+              userScore={
+                lockedPrediction?.homeScore != null && lockedPrediction?.awayScore != null
+                  ? `${lockedPrediction.homeScore} — ${lockedPrediction.awayScore}`
+                  : undefined
+              }
+              isLocked={!!lockedPrediction}
+              language={language}
+            />
+          </div>
+        )}
+
+        {/* ── Post-match downloadable result card ─────────────────────────── */}
+        {isFinished && match.home_score != null && (
+          <div className="overflow-x-auto pb-2">
+            <PostMatchCard
+              homeTeam={match.home_team}
+              awayTeam={match.away_team}
+              homeFlag={match.home_team_flag ?? '🏳️'}
+              awayFlag={match.away_team_flag ?? '🏳️'}
+              homeScore={match.home_score ?? 0}
+              awayScore={match.away_score ?? 0}
+              group={match.group_name ?? undefined}
+              aiPrediction={
+                (match.home_win_probability ?? 0) >= (match.away_win_probability ?? 0) && (match.home_win_probability ?? 0) >= (match.draw_probability ?? 0)
+                  ? `${match.home_team} Win`
+                  : (match.away_win_probability ?? 0) >= (match.home_win_probability ?? 0) && (match.away_win_probability ?? 0) >= (match.draw_probability ?? 0)
+                  ? `${match.away_team} Win`
+                  : (language === 'KU' ? 'یەکسان' : 'Draw')
+              }
+              aiCorrect={
+                match.home_win_probability != null
+                  ? (match.home_win_probability ?? 0) >= Math.max(match.draw_probability ?? 0, match.away_win_probability ?? 0)
+                    ? (match.home_score ?? 0) > (match.away_score ?? 0)
+                    : (match.away_win_probability ?? 0) >= Math.max(match.home_win_probability ?? 0, match.draw_probability ?? 0)
+                    ? (match.away_score ?? 0) > (match.home_score ?? 0)
+                    : (match.home_score ?? 0) === (match.away_score ?? 0)
+                  : undefined
+              }
+              userPrediction={
+                lockedPrediction?.outcome === 'home' ? `${match.home_team} Win`
+                : lockedPrediction?.outcome === 'away' ? `${match.away_team} Win`
+                : lockedPrediction ? (language === 'KU' ? 'یەکسان' : 'Draw') : undefined
+              }
+              userCorrect={
+                lockedPrediction
+                  ? lockedPrediction.outcome === 'home' ? (match.home_score ?? 0) > (match.away_score ?? 0)
+                  : lockedPrediction.outcome === 'away' ? (match.away_score ?? 0) > (match.home_score ?? 0)
+                  : (match.home_score ?? 0) === (match.away_score ?? 0)
+                  : undefined
+              }
+              homeLuckScore={homeLuck?.luck_score}
+              awayLuckScore={awayLuck?.luck_score}
+              isLoggedIn={!!user}
+              language={language}
+            />
+          </div>
         )}
 
         {/* ── SECTION 7: Post-Match (finished only) ───────────────────────── */}

@@ -216,28 +216,6 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
       >
         {saving ? t.saving : locked ? t.locked : t.lock}
       </button>
-
-      {/* Download card button — appears immediately after locking */}
-      {locked && (
-        <button
-          onClick={async () => {
-            const cardEl = document.getElementById('match-prediction-card')
-            if (!cardEl) return
-            const html2canvas = (await import('html2canvas')).default
-            const canvas = await html2canvas(cardEl, {
-              backgroundColor: '#0D1117', scale: 2, useCORS: true, logging: false,
-            })
-            const link = document.createElement('a')
-            link.download = `innovera-${match.home_team}-vs-${match.away_team}.png`
-            link.href = canvas.toDataURL('image/png')
-            link.click()
-          }}
-          className="w-full py-2.5 rounded-xl font-bold text-sm bg-[#161B22] border border-[#F0A500]/50 text-[#F0A500] hover:bg-[#F0A500]/10 transition-colors flex items-center justify-center gap-2"
-        >
-          <span>📥</span>
-          {language === 'KU' ? 'کارتی پێشبینی داگرە' : 'Download Prediction Card'}
-        </button>
-      )}
     </div>
   )
 }

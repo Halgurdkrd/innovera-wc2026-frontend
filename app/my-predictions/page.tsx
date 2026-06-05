@@ -8,7 +8,7 @@ import { useLanguage } from '@/hooks/useLanguage'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Sk } from '@/components/SkeletonCard'
-import PredictionCard from '@/components/PredictionCard'
+import { PreMatchCard, PostMatchCard } from '@/components/PredictionCard'
 import type { Match } from '@/types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -571,35 +571,52 @@ export default function MyPredictionsPage() {
                           </button>
                         </div>
 
-                        {/* Expanded PredictionCard */}
+                        {/* Expanded card — pre-match or post-match depending on status */}
                         {expandedCardId === pred.id && pred.match && (
-                          <div className="flex justify-center pt-1">
-                            <PredictionCard
-                              homeTeam={pred.match.home_team}
-                              awayTeam={pred.match.away_team}
-                              homeFlag={pred.match.home_team_flag ?? '🏳️'}
-                              awayFlag={pred.match.away_team_flag ?? '🏳️'}
-                              matchDate={pred.match.match_date
-                                ? new Date(pred.match.match_date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
-                                : ''}
-                              groupName={pred.match.group_name ?? ''}
-                              aiHomeWinProb={pred.match.home_win_probability ?? 0.33}
-                              aiDrawProb={pred.match.draw_probability ?? 0.34}
-                              aiAwayWinProb={pred.match.away_win_probability ?? 0.33}
-                              userName={displayName}
-                              userPrediction={pred.predicted_outcome}
-                              userHomeScore={pred.predicted_home_score ?? undefined}
-                              userAwayScore={pred.predicted_away_score ?? undefined}
-                              isFinished={pred.match.status === 'finished'}
-                              actualHomeScore={pred.match.home_score}
-                              actualAwayScore={pred.match.away_score}
-                              pointsEarned={pred.points_earned ?? undefined}
-                              humanBeatAI={pred.beat_ai ?? undefined}
-                              userCorrect={pred.actual_outcome != null
-                                ? pred.predicted_outcome === pred.actual_outcome
-                                : undefined}
-                              language={language}
-                            />
+                          <div className="overflow-x-auto pt-1 pb-2">
+                            {pred.match.status === 'finished' && pred.match.home_score != null ? (
+                              <PostMatchCard
+                                homeTeam={pred.match.home_team}
+                                awayTeam={pred.match.away_team}
+                                homeFlag={pred.match.home_team_flag ?? '🏳️'}
+                                awayFlag={pred.match.away_team_flag ?? '🏳️'}
+                                homeScore={pred.match.home_score ?? 0}
+                                awayScore={pred.match.away_score ?? 0}
+                                group={pred.match.group_name ?? undefined}
+                                userPrediction={
+                                  pred.predicted_outcome === 'home' ? `${pred.match.home_team} Win`
+                                  : pred.predicted_outcome === 'away' ? `${pred.match.away_team} Win`
+                                  : 'Draw'
+                                }
+                                userCorrect={pred.actual_outcome != null ? pred.predicted_outcome === pred.actual_outcome : undefined}
+                                pointsEarned={pred.points_earned ?? undefined}
+                                isLoggedIn={!!user}
+                                language={language}
+                              />
+                            ) : (
+                              <PreMatchCard
+                                homeTeam={pred.match.home_team}
+                                awayTeam={pred.match.away_team}
+                                homeFlag={pred.match.home_team_flag ?? '🏳️'}
+                                awayFlag={pred.match.away_team_flag ?? '🏳️'}
+                                matchDate={pred.match.match_date ? new Date(pred.match.match_date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : undefined}
+                                group={pred.match.group_name ?? undefined}
+                                homeWinProb={pred.match.home_win_probability ?? 33}
+                                drawProb={pred.match.draw_probability ?? 34}
+                                awayWinProb={pred.match.away_win_probability ?? 33}
+                                userPrediction={
+                                  pred.predicted_outcome === 'home' ? `${pred.match.home_team} Win`
+                                  : pred.predicted_outcome === 'away' ? `${pred.match.away_team} Win`
+                                  : 'Draw'
+                                }
+                                userScore={
+                                  pred.predicted_home_score != null && pred.predicted_away_score != null
+                                    ? `${pred.predicted_home_score} — ${pred.predicted_away_score}` : undefined
+                                }
+                                isLocked={true}
+                                language={language}
+                              />
+                            )}
                           </div>
                         )}
                       </div>
