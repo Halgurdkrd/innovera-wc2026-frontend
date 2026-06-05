@@ -273,20 +273,14 @@ export default function MatchDetailPage() {
       }
 
       try {
-        const [matchRes, predRes] = await Promise.all([
-          withTimeout(
-            supabase.from('matches').select('*').eq('match_id', match_id).maybeSingle(),
-            10000, 'matches query'
-          ),
-          withTimeout(
-            supabase.from('predictions').select('*').eq('match_id', match_id).maybeSingle(),
-            10000, 'predictions query'
-          ),
-        ])
+        // Match data still comes from Supabase
+        const matchRes = await withTimeout(
+          supabase.from('matches').select('*').eq('match_id', match_id).maybeSingle(),
+          10000, 'matches query'
+        )
         console.log('[match-detail] match result → data:', matchRes.data, '| error:', matchRes.error?.message ?? 'none')
 
         if (matchRes.error) console.error('[match] fetch error:', matchRes.error.message)
-        if (predRes.error) console.error('[prediction] fetch error:', predRes.error.message)
 
         const raw = matchRes.data as Record<string, unknown> | null
         if (raw) {
@@ -312,7 +306,52 @@ export default function MatchDetailPage() {
           }
         }
 
-        if (predRes.data) setPrediction(predRes.data as Prediction)
+        // Prediction data comes from VPS API (Supabase predictions table is empty)
+        try {
+          const predRes = await fetch(`${API_BASE}/predictions/${match_id}`)
+          if (predRes.ok) {
+            const vps = await predRes.json()
+            // Map VPS field names → frontend Prediction type
+            // VPS: { home_win_prob, draw_prob, away_win_prob, confidence, shap_reasons }
+            // shap direction: "favors_home" → positive/home, "favors_away" → negative/away
+            const mapDir = (d: string): { direction: 'positive' | 'negative' | 'neutral'; team: 'home' | 'away' } => {
+              if (d === 'favors_home') return { direction: 'positive', team: 'home' }
+              if (d === 'favors_away') return { direction: 'negative', team: 'away' }
+              return { direction: 'neutral', team: 'home' }
+            }
+            const pred: Prediction = {
+              id: vps.prediction_id ?? match_id,
+              match_id,
+              shap_reasons: (vps.shap_reasons ?? []).map((r: Record<string, unknown>) => ({
+                factor: String(r.factor ?? ''),
+                value: Number(r.impact ?? 0),
+                description: r.description as string | undefined,
+                ...mapDir(String(r.direction ?? '')),
+              })),
+              scorelines: vps.scorelines ?? [],
+              momentum: vps.momentum ?? [],
+              key_player: vps.key_player ?? undefined,
+              ai_narrative: vps.ai_narrative ?? undefined,
+              lineup_info: vps.lineup_info ?? undefined,
+            }
+            // Populate match probabilities from prediction if not already in match row
+            if (raw && vps.home_win_prob != null) {
+              setMatch(prev => prev ? {
+                ...prev,
+                home_win_probability: vps.home_win_prob,
+                draw_probability: vps.draw_prob,
+                away_win_probability: vps.away_win_prob,
+                ai_confidence: Math.round((vps.confidence ?? vps.home_win_prob) * 100),
+              } : prev)
+            }
+            setPrediction(pred)
+            console.log('[match-detail] prediction loaded from VPS — home_win:', vps.home_win_prob)
+          } else {
+            console.log('[match-detail] prediction not available yet — status:', predRes.status)
+          }
+        } catch (predErr) {
+          console.error('[match-detail] prediction fetch error:', predErr)
+        }
       } catch (err) {
         console.error('[match-detail] caught error:', err)
       } finally {
