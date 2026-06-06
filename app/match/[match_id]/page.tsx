@@ -304,16 +304,19 @@ export default function MatchDetailPage() {
 
           const matchDateStr = (m.match_date ?? '').split('T')[0]
           if (matchDateStr) {
-            const luckRes = await supabasePublic
-              .from('luck_scores')
-              .select('*')
-              .in('team_name', [m.home_team, m.away_team])
-              .eq('match_date', matchDateStr)
-            if (luckRes.data) {
-              const rows = luckRes.data as LuckScore[]
-              setHomeLuck(rows.find(r => r.team_name === m.home_team) ?? null)
-              setAwayLuck(rows.find(r => r.team_name === m.away_team) ?? null)
-            }
+            // fire-and-forget — a 400 from luck_scores never blocks the prediction section
+            void (async () => {
+              try {
+                const { data, error } = await supabasePublic.from('luck_scores').select('*')
+                  .in('team_name', [m.home_team, m.away_team])
+                  .eq('match_date', matchDateStr)
+                if (!error && data) {
+                  const rows = data as LuckScore[]
+                  setHomeLuck(rows.find(r => r.team_name === m.home_team) ?? null)
+                  setAwayLuck(rows.find(r => r.team_name === m.away_team) ?? null)
+                }
+              } catch { /* luck_scores unavailable */ }
+            })()
           }
         }
 

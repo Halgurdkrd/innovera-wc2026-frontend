@@ -117,25 +117,27 @@ export default function LeaderboardPage() {
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
-      const orderCol = activeTab === 'weekly' ? 'weekly_points' : 'total_points'
+      try {
+        const orderCol = activeTab === 'weekly' ? 'weekly_points' : 'total_points'
 
-      const [topRes, myRes] = await Promise.all([
-        supabase
-          .from('user_profiles')
-          .select('id,username,avatar_url,total_points,weekly_points,beat_ai_count,streak')
-          .order(orderCol, { ascending: false })
-          .limit(50),
-        user
-          ? supabase
-              .from('user_profiles')
-              .select('id,username,avatar_url,total_points,weekly_points,beat_ai_count,streak')
-              .eq('id', user.id)
-              .maybeSingle()
-          : Promise.resolve({ data: null }),
-      ])
+        const [topRes, myRes] = await Promise.all([
+          supabase
+            .from('user_profiles')
+            .select('id,username,avatar_url,total_points,weekly_points,beat_ai_count,streak')
+            .order(orderCol, { ascending: false })
+            .limit(50),
+          user
+            ? supabase
+                .from('user_profiles')
+                .select('id,username,avatar_url,total_points,weekly_points,beat_ai_count,streak')
+                .eq('id', user.id)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
+        ])
 
-      if (topRes.data) setProfiles(topRes.data as UserProfile[])
-      if (myRes.data) setUserProfile(myRes.data as UserProfile)
+        if (topRes.data) setProfiles(topRes.data as UserProfile[])
+        if (myRes.data) setUserProfile(myRes.data as UserProfile)
+      } catch { /* network error — show empty leaderboard */ }
       setLoading(false)
     }
     fetchData()

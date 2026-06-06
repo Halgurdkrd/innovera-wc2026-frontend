@@ -57,23 +57,31 @@ export default function HomePage() {
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
-      const today = new Date().toISOString().split('T')[0]           // '2026-06-11'
-      const tomorrow = new Date(Date.now() + 864e5).toISOString().split('T')[0]
-      const yesterday = new Date(Date.now() - 864e5).toISOString().split('T')[0]
+      try {
+        const today = new Date().toISOString().split('T')[0]           // '2026-06-11'
+        const tomorrow = new Date(Date.now() + 864e5).toISOString().split('T')[0]
+        const yesterday = new Date(Date.now() - 864e5).toISOString().split('T')[0]
 
-      const [matchRes, luckRes, standingsRes] = await Promise.all([
-        // match_date is timestamptz — use gte/lt range not eq on plain date string
-        supabasePublic.from('matches').select('*')
-          .gte('match_date', today + 'T00:00:00+00:00')
-          .lt('match_date', tomorrow + 'T00:00:00+00:00')
-          .order('match_date', { ascending: true }),    // match_time column does not exist
-        supabasePublic.from('luck_scores').select('*').eq('match_date', yesterday),
-        supabasePublic.from('group_standings').select('*').order('group_name').order('position'),
-      ])
+        const [matchRes, standingsRes] = await Promise.all([
+          // match_date is timestamptz — use gte/lt range not eq on plain date string
+          supabasePublic.from('matches').select('*')
+            .gte('match_date', today + 'T00:00:00+00:00')
+            .lt('match_date', tomorrow + 'T00:00:00+00:00')
+            .order('match_date', { ascending: true }),    // match_time column does not exist
+          supabasePublic.from('group_standings').select('*').order('group_name').order('position'),
+        ])
 
-      if (matchRes.data) setMatches(matchRes.data as Match[])
-      if (luckRes.data) setLuckScores(luckRes.data as LuckScore[])
-      if (standingsRes.data) setStandings(standingsRes.data as GroupStanding[])
+        if (matchRes.data) setMatches(matchRes.data as Match[])
+        if (standingsRes.data) setStandings(standingsRes.data as GroupStanding[])
+
+        // luck_scores fetched separately so a 400 never blocks match display
+        void (async () => {
+          try {
+            const { data, error } = await supabasePublic.from('luck_scores').select('*').eq('match_date', yesterday)
+            if (!error && data) setLuckScores(data as LuckScore[])
+          } catch { /* luck_scores unavailable */ }
+        })()
+      } catch { /* network error — leave state at defaults */ }
       setLoading(false)
     }
     fetchData()

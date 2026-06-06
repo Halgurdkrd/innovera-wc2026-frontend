@@ -204,17 +204,23 @@ function ExplorePageContent() {
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
-      const [standingsRes, luckRes] = await Promise.all([
-        supabasePublic.from('group_standings').select('*').order('group_name').order('position'),
-        supabasePublic.from('luck_scores').select('*'),
-      ])
-      if (standingsRes.data) setStandings(standingsRes.data as GroupStanding[])
-      if (luckRes.data) setLuckScores(luckRes.data as LuckScore[])
+      try {
+        const [standingsRes, luckRes] = await Promise.all([
+          supabasePublic.from('group_standings').select('*').order('group_name').order('position'),
+          supabasePublic.from('luck_scores').select('*'),
+        ])
+        if (standingsRes.data) setStandings(standingsRes.data as GroupStanding[])
+        if (luckRes.data) setLuckScores(luckRes.data as LuckScore[])
+      } catch { /* standings/luck_scores unavailable — leave empty */ }
 
-      // bracket table may not exist yet — fetch separately so a 404 doesn't block standings
-      Promise.resolve(supabasePublic.from('bracket').select('*').order('round'))
-        .then(({ data }) => { if (data) setBracketSlots(data as BracketSlot[]) })
-        .catch(() => { /* bracket table not created yet — silently skip */ })
+      // bracket table may not exist yet — fire and forget, never blocks standings
+      void (async () => {
+        try {
+          const { data, error } = await supabasePublic.from('bracket').select('*').order('round')
+          if (!error && data) setBracketSlots(data as BracketSlot[])
+        } catch { /* table not created yet */ }
+      })()
+
       setLoading(false)
     }
     fetchData()
