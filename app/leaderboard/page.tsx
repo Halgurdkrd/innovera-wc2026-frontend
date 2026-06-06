@@ -114,8 +114,19 @@ export default function LeaderboardPage() {
   const t = labels[language]
 
   // Fetch top 50 + current user's profile
+  // ENABLE_LEADERBOARD: user_profiles RLS blocks read until policies are configured
+  const ENABLE_LEADERBOARD = false
+
   useEffect(() => {
+    if (!ENABLE_LEADERBOARD) {
+      setProfiles([])
+      setLoading(false)
+      return
+    }
+
+    const lastFetch = { at: 0 }
     async function fetchData() {
+      lastFetch.at = Date.now()
       setLoading(true)
       try {
         const orderCol = activeTab === 'weekly' ? 'weekly_points' : 'total_points'
@@ -147,10 +158,13 @@ export default function LeaderboardPage() {
     fetchData()
 
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') void fetchData()
+      if (document.visibilityState === 'visible' && Date.now() - lastFetch.at > 30_000) {
+        void fetchData()
+      }
     }
     document.addEventListener('visibilitychange', onVisibility)
     return () => document.removeEventListener('visibilitychange', onVisibility)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, user])
 
   // Share rank using native share or clipboard fallback

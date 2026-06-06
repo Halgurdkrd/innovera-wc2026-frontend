@@ -293,7 +293,9 @@ export default function MyPredictionsPage() {
 
   useEffect(() => {
     if (!user) return
+    const lastFetch = { at: 0 }
     async function fetchData() {
+      lastFetch.at = Date.now()
       setDataLoading(true)
       setError(false)
       try {
@@ -301,8 +303,7 @@ export default function MyPredictionsPage() {
           supabase
             .from('user_predictions')
             .select('*')
-            .eq('user_id', user!.id)
-            .order('created_at', { ascending: false }),
+            .eq('user_id', user!.id),  // created_at column does not exist — no order()
           supabase
             .from('user_brackets')
             .select('*')
@@ -342,7 +343,9 @@ export default function MyPredictionsPage() {
     fetchData()
 
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') void fetchData()
+      if (document.visibilityState === 'visible' && Date.now() - lastFetch.at > 30_000) {
+        void fetchData()
+      }
     }
     document.addEventListener('visibilitychange', onVisibility)
     return () => document.removeEventListener('visibilitychange', onVisibility)

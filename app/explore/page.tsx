@@ -200,39 +200,58 @@ function ExplorePageContent() {
 
   const t = labels[language]
 
+  // ── Feature flags — enable when tables are created and RLS configured ────────
+  const ENABLE_LUCK_SCORES = false   // luck_scores table not yet in schema
+  const ENABLE_BRACKET     = false   // bracket table not yet in schema
+
   // ── Fetch Supabase data ───────────────────────────────────────────────────
   useEffect(() => {
+    const lastFetch = { at: 0 }
     async function fetchData() {
+      lastFetch.at = Date.now()
       setLoading(true)
       try {
-        const [standingsRes, luckRes] = await Promise.all([
-          supabasePublic.from('group_standings').select('*').order('group_name').order('position'),
-          supabasePublic.from('luck_scores').select('*'),
-        ])
-        if (standingsRes.data) setStandings(standingsRes.data as GroupStanding[])
-        if (luckRes.data) setLuckScores(luckRes.data as LuckScore[])
+        const { data } = await supabasePublic
+          .from('group_standings')
+          .select('*')
+          .order('group_name')
+          .order('position')
+        if (data) setStandings(data as GroupStanding[])
       } catch (err) {
         console.error('[explore] standings fetch error:', err)
       } finally {
         setLoading(false)
       }
 
-      // bracket table may not exist yet — fire and forget, never blocks standings
-      void (async () => {
-        try {
-          const { data, error } = await supabasePublic.from('bracket').select('*').order('round')
-          if (!error && data) setBracketSlots(data as BracketSlot[])
-        } catch { /* table not created yet */ }
-      })()
+      if (ENABLE_LUCK_SCORES) {
+        void (async () => {
+          try {
+            const { data, error } = await supabasePublic.from('luck_scores').select('*')
+            if (!error && data) setLuckScores(data as LuckScore[])
+          } catch { /* unavailable */ }
+        })()
+      }
+
+      if (ENABLE_BRACKET) {
+        void (async () => {
+          try {
+            const { data, error } = await supabasePublic.from('bracket').select('*').order('round')
+            if (!error && data) setBracketSlots(data as BracketSlot[])
+          } catch { /* table not created yet */ }
+        })()
+      }
     }
 
     fetchData()
 
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') void fetchData()
+      if (document.visibilityState === 'visible' && Date.now() - lastFetch.at > 30_000) {
+        void fetchData()
+      }
     }
     document.addEventListener('visibilitychange', onVisibility)
     return () => document.removeEventListener('visibilitychange', onVisibility)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── Fetch tournament simulation (10 s timeout so simLoading never hangs) ──

@@ -74,13 +74,8 @@ export default function HomePage() {
         if (matchRes.data) setMatches(matchRes.data as Match[])
         if (standingsRes.data) setStandings(standingsRes.data as GroupStanding[])
 
-        // luck_scores fetched separately so a 400 never blocks match display
-        void (async () => {
-          try {
-            const { data, error } = await supabasePublic.from('luck_scores').select('*').eq('match_date', yesterday)
-            if (!error && data) setLuckScores(data as LuckScore[])
-          } catch { /* luck_scores unavailable */ }
-        })()
+        // luck_scores disabled until table is in schema — set to empty
+        void yesterday  // referenced to avoid lint warning
       } catch (err) {
         console.error('[home] fetch error:', err)
       } finally {
