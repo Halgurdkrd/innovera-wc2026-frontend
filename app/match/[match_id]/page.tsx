@@ -285,12 +285,20 @@ export default function MatchDetailPage() {
 
         const raw = matchRes.data as Record<string, unknown> | null
         if (raw) {
+          // DB stores probabilities as 0-1 decimals; scale to 0-100 for display
+          const scaleProb = (v: unknown) => v != null ? (v as number) * 100 : undefined
           const m: Match = {
             ...(raw as unknown as Match),
             match_id: raw.match_id as string | undefined,
             id: (raw.id ?? raw.match_id) as string | undefined,
             home_team_flag: teamFlagEmoji(raw.home_team as string),
             away_team_flag: teamFlagEmoji(raw.away_team as string),
+            home_win_probability: scaleProb(raw.home_win_probability),
+            draw_probability:     scaleProb(raw.draw_probability),
+            away_win_probability: scaleProb(raw.away_win_probability),
+            ai_confidence: raw.ai_confidence != null
+              ? Math.round((raw.ai_confidence as number) * 100)
+              : undefined,
           }
           setMatch(m)
 
