@@ -137,10 +137,20 @@ export default function LeaderboardPage() {
 
         if (topRes.data) setProfiles(topRes.data as UserProfile[])
         if (myRes.data) setUserProfile(myRes.data as UserProfile)
-      } catch { /* network error — show empty leaderboard */ }
-      setLoading(false)
+      } catch (err) {
+        console.error('[leaderboard] fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
     }
+
     fetchData()
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void fetchData()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [activeTab, user])
 
   // Share rank using native share or clipboard fallback

@@ -313,6 +313,8 @@ export default function MyPredictionsPage() {
             .maybeSingle(),
         ])
 
+        if (predsRes.error) console.error('[my-predictions] user_predictions error:', predsRes.error.message, predsRes.error.code)
+
         const preds = (predsRes.data ?? []) as UserPrediction[]
 
         // Fetch match details for each prediction
@@ -329,13 +331,21 @@ export default function MyPredictionsPage() {
 
         setPredictions(preds)
         setBracket(bracketRes.data as UserBracket | null)
-      } catch {
+      } catch (err) {
+        console.error('[my-predictions] fetch error:', err)
         setError(true)
       } finally {
         setDataLoading(false)
       }
     }
+
     fetchData()
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void fetchData()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [user])
 
   // Auth loading

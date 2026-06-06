@@ -12,6 +12,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 // storageKey must differ from the default to avoid "Multiple GoTrueClient
 // instances detected" warning when both clients share the same localStorage key.
 export const supabasePublic = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'sb-public-anon' },
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+    storageKey: 'sb-public-anon',
+    flowType: 'implicit',       // prevents PKCE refresh loop on tab focus
+  },
   global: { headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}` } },
 })

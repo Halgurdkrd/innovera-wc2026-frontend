@@ -211,7 +211,11 @@ function ExplorePageContent() {
         ])
         if (standingsRes.data) setStandings(standingsRes.data as GroupStanding[])
         if (luckRes.data) setLuckScores(luckRes.data as LuckScore[])
-      } catch { /* standings/luck_scores unavailable — leave empty */ }
+      } catch (err) {
+        console.error('[explore] standings fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
 
       // bracket table may not exist yet — fire and forget, never blocks standings
       void (async () => {
@@ -220,21 +224,29 @@ function ExplorePageContent() {
           if (!error && data) setBracketSlots(data as BracketSlot[])
         } catch { /* table not created yet */ }
       })()
-
-      setLoading(false)
     }
+
     fetchData()
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void fetchData()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [])
 
-  // ── Fetch tournament simulation ───────────────────────────────────────────
+  // ── Fetch tournament simulation (10 s timeout so simLoading never hangs) ──
   useEffect(() => {
-    const apiUrl = API_BASE
+    const ctrl = new AbortController()
+    const tid = setTimeout(() => ctrl.abort(), 10000)
 
-    fetch(`${apiUrl}/simulate/tournament`)
+    fetch(`${API_BASE}/simulate/tournament`, { signal: ctrl.signal })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: RawSimulation | null) => setRawSim(data ?? null))
-      .catch(() => null)
+      .then((data: RawSimulation | null) => { clearTimeout(tid); setRawSim(data ?? null) })
+      .catch(() => clearTimeout(tid))
       .finally(() => setSimLoading(false))
+
+    return () => { ctrl.abort(); clearTimeout(tid) }
   }, [])
 
   // ── Derive teams from standings ───────────────────────────────────────────

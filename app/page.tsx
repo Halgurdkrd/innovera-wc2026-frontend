@@ -81,8 +81,11 @@ export default function HomePage() {
             if (!error && data) setLuckScores(data as LuckScore[])
           } catch { /* luck_scores unavailable */ }
         })()
-      } catch { /* network error — leave state at defaults */ }
-      setLoading(false)
+      } catch (err) {
+        console.error('[home] fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
     }
     fetchData()
   }, [])
