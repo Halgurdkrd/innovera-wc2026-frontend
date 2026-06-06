@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import { useLanguage } from '@/hooks/useLanguage'
-import { supabase } from '@/lib/supabase'
+import { supabasePublic } from '@/lib/supabase'
 import { Sk } from '@/components/SkeletonCard'
 import type { Match, GroupStanding } from '@/types'
 import { API_BASE } from '@/lib/api'
@@ -233,8 +233,8 @@ export default function TeamProfilePage() {
       try {
         // Standing + fixtures in parallel
         const [standingRes, fixturesRes] = await Promise.all([
-          supabase.from('group_standings').select('*').eq('team_name', teamName).maybeSingle(),
-          supabase
+          supabasePublic.from('group_standings').select('*').eq('team_name', teamName).maybeSingle(),
+          supabasePublic
             .from('matches')
             .select('*')
             .or(`home_team.eq.${teamName},away_team.eq.${teamName}`)

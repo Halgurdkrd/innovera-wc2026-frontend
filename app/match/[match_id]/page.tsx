@@ -16,7 +16,7 @@ import { PreMatchCard, PostMatchCard } from '@/components/PredictionCard'
 import type { LockedPrediction } from '@/components/UserPrediction'
 import { useLanguage } from '@/hooks/useLanguage'
 import { useAuth } from '@/context/AuthContext'
-import { supabase } from '@/lib/supabase'
+import { supabase, supabasePublic } from '@/lib/supabase'
 import type { Match, Prediction, LuckScore } from '@/types'
 import { API_BASE } from '@/lib/api'
 import { teamFlagUrl, teamFlagEmoji } from '@/lib/flags'
@@ -264,7 +264,7 @@ export default function MatchDetailPage() {
       // ── Diagnostic: simple list query (no filter) — does the client work at all?
       try {
         const probe = await withTimeout(
-          supabase.from('matches').select('match_id,home_team').limit(1),
+          supabasePublic.from('matches').select('match_id,home_team').limit(1),
           8000,
           'probe'
         )
@@ -276,7 +276,7 @@ export default function MatchDetailPage() {
       try {
         // Match data still comes from Supabase
         const matchRes = await withTimeout(
-          supabase.from('matches').select('*').eq('match_id', match_id).maybeSingle(),
+          supabasePublic.from('matches').select('*').eq('match_id', match_id).maybeSingle(),
           10000, 'matches query'
         )
         console.log('[match-detail] match result → data:', matchRes.data, '| error:', matchRes.error?.message ?? 'none')
@@ -304,7 +304,7 @@ export default function MatchDetailPage() {
 
           const matchDateStr = (m.match_date ?? '').split('T')[0]
           if (matchDateStr) {
-            const luckRes = await supabase
+            const luckRes = await supabasePublic
               .from('luck_scores')
               .select('*')
               .in('team_name', [m.home_team, m.away_team])

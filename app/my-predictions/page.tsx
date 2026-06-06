@@ -6,7 +6,7 @@ import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import { useLanguage } from '@/hooks/useLanguage'
 import { useAuth } from '@/context/AuthContext'
-import { supabase } from '@/lib/supabase'
+import { supabase, supabasePublic } from '@/lib/supabase'
 import { Sk } from '@/components/SkeletonCard'
 import { PreMatchCard, PostMatchCard } from '@/components/PredictionCard'
 import { teamFlagUrl } from '@/lib/flags'
@@ -316,7 +316,7 @@ export default function MyPredictionsPage() {
         // Fetch match details for each prediction
         const matchIds = preds.map(p => p.match_id).filter(Boolean)
         if (matchIds.length > 0) {
-          const { data: matchRows } = await supabase
+          const { data: matchRows } = await supabasePublic
             .from('matches')
             .select('match_id,home_team,away_team,match_date,home_score,away_score,status,group_name,home_team_flag,away_team_flag')
             .in('match_id', matchIds)

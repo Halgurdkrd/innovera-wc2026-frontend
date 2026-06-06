@@ -7,7 +7,7 @@ import { useLanguage } from '@/hooks/useLanguage'
 import TeamCard from '@/components/TeamCard'
 import GroupStagePredictions from '@/components/GroupStagePredictions'
 import BracketPredictions from '@/components/BracketPredictions'
-import { supabase } from '@/lib/supabase'
+import { supabasePublic } from '@/lib/supabase'
 import { API_BASE } from '@/lib/api'
 import type {
   GroupStanding, LuckScore, Team, BracketSlot,
@@ -205,14 +205,14 @@ function ExplorePageContent() {
     async function fetchData() {
       setLoading(true)
       const [standingsRes, luckRes] = await Promise.all([
-        supabase.from('group_standings').select('*').order('group_name').order('position'),
-        supabase.from('luck_scores').select('*'),
+        supabasePublic.from('group_standings').select('*').order('group_name').order('position'),
+        supabasePublic.from('luck_scores').select('*'),
       ])
       if (standingsRes.data) setStandings(standingsRes.data as GroupStanding[])
       if (luckRes.data) setLuckScores(luckRes.data as LuckScore[])
 
       // bracket table may not exist yet — fetch separately so a 404 doesn't block standings
-      Promise.resolve(supabase.from('bracket').select('*').order('round'))
+      Promise.resolve(supabasePublic.from('bracket').select('*').order('round'))
         .then(({ data }) => { if (data) setBracketSlots(data as BracketSlot[]) })
         .catch(() => { /* bracket table not created yet — silently skip */ })
       setLoading(false)

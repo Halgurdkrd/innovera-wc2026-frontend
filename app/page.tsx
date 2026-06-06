@@ -10,7 +10,7 @@ import WinnerProbsList from '@/components/WinnerProbsList'
 import CountdownTimer, { isTournamentStarted } from '@/components/CountdownTimer'
 import PickWinner from '@/components/PickWinner'
 import GroupPreviewTeaser from '@/components/GroupPreviewTeaser'
-import { supabase } from '@/lib/supabase'
+import { supabasePublic } from '@/lib/supabase'
 import type { Match, LuckScore, GroupStanding } from '@/types'
 import { API_BASE } from '@/lib/api'
 
@@ -63,12 +63,12 @@ export default function HomePage() {
 
       const [matchRes, luckRes, standingsRes] = await Promise.all([
         // match_date is timestamptz — use gte/lt range not eq on plain date string
-        supabase.from('matches').select('*')
+        supabasePublic.from('matches').select('*')
           .gte('match_date', today + 'T00:00:00+00:00')
           .lt('match_date', tomorrow + 'T00:00:00+00:00')
           .order('match_date', { ascending: true }),    // match_time column does not exist
-        supabase.from('luck_scores').select('*').eq('match_date', yesterday),
-        supabase.from('group_standings').select('*').order('group_name').order('position'),
+        supabasePublic.from('luck_scores').select('*').eq('match_date', yesterday),
+        supabasePublic.from('group_standings').select('*').order('group_name').order('position'),
       ])
 
       if (matchRes.data) setMatches(matchRes.data as Match[])
