@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import type { TournamentGroup, TournamentGroupTeam, GroupStanding } from '@/types'
 import type { Language } from './Navbar'
 import { SkGroupCard } from './SkeletonCard'
@@ -190,9 +191,9 @@ function RealGroupCard({
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2">
                       <span>{row.team_flag || '🏳️'}</span>
-                      <span className={`font-medium truncate max-w-[90px] ${isTop2 ? 'text-[#E6EDF3]' : 'text-[#8B949E]'}`}>
+                      <Link href={`/team/${encodeURIComponent(row.team_name)}`} className={`font-medium truncate max-w-[90px] hover:text-[#F0A500] transition-colors ${isTop2 ? 'text-[#E6EDF3]' : 'text-[#8B949E]'}`}>
                         {row.team_name}
-                      </span>
+                      </Link>
                     </div>
                   </td>
                   <td className={`px-3 py-2.5 text-center font-extrabold ${isTop2 ? 'text-[#E6EDF3]' : 'text-[#8B949E]'}`}>
@@ -271,9 +272,9 @@ function AiGroupCard({
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2">
                       <span>{team.flag || '🏳️'}</span>
-                      <span className={`font-medium truncate max-w-[90px] ${isTop2 ? 'text-[#E6EDF3]' : 'text-[#8B949E]'}`}>
+                      <Link href={`/team/${encodeURIComponent(team.team)}`} className={`font-medium truncate max-w-[90px] hover:text-[#F0A500] transition-colors ${isTop2 ? 'text-[#E6EDF3]' : 'text-[#8B949E]'}`}>
                         {team.team}
-                      </span>
+                      </Link>
                       {team.qualified && (
                         <span className="text-[9px] text-[#2EA043] font-bold">Q</span>
                       )}

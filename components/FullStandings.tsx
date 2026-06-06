@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import type { GroupStanding } from '@/types'
 import type { Language } from './Navbar'
 
@@ -52,7 +53,7 @@ function GroupTable({ groupName, rows, t }: {
                 <td className="px-3 py-2.5">
                   <div className="flex items-center gap-2">
                     <span>{row.team_flag || '🏳️'}</span>
-                    <span className="text-[#E6EDF3] font-medium truncate max-w-[100px]">{row.team_name}</span>
+                    <Link href={`/team/${encodeURIComponent(row.team_name)}`} className="text-[#E6EDF3] font-medium truncate max-w-[100px] hover:text-[#F0A500] transition-colors">{row.team_name}</Link>
                   </div>
                 </td>
                 <td className="px-3 py-2.5 text-center text-[#8B949E]">{row.played}</td>
