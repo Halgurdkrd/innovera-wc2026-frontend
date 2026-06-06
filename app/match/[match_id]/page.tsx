@@ -553,17 +553,14 @@ export default function MatchDetailPage() {
         </div>
 
         {/* ── SECTION 2: AI Prediction Card ───────────────────────────────── */}
-        {!prediction ? (
+        {!hasProbs && !prediction ? (
           <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-8 text-center space-y-2">
             <span className="text-4xl">🤖</span>
             <p className="text-[#8B949E]">{t.noPred}</p>
-            {isScheduled && (
-              <p className="text-xs text-[#8B949E]/60">{t.noPredSoon}</p>
-            )}
           </div>
         ) : (
           <>
-            {/* Win prob bars inside AI card (from prediction if match has no prob cols) */}
+            {/* Win prob bars — shown as soon as probabilities exist (DB or VPS) */}
             {hasProbs && (
               <section className="bg-[#161B22] border border-[#30363D] rounded-xl p-5 space-y-4">
                 <div className="flex items-center justify-between">
@@ -602,7 +599,7 @@ export default function MatchDetailPage() {
             )}
 
             {/* Scorelines */}
-            {prediction.scorelines && prediction.scorelines.length > 0 && (
+            {prediction && prediction.scorelines && prediction.scorelines.length > 0 && (
               <section className="space-y-3">
                 <h2 className="text-lg font-bold text-[#E6EDF3]">{t.scorelines}</h2>
                 <div className="space-y-2">
@@ -622,7 +619,7 @@ export default function MatchDetailPage() {
             )}
 
             {/* ── SECTION 3: SHAP reasons ───────────────────────────────── */}
-            {prediction.shap_reasons && prediction.shap_reasons.length > 0 && (
+            {prediction && prediction.shap_reasons && prediction.shap_reasons.length > 0 && (
               <section className="space-y-4">
                 <div>
                   <h2 className="text-lg font-bold text-[#E6EDF3]">{t.shapTitle}</h2>
@@ -637,7 +634,7 @@ export default function MatchDetailPage() {
             )}
 
             {/* ── SECTION 4: Momentum ───────────────────────────────────── */}
-            {prediction.momentum && prediction.momentum.length > 0 && (
+            {prediction && prediction.momentum && prediction.momentum.length > 0 && (
               <section className="space-y-3">
                 <h2 className="text-lg font-bold text-[#E6EDF3]">{t.momentum}</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -649,7 +646,7 @@ export default function MatchDetailPage() {
             )}
 
             {/* ── SECTION 5: Key Player ─────────────────────────────────── */}
-            {prediction.key_player && (
+            {prediction && prediction.key_player && (
               <section className="space-y-3">
                 <h2 className="text-lg font-bold text-[#E6EDF3]">{t.keyPlayer}</h2>
                 <div className="bg-[#161B22] border border-[#F0A500]/30 rounded-xl p-5">
