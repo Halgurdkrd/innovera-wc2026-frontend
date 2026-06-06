@@ -281,6 +281,7 @@ export default function MyPredictionsPage() {
   const [error, setError] = useState(false)
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 10
+  const badgeRef = useRef<HTMLDivElement>(null)
 
   // Redirect if not logged in once auth resolves
   useEffect(() => {
@@ -372,8 +373,6 @@ export default function MyPredictionsPage() {
     (user.user_metadata?.name as string | undefined) ??
     user.email?.split('@')[0] ??
     'Predictor'
-
-  const badgeRef = useRef<HTMLDivElement>(null)
 
   const handleShare = async () => {
     const msg = t.shareMsg(displayName, totalPoints, badge.nameEN)
