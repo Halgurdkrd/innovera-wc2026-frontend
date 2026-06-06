@@ -280,6 +280,7 @@ export default function MyPredictionsPage() {
   const [dataLoading, setDataLoading] = useState(true)
   const [error, setError] = useState(false)
   const [page, setPage] = useState(1)
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
   const PAGE_SIZE = 10
   const badgeRef = useRef<HTMLDivElement>(null)
 
@@ -430,7 +431,6 @@ export default function MyPredictionsPage() {
   }
 
   const visiblePreds = predictions.slice(0, page * PAGE_SIZE)
-  const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
 
   return (
     <div className="min-h-screen bg-[#0D1117]">
