@@ -71,12 +71,27 @@ function Footer() {
   )
 }
 
+function FlagDisplay({ flag, name, size }: { flag: string; name: string; size?: number }) {
+  const sz = size ?? 48
+  if (flag.startsWith('https://')) {
+    return (
+      <img
+        src={flag}
+        alt={name}
+        crossOrigin="anonymous"
+        style={{ width: `${sz}px`, height: 'auto', borderRadius: '3px', display: 'inline-block' }}
+      />
+    )
+  }
+  return <span style={{ fontSize: `${sz}px`, lineHeight: 1 }}>{flag}</span>
+}
+
 function Teams({ homeTeam, awayTeam, homeFlag, awayFlag }: { homeTeam: string; awayTeam: string; homeFlag: string; awayFlag: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px' }}>
       {[{ flag: homeFlag, name: homeTeam }, { flag: awayFlag, name: awayTeam }].map((t, i) => (
         <div key={i} style={{ textAlign: 'center', flex: 1 }}>
-          <div style={{ fontSize: '44px', lineHeight: 1 }}>{t.flag}</div>
+          <div style={{ lineHeight: 1 }}><FlagDisplay flag={t.flag} name={t.name} /></div>
           <div style={{ fontWeight: '800', fontSize: '13px', marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.5px', color: T.text }}>{t.name}</div>
         </div>
       )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, <div key="vs" style={{ color: T.muted, fontWeight: 'bold', fontSize: '16px', flexShrink: 0 }}>VS</div>, el], [] as React.ReactNode[])}
@@ -169,6 +184,7 @@ export interface PreMatchCardProps {
   topScorelines?: string
   userPrediction?: string    // e.g. "Mexico Win"
   userScore?: string         // e.g. "1 - 1"
+  userName?: string          // signed-in user's display name
   isLocked?: boolean
   language?: 'EN' | 'KU'
 }
@@ -219,8 +235,13 @@ export function PreMatchCard(props: PreMatchCardProps) {
         {/* User section */}
         {props.userPrediction ? (
           <div style={{ margin: '0 16px 14px', background: T.panel, borderRadius: '12px', padding: '14px 16px', border: `1px solid ${T.gold}40` }}>
-            <div style={{ color: T.muted, fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>
-              👤 {isKU ? 'پێشبینیت' : 'Your Prediction'}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <div style={{ color: T.muted, fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                👤 {isKU ? 'پێشبینیت' : 'Your Prediction'}
+              </div>
+              {props.userName && (
+                <div style={{ color: T.muted, fontSize: '11px' }}>{props.userName}</div>
+              )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '18px' }}>🔒</span>
@@ -303,7 +324,7 @@ export function PostMatchCard(props: PostMatchCardProps) {
         <div style={{ padding: '22px 20px 14px', textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px' }}>
             <div style={{ textAlign: 'center', flex: 1 }}>
-              <div style={{ fontSize: '40px', lineHeight: 1 }}>{props.homeFlag}</div>
+              <div style={{ lineHeight: 1 }}><FlagDisplay flag={props.homeFlag} name={props.homeTeam} size={40} /></div>
               <div style={{ fontWeight: '800', fontSize: '12px', marginTop: '5px', textTransform: 'uppercase' }}>{props.homeTeam}</div>
             </div>
             <div style={{ textAlign: 'center' }}>
@@ -315,7 +336,7 @@ export function PostMatchCard(props: PostMatchCardProps) {
               </div>
             </div>
             <div style={{ textAlign: 'center', flex: 1 }}>
-              <div style={{ fontSize: '40px', lineHeight: 1 }}>{props.awayFlag}</div>
+              <div style={{ lineHeight: 1 }}><FlagDisplay flag={props.awayFlag} name={props.awayTeam} size={40} /></div>
               <div style={{ fontWeight: '800', fontSize: '12px', marginTop: '5px', textTransform: 'uppercase' }}>{props.awayTeam}</div>
             </div>
           </div>

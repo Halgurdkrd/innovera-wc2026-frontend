@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Sk } from '@/components/SkeletonCard'
 import { PreMatchCard, PostMatchCard } from '@/components/PredictionCard'
+import { teamFlagUrl } from '@/lib/flags'
 import type { Match } from '@/types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -578,8 +579,8 @@ export default function MyPredictionsPage() {
                               <PostMatchCard
                                 homeTeam={pred.match.home_team}
                                 awayTeam={pred.match.away_team}
-                                homeFlag={pred.match.home_team_flag ?? '🏳️'}
-                                awayFlag={pred.match.away_team_flag ?? '🏳️'}
+                                homeFlag={teamFlagUrl(pred.match.home_team)}
+                                awayFlag={teamFlagUrl(pred.match.away_team)}
                                 homeScore={pred.match.home_score ?? 0}
                                 awayScore={pred.match.away_score ?? 0}
                                 group={pred.match.group_name ?? undefined}
@@ -597,8 +598,8 @@ export default function MyPredictionsPage() {
                               <PreMatchCard
                                 homeTeam={pred.match.home_team}
                                 awayTeam={pred.match.away_team}
-                                homeFlag={pred.match.home_team_flag ?? '🏳️'}
-                                awayFlag={pred.match.away_team_flag ?? '🏳️'}
+                                homeFlag={teamFlagUrl(pred.match.home_team)}
+                                awayFlag={teamFlagUrl(pred.match.away_team)}
                                 matchDate={pred.match.match_date ? new Date(pred.match.match_date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : undefined}
                                 group={pred.match.group_name ?? undefined}
                                 homeWinProb={pred.match.home_win_probability ?? 33}

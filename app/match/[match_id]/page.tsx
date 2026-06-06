@@ -19,6 +19,7 @@ import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import type { Match, Prediction, LuckScore } from '@/types'
 import { API_BASE } from '@/lib/api'
+import { teamFlagUrl, teamFlagEmoji } from '@/lib/flags'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -288,6 +289,8 @@ export default function MatchDetailPage() {
             ...(raw as unknown as Match),
             match_id: raw.match_id as string | undefined,
             id: (raw.id ?? raw.match_id) as string | undefined,
+            home_team_flag: teamFlagEmoji(raw.home_team as string),
+            away_team_flag: teamFlagEmoji(raw.away_team as string),
           }
           setMatch(m)
 
@@ -714,8 +717,8 @@ export default function MatchDetailPage() {
             <PreMatchCard
               homeTeam={match.home_team}
               awayTeam={match.away_team}
-              homeFlag={match.home_team_flag ?? '🏳️'}
-              awayFlag={match.away_team_flag ?? '🏳️'}
+              homeFlag={teamFlagUrl(match.home_team)}
+              awayFlag={teamFlagUrl(match.away_team)}
               matchDate={match.match_date ? new Date(match.match_date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : undefined}
               venue={match.venue ?? undefined}
               group={match.group_name ?? undefined}
@@ -742,6 +745,7 @@ export default function MatchDetailPage() {
                   ? `${lockedPrediction.homeScore} — ${lockedPrediction.awayScore}`
                   : undefined
               }
+              userName={user ? (user.user_metadata?.full_name || user.email || 'Guest') : undefined}
               isLocked={!!lockedPrediction}
               language={language}
             />
@@ -754,8 +758,8 @@ export default function MatchDetailPage() {
             <PostMatchCard
               homeTeam={match.home_team}
               awayTeam={match.away_team}
-              homeFlag={match.home_team_flag ?? '🏳️'}
-              awayFlag={match.away_team_flag ?? '🏳️'}
+              homeFlag={teamFlagUrl(match.home_team)}
+              awayFlag={teamFlagUrl(match.away_team)}
               homeScore={match.home_score ?? 0}
               awayScore={match.away_score ?? 0}
               group={match.group_name ?? undefined}
