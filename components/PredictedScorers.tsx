@@ -60,6 +60,8 @@ function ScorerRow({
 
   const barPct = Math.min(100, (scorer.xg_per90 / 1.2) * 100)
 
+  const displayName = scorer.player_name.replace(/^(GK|DF|MF|FW)\s+/i, '')
+
   return (
     <div className={`flex items-center gap-2 ${compact ? 'py-1' : 'py-1.5'}`}>
       <span className="text-[10px] text-[#8B949E] w-4 flex-shrink-0 text-right">{index + 1}.</span>
@@ -72,7 +74,7 @@ function ScorerRow({
 
       <div className="flex-1 min-w-0">
         <span className={`text-xs font-medium truncate block ${correct ? 'text-[#2EA043]' : 'text-[#E6EDF3]'}`}>
-          {scorer.player_name}
+          {displayName}
         </span>
         {!compact && (
           <span className="text-[10px] text-[#8B949E] truncate block">{scorer.club}</span>
@@ -178,7 +180,7 @@ export default function PredictedScorers({ matchId, homeTeam, awayTeam, isFinish
                 <span className="text-[#F0A500] font-bold text-xs w-8 text-right tabular-nums flex-shrink-0">
                   {s.minute}&apos;
                 </span>
-                <span className="text-[#E6EDF3] font-semibold">{s.player_name}</span>
+                <span className="text-[#E6EDF3] font-semibold">{s.player_name.replace(/^(GK|DF|MF|FW)\s+/i, '')}</span>
                 <span className="text-[#8B949E] text-xs">({s.team})</span>
                 {s.assist_by && (
                   <span className="text-[#8B949E] text-[10px] ml-auto">

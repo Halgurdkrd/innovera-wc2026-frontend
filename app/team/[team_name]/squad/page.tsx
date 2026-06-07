@@ -79,6 +79,8 @@ const L = {
 
 function PlayerRow({ player, isKU }: { player: Player; isKU: boolean }) {
   const cfg = POS_CONFIG[player.position]
+  // Strip position prefix if the API embeds it in the name (e.g. "FW Mohamed Salah" → "Mohamed Salah")
+  const displayName = player.name.replace(/^(GK|DF|MF|FW)\s+/i, '')
   return (
     <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg ${player.is_starter ? 'border border-[#F0A500]/30 bg-[#F0A500]/5' : ''}`}>
       {/* Jersey number */}
@@ -97,7 +99,7 @@ function PlayerRow({ player, isKU }: { player: Player; isKU: boolean }) {
       {/* Name + captain */}
       <div className="flex-1 min-w-0">
         <span className={`text-sm font-semibold truncate ${player.is_starter ? 'text-[#F0A500]' : 'text-[#E6EDF3]'}`}>
-          {player.name}
+          {displayName}
         </span>
         {player.is_captain && (
           <span className="ml-1.5 text-[10px] font-bold text-[#F0A500] bg-[#F0A500]/10 px-1 py-0.5 rounded">©</span>

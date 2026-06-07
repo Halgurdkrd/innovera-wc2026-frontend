@@ -32,7 +32,7 @@ export default function LineupBadge({ lineupInfo, homeTeam, awayTeam, language }
             return (
               <span key={player}>
                 {i > 0 && ', '}
-                {player}
+                {player.replace(/^(GK|DF|MF|FW)\s+/i, '')}
                 {detail && detail.data_source !== 'default' && (
                   <span className="text-[#8B949E] ml-1">
                     ({detail.xg_per90.toFixed(2)} xG/90)
