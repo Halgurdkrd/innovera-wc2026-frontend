@@ -17,8 +17,8 @@ const labels = {
   },
   KU: {
     title: 'خەمەکانی دوێنێ',
-    luckiest: 'بەختەوەرترین تیمەکان',
-    unluckiest: 'بەخترین تیمەکان',
+    luckiest: 'تیمە بە بەختەکان',
+    unluckiest: 'بێ بەختترین تیمەکان',
     luckScore: 'خەمە',
   },
 }

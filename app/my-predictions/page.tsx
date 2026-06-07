@@ -73,10 +73,10 @@ const L = {
   KU: {
     title: 'پێشبینییەکانم',
     totalPts: 'کۆی خاڵەکان',
-    streak: 'زنجیرەی دروستەکان',
-    accuracy: 'تەواوی پێشبینی',
-    beatAI: 'چەند جار AI مەغلوب کرد',
-    identity: 'نەریتی فوتبۆڵیت',
+    streak: 'زنجیرەی پێشبینیە دروستەکان',
+    accuracy: 'دروستی پێشبینییەکان',
+    beatAI: '‏AI چەند جار بردتەوە لە',
+    identity: 'ناسنامەی تۆپی پێت',
     bracketTitle: 'براکێت',
     bracketSubmitted: 'براکێت نێردرا ✓',
     bracketChampion: 'چەمپیۆنی پێشبینیکراو',
@@ -129,7 +129,7 @@ const BADGES: Record<BadgeKey, { emoji: string; nameEN: string; nameKU: string; 
     descKU: 'بڕیارە جەسورەکان. مەترسی بەرز، خەڵاتی بەرز.',
   },
   BEGINNER: {
-    emoji: '⚽', nameEN: 'Beginner', nameKU: 'تازەکار',
+    emoji: '⚽', nameEN: 'Beginner', nameKU: 'سەرەتایی',
     descEN: 'Just getting started. Make your first predictions!',
     descKU: 'تازە دەستت پێکرد. یەکەم پێشبینییەکانت بکە!',
   },

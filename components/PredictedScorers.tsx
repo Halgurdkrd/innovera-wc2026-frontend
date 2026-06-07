@@ -194,7 +194,7 @@ export default function PredictedScorers({ matchId, homeTeam, awayTeam, isFinish
         {finished && realScorers.length > 0 && (homePredicted.length > 0 || awayPredicted.length > 0) && (
           <div className="pt-3 border-t border-[#30363D]">
             <p className="text-[10px] text-[#8B949E] mb-2">
-              {isKU ? 'AI پێشبینی کرد بوو:' : 'AI had predicted:'}
+              {isKU ? '‏AI پێشبینی کرد بوو:' : 'AI had predicted:'}
             </p>
             <PredictedColumns
               homeTeam={homeTeam} awayTeam={awayTeam}

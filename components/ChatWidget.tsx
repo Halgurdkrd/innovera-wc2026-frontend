@@ -42,7 +42,7 @@ const SUGGESTIONS: Record<Lang, string[]> = {
     'کام تیمەکان بە یەکەمی سەردەکەوێت لە گروپی A',
     'کامیان باشترین بەرگریە؟',
     'لەبارەی نەرویج زانیاریم پێ بدە',
-    'AI چی پێشبینی دەکات بۆ ئیسپانیا؟',
+    '‏AI چی پێشبینی دەکات بۆ ئیسپانیا؟',
   ],
 }
 
@@ -291,11 +291,13 @@ export default function ChatWidget() {
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0">
             {messages.map(msg => (
               <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                <div className={`max-w-[85%] px-3.5 py-2.5 text-sm leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'bg-[#F0A500] text-[#0D1117] rounded-2xl rounded-br-sm font-medium'
-                    : `bg-[#21262D] text-[#E6EDF3] rounded-2xl rounded-bl-sm ${msg.error ? 'border border-[#F85149]/30' : ''}`
-                }`}>
+                <div
+                  dir={chatLang === 'KU' ? 'rtl' : 'ltr'}
+                  className={`max-w-[85%] px-3.5 py-2.5 text-sm leading-relaxed ${
+                    msg.role === 'user'
+                      ? 'bg-[#F0A500] text-[#0D1117] rounded-2xl rounded-br-sm font-medium'
+                      : `bg-[#21262D] text-[#E6EDF3] rounded-2xl rounded-bl-sm ${msg.error ? 'border border-[#F85149]/30' : ''}`
+                  }`}>
                   {msg.loading ? <LoadingDots /> : msg.text}
                 </div>
                 {!msg.loading && (
@@ -310,6 +312,7 @@ export default function ChatWidget() {
                 {suggestions.map(q => (
                   <button
                     key={q}
+                    dir={chatLang === 'KU' ? 'rtl' : 'ltr'}
                     onClick={() => handleSuggestion(q)}
                     className="text-[11px] text-[#E6EDF3] bg-[#21262D] border border-[#30363D] hover:border-[#F0A500]/60 hover:text-[#F0A500] rounded-2xl px-3 py-1.5 transition-colors text-left"
                   >
