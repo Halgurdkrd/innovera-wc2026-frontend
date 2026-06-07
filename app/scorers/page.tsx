@@ -207,7 +207,6 @@ export default function ScorersPage() {
                     <th className="px-3 py-2.5 text-left w-10">{t.rank}</th>
                     <th className="px-3 py-2.5 text-left">{t.player}</th>
                     <th className="px-3 py-2.5 text-left hidden lg:table-cell">{t.team}</th>
-                    <th className="px-3 py-2.5 text-center w-10">{t.pos}</th>
                     <th className="px-3 py-2.5 text-right">{tab === 'goals' ? t.xg : t.xag}</th>
                     <th className="px-3 py-2.5 text-right">{tab === 'goals' ? t.gls : t.ast}</th>
                     <th className="px-3 py-2.5 text-right hidden md:table-cell">{t.fc26}</th>
@@ -220,8 +219,6 @@ export default function ScorersPage() {
                     const name = cleanName(player.player_name)
                     const { color: dotColor, label: dotLabel } = groupDot(player.opponent_factor, language)
                     const isGold = i === 0
-                    const pos = (player.position?.split(',')[0]?.trim() ?? player.position ?? '').toUpperCase()
-                    const posStyle = POS_STYLE[pos] ?? { color: '#8B949E', bg: '#8B949E15' }
                     const stat1 = tab === 'goals' ? player.xg_per90 : player.xag_per90
                     const stat2 = tab === 'goals' ? player.gls_per90 : player.ast_per90
 
@@ -257,16 +254,6 @@ export default function ScorersPage() {
                         {/* Team (desktop-only column) */}
                         <td className="px-3 py-2.5 text-[#8B949E] text-xs hidden lg:table-cell max-w-[110px]">
                           <span className="truncate block">{player.team}</span>
-                        </td>
-
-                        {/* Position badge */}
-                        <td className="px-3 py-2.5 text-center">
-                          <span
-                            className="text-[9px] font-bold px-1.5 py-0.5 rounded leading-none inline-block"
-                            style={{ color: posStyle.color, backgroundColor: posStyle.bg }}
-                          >
-                            {pos}
-                          </span>
                         </td>
 
                         {/* Stat 1 (xG/90 or xAG/90) */}
@@ -313,8 +300,6 @@ export default function ScorersPage() {
                 const isGold = i === 0
                 const stat1 = tab === 'goals' ? player.xg_per90 : player.xag_per90
                 const stat2 = tab === 'goals' ? player.gls_per90 : player.ast_per90
-                const pos = player.position?.replace(/^(GK|DF|MF|FW)\s+.*/i, '$1').toUpperCase()
-                const posStyle = POS_STYLE[pos] ?? { color: '#8B949E', bg: '#8B949E15' }
 
                 return (
                   <div
@@ -331,12 +316,6 @@ export default function ScorersPage() {
                         <p className={`text-sm font-semibold truncate ${isGold ? 'text-[#F0A500]' : 'text-[#E6EDF3]'}`}>{name}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className="text-[10px] text-[#8B949E]">{player.team}</span>
-                          <span
-                            className="text-[9px] font-bold px-1 py-0.5 rounded leading-none"
-                            style={{ color: posStyle.color, backgroundColor: posStyle.bg }}
-                          >
-                            {pos}
-                          </span>
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
