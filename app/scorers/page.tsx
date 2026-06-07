@@ -44,14 +44,14 @@ const L = {
     gls: 'Gls/90',
     xag: 'xAG/90',
     ast: 'Ast/90',
-    fc26: 'FC26',
+    fc26: 'Rating',
     easyGroup: 'Easy group',
     avgGroup: 'Average',
     toughGroup: 'Tough group',
     error: 'Scorer predictions not available.',
     methodTitle: 'Methodology',
     method:
-      'Rankings based on expected goals (xG/90), actual scoring rate, FC26 player rating, and opponent defensive quality in the group stage.',
+      'Rankings based on expected goals (xG/90), actual scoring rate, player rating, and opponent defensive quality in the group stage.',
   },
   KU: {
     pageTitle: 'پێشبینی ریزبەندی گۆلکارەکان',
@@ -69,14 +69,14 @@ const L = {
     gls: 'گۆڵ/90',
     xag: 'xAG/90',
     ast: 'یارمەتی/90',
-    fc26: 'FC26',
+    fc26: 'نمرە',
     easyGroup: 'گروپی ئاسان',
     avgGroup: 'ئاسەتەواز',
     toughGroup: 'گروپی سەخت',
     error: 'پێشبینی گۆلکارەکان بەردەست نییە.',
     methodTitle: 'ڕێگای کارکردن',
     method:
-      'پلەبەندی لەسەر بنەمای ئەگەری گۆڵ (xG/90)، ڕێژەی گۆڵی ڕاستەقینە، نمرەی یاریزان لە FC26، و توانای بەرگریی ڕکابەران لە قۆناغی گرووپەکان.',
+      'پلەبەندی لەسەر بنەمای ئەگەری گۆڵ (xG/90)، ڕێژەی گۆڵی ڕاستەقینە، نمرەی یاریزان، و توانای بەرگریی ڕکابەران لە قۆناغی گرووپەکان.',
   },
 }
 
@@ -266,7 +266,7 @@ export default function ScorersPage() {
                           {(stat2 ?? 0).toFixed(2)}
                         </td>
 
-                        {/* FC26 */}
+                        {/* Rating */}
                         <td className="px-3 py-2.5 text-right text-xs text-[#8B949E] tabular-nums hidden md:table-cell">
                           {player.fc26_ovr}
                         </td>
