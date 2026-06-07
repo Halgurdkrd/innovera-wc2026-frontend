@@ -220,7 +220,7 @@ export default function ScorersPage() {
                     const name = cleanName(player.player_name)
                     const { color: dotColor, label: dotLabel } = groupDot(player.opponent_factor, language)
                     const isGold = i === 0
-                    const pos = player.position?.replace(/^(GK|DF|MF|FW)\s+.*/i, '$1').toUpperCase()
+                    const pos = (player.position?.split(',')[0]?.trim() ?? player.position ?? '').toUpperCase()
                     const posStyle = POS_STYLE[pos] ?? { color: '#8B949E', bg: '#8B949E15' }
                     const stat1 = tab === 'goals' ? player.xg_per90 : player.xag_per90
                     const stat2 = tab === 'goals' ? player.gls_per90 : player.ast_per90
