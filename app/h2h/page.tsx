@@ -198,7 +198,7 @@ const L = {
     mins: 'خولەک',
     secs: 'چرکە',
     howItWorks: 'چۆن کاردەکات',
-    schedule: 'خشتەی مەیدانەکان',
+    schedule: 'خشتەی ئاستەکان',
     registeredMsg: '✅ تۆ تۆمار کراوی!',
     registeredSub: 'بگەڕێوە ١٥ی ئەم مانگەدا بۆ یەکەم هەڵبژاردنت',
     joinCta: 'داخڵ بوو بۆ بەشداری لە H2H',
@@ -210,18 +210,18 @@ const L = {
 const HOW_IT_WORKS = [
   { icon: '⚽', titleEN: 'Pick Your Team', descEN: 'Each round pick one team playing that matchday', titleKU: 'تیمەکەت هەڵبژێرە', descKU: 'هەر قۆناغێک یەک تیم هەڵبژێرە کە ئەو ڕۆژە یاری دەکات' },
   { icon: '⚔️', titleEN: 'Face an Opponent', descEN: 'System pairs you with another user randomly', titleKU: 'بەرامبەر دانان', descKU: 'سیستەم تۆ و کەسێکی تر بە ڕاستەوخۆ بەرامبەر یەک دادەنێت' },
-  { icon: '📊', titleEN: 'Better Result Wins', descEN: 'Your team wins = you advance. Tie decided by goal difference', titleKU: 'باشترین ئەنجام سەردەکەوێت بۆ ئاستی دواتر', descKU: 'ئەگەر تیمەکەت بردییەوە تۆ سەردەکەوی. یەکسانبوون لەگەل بەرەمبەر جیاواز گۆڵ هەژمار دەکرێت' },
-  { icon: '🏆', titleEN: 'Survive to Win', descEN: 'Last user standing after the Final wins!', titleKU: 'بمێنەرەوە بۆ سەرکەوتن', descKU: 'کۆتا کەسی ماوەتەوە بەرپرسی ناسنامەی یاریزان بوونەتی' },
+  { icon: '📊', titleEN: 'Better Result Wins', descEN: 'Your team wins = you advance. Tie decided by goal difference', titleKU: 'باشترین ئەنجام سەردەکەوێت بۆ ئاستی دواتر', descKU: 'ئەگەر تیمەکەت بردییەوە تۆ سەردەکەوی. یەکسانبوون لەگەل بەرامبەر بەجیاوازی گۆڵ هەژمار دەکرێت' },
+  { icon: '🏆', titleEN: 'Survive to Win', descEN: 'Last user standing after the Final wins!', titleKU: 'بمێنەرەوە بۆ سەرکەوتن', descKU: 'کۆتا کەسایەتی براوەی جامەکە دەبێت' },
 ]
 
 const SCHEDULE = [
   { roundEN: 'Group Round 1', roundKU: 'قۆناغی گروپ ١', date: 'June 15–17', descEN: 'Pick from all 48 teams', descKU: 'هەڵبژاردن لە ٤٨ تیمەکان' },
   { roundEN: 'Group Round 2', roundKU: 'قۆناغی گروپ ٢', date: 'June 17–21', descEN: 'Pick again — can change team', descKU: 'دووبارە هەڵبژێرە — تیمت بگۆڕە' },
   { roundEN: 'Group Round 3', roundKU: 'قۆناغی گروپ ٣', date: 'June 21–26', descEN: 'Final group stage round', descKU: 'کۆتا قۆناغی گروپ' },
-  { roundEN: 'Round of 16', roundKU: 'قۆناغی ١٦', date: 'June 27 – July 1', descEN: 'Knockout — no draws', descKU: 'ناکاوت — یەکسانی نییە' },
-  { roundEN: 'Quarter Finals', roundKU: 'چارەکفاینەل', date: 'July 4–5', descEN: '8 teams remain', descKU: '٨ تیم دەمێننەوە' },
-  { roundEN: 'Semi Finals', roundKU: 'نیوەفاینەل', date: 'July 8–9', descEN: '4 teams remain', descKU: '٤ تیم دەمێننەوە' },
-  { roundEN: 'Final', roundKU: 'فاینەل', date: 'July 19', descEN: 'Champion decided!', descKU: 'پاڵەوان دیاردەبێت!' },
+  { roundEN: 'Round of 16', roundKU: 'قۆناغی ١٦', date: 'June 27 – July 1', descEN: 'Knockout — no draws', descKU: 'چونە دەرەوە — یەکسانی نییە' },
+  { roundEN: 'Quarter Finals', roundKU: 'چارەکی کۆتایی', date: 'July 4–5', descEN: '8 teams remain', descKU: '٨ تیم دەمێننەوە' },
+  { roundEN: 'Semi Finals', roundKU: 'نیوەی کۆتایی', date: 'July 8–9', descEN: '4 teams remain', descKU: '٤ تیم دەمێننەوە' },
+  { roundEN: 'Final', roundKU: 'فاینەل', date: 'July 19', descEN: 'Champion decided!', descKU: 'پاڵەوان دیاری دەکرێت!' },
 ]
 
 // ── Component ──────────────────────────────────────────────────────────────────
