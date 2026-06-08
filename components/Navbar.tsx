@@ -82,6 +82,9 @@ export default function Navbar({ language, onLanguageChange }: NavbarProps) {
             <Link href="/scorers" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
               {language === 'KU' ? 'گۆڵکارەکان' : 'Scorers'}
             </Link>
+            <Link href="/h2h" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
+              {language === 'KU' ? 'هەڵبژاردنی تیم' : 'H2H'}
+            </Link>
             <Link href="/leaderboard" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
               {tr('nav_leaderboard', language)}
             </Link>
