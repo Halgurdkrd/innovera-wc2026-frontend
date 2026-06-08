@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
+import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import { useLanguage } from '@/hooks/useLanguage'
 import MatchCard from '@/components/MatchCard'
@@ -188,6 +189,23 @@ export default function HomePage() {
             ))}
           </div>
         </section>
+
+        {/* ── H2H Challenge card ── */}
+        <Link href="/h2h">
+          <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500 rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:border-yellow-400 transition-colors">
+            <div className="text-4xl">⚔️</div>
+            <div className="flex-1">
+              <div className="font-bold text-lg text-white">H2H Challenge</div>
+              <div className="text-yellow-400 text-sm">
+                {language === 'KU' ? '١٥ی ئەم مانگە دەستپێدەکات' : 'Starts June 15 — Pick your team!'}
+              </div>
+              <div className="text-gray-400 text-xs mt-0.5">
+                {language === 'KU' ? 'تیمەکەت هەڵبژێرە — یاری سەر بەسەر' : '١٥ی ئەم مانگە دەستپێدەکات — تیمەکەت هەڵبژێرە'}
+              </div>
+            </div>
+            <div className="text-yellow-400 text-2xl">→</div>
+          </div>
+        </Link>
 
         {/* ── Pre-tournament engagement ── */}
         {!tournamentStarted && (

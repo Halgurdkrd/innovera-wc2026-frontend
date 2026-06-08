@@ -67,12 +67,13 @@ const getConfederation = (teamName: string, row: GroupStanding) =>
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 
-type Tab = 'teams' | 'group_stage' | 'bracket'
+type Tab = 'teams' | 'group_stage' | 'bracket' | 'scorers'
 
 const tabLabels: Record<Tab, { EN: string; KU: string }> = {
   teams:       { EN: 'Teams',        KU: 'تیمەکان'     },
   group_stage: { EN: 'Group Stage',  KU: 'قۆناغی گروپ' },
   bracket:     { EN: 'Bracket',      KU: 'کۆتایی'       },
+  scorers:     { EN: 'Scorers',      KU: 'گۆڵکارەکان'   },
 }
 
 // ── Confederation chips ───────────────────────────────────────────────────────
@@ -101,6 +102,91 @@ const labels = {
     all: 'هەموو',
     teamsCount: (n: number) => `${n} تیم`,
   },
+}
+
+// ── Scorers tab inline component ─────────────────────────────────────────────
+
+interface ScorerEntry {
+  player_name: string; team: string; position: string
+  xg_per90?: number; gls_per90?: number; xag_per90?: number; ast_per90?: number
+  rating: number; opponent_factor: number; composite_score: number
+}
+
+function ScorersTabContent({ language }: { language: 'EN' | 'KU' }) {
+  const [scorersTab, setScorersTab] = useState<'goals' | 'assists'>('goals')
+  const [goals, setGoals] = useState<ScorerEntry[]>([])
+  const [assists, setAssists] = useState<ScorerEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const isKU = language === 'KU'
+
+  useEffect(() => {
+    setLoading(true)
+    Promise.all([
+      fetch(`${API_BASE}/scorers/predicted-goals?top=20`).then(r => r.ok ? r.json() : null),
+      fetch(`${API_BASE}/scorers/predicted-assists?top=20`).then(r => r.ok ? r.json() : null),
+    ]).then(([g, a]) => {
+      const norm = (d: unknown) => Array.isArray(d) ? d : ((d as Record<string, unknown>)?.players ?? (d as Record<string, unknown>)?.scorers ?? [])
+      setGoals(norm(g) as ScorerEntry[])
+      setAssists(norm(a) as ScorerEntry[])
+    }).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  const rows = scorersTab === 'goals' ? goals : assists
+  const medal = (i: number) => i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`
+
+  return (
+    <div className="space-y-4">
+      {/* Sub-tab toggle */}
+      <div className="flex gap-2">
+        {(['goals', 'assists'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setScorersTab(tab)}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              scorersTab === tab
+                ? 'bg-[#F0A500] text-[#0D1117]'
+                : 'bg-[#161B22] border border-[#30363D] text-[#8B949E] hover:text-[#E6EDF3]'
+            }`}
+          >
+            {tab === 'goals' ? (isKU ? '🏆 باشترین گۆڵکارەکان' : '🏆 Top Scorers') : (isKU ? '🎯 باشترین گۆڵ دروستکارەکان' : '🎯 Top Assists')}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="h-12 bg-[#161B22] border border-[#30363D] rounded-xl animate-pulse" />
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-10 text-center text-[#8B949E] text-sm">
+          {isKU ? 'داتا بەردەست نییە' : 'Scorer predictions not available.'}
+        </div>
+      ) : (
+        <div className="bg-[#161B22] border border-[#30363D] rounded-xl overflow-hidden">
+          {rows.map((s, i) => {
+            const name = s.player_name.replace(/^(GK|DF|MF|FW)\s+/i, '')
+            const diffDot = s.opponent_factor > 1.05 ? 'bg-emerald-500' : s.opponent_factor < 0.95 ? 'bg-red-500' : 'bg-yellow-400'
+            return (
+              <div key={i} className={`flex items-center gap-3 px-4 py-3 border-b border-[#30363D]/40 last:border-0 ${i === 0 ? 'bg-[#F0A500]/5' : ''}`}>
+                <span className="text-sm font-bold w-7 text-center text-[#8B949E] flex-shrink-0">{medal(i)}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-[#E6EDF3] truncate">{name}</p>
+                  <p className="text-xs text-[#8B949E]">{s.team}</p>
+                </div>
+                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${diffDot}`} title="Group difficulty" />
+                <div className="text-right flex-shrink-0">
+                  <p className="text-sm font-bold text-[#F0A500]">{s.composite_score.toFixed(2)}</p>
+                  <p className="text-[10px] text-[#8B949E]">{isKU ? 'نمرە' : 'Score'}</p>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── Inner page component (uses useSearchParams — must be inside Suspense) ─────
@@ -434,6 +520,11 @@ function ExplorePageContent() {
             loading={loading || simLoading}
             language={language}
           />
+        )}
+
+        {/* ── Scorers tab ───────────────────────────────────────────────── */}
+        {activeTab === 'scorers' && (
+          <ScorersTabContent language={language} />
         )}
       </main>
     </div>

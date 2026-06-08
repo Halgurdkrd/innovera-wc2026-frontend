@@ -1,5 +1,8 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import Navbar from '@/components/Navbar'
+import { useLanguage } from '@/hooks/useLanguage'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { API_BASE } from '@/lib/api'
@@ -51,6 +54,8 @@ const STRENGTH_STYLE: Record<string, string> = {
 }
 
 export default function H2HPage() {
+  const router = useRouter()
+  const { language, changeLanguage } = useLanguage()
   const { user: authUser, openAuthModal } = useAuth()
 
   const [countdown, setCountdown] = useState(getCountdown())
@@ -148,13 +153,23 @@ export default function H2HPage() {
   if (!H2H_STARTED) {
     return (
       <div className="min-h-screen bg-slate-900 text-white pb-20">
+        <Navbar language={language} onLanguageChange={changeLanguage} />
+        <div className="max-w-2xl mx-auto px-4 py-4">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-gray-400 mb-4 hover:text-white transition-colors"
+          >
+            ← Back
+          </button>
+        </div>
         {/* Header */}
-        <div className="bg-gradient-to-b from-slate-800 to-slate-900 px-4 pt-10 pb-8 text-center">
+        <div className="bg-gradient-to-b from-slate-800 to-slate-900 px-4 pt-6 pb-8 text-center">
           <div className="text-6xl mb-3">⚔️</div>
           <h1 className="text-3xl font-bold mb-2">WC2026 H2H Challenge</h1>
           <p className="text-gray-400">چالەنجی سەر بەسەر · جامی جیهانی ٢٠٢٦</p>
         </div>
 
+        <div className="max-w-2xl mx-auto">
         {/* Announcement banner */}
         <div className="mx-4 mb-5">
           <div className="bg-yellow-500/10 border border-yellow-500 rounded-2xl p-5 text-center">
@@ -300,6 +315,7 @@ export default function H2HPage() {
             </div>
           )}
         </div>
+        </div>{/* /max-w-2xl */}
       </div>
     )
   }
@@ -319,9 +335,19 @@ export default function H2HPage() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white pb-24">
+      <Navbar language={language} onLanguageChange={changeLanguage} />
+
+      <div className="max-w-2xl mx-auto px-4 pt-4 pb-2">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-gray-400 mb-2 hover:text-white transition-colors"
+        >
+          ← Back
+        </button>
+      </div>
 
       {/* Header */}
-      <div className="bg-slate-800 px-4 pt-8 pb-4 text-center border-b border-slate-700">
+      <div className="bg-slate-800 px-4 pt-4 pb-4 text-center border-b border-slate-700">
         <h1 className="text-2xl font-bold mb-1">⚔️ H2H Challenge</h1>
         {currentRound && (
           <div className="text-yellow-400 text-sm font-medium">
@@ -363,7 +389,7 @@ export default function H2HPage() {
 
       {/* ── PICK TAB ── */}
       {activeTab === 'pick' && (
-        <div className="p-4">
+        <div className="max-w-2xl mx-auto p-4">
           {!authUser && (
             <div className="bg-yellow-500/10 border border-yellow-500 rounded-xl p-4 text-center mb-4">
               <div className="text-yellow-400 font-bold mb-1">Login required to pick</div>
@@ -461,7 +487,7 @@ export default function H2HPage() {
 
       {/* ── MATCHUP TAB ── */}
       {activeTab === 'matchup' && (
-        <div className="p-4">
+        <div className="max-w-2xl mx-auto p-4">
           {!myStatus?.has_pick ? (
             <div className="text-center text-gray-400 py-12">
               <div className="text-5xl mb-3">⚽</div>
@@ -561,7 +587,7 @@ export default function H2HPage() {
 
       {/* ── LEADERBOARD TAB ── */}
       {activeTab === 'leaderboard' && (
-        <div className="p-4">
+        <div className="max-w-2xl mx-auto p-4">
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div className="bg-green-900/30 border border-green-700 rounded-xl p-3 text-center">
               <div className="text-2xl font-bold text-green-400">
