@@ -190,8 +190,8 @@ const L = {
     stats: 'ئامارەکانی تیم',
     group: 'گروپ',
     // Coming soon
-    comingSoonBadge: '⏳ پێشبینیی H2H دەستپێدەکات ١٥ی ئەم مانگەدا',
-    comingSoonSub: 'دوای ئەوەی ٤٨ تیم یەکەم مەیدانیان لە قۆناغی گروپدا یاری بکەن',
+    comingSoonBadge: '١٥ی ئەم مانگە یاری بەرامبەر یەکتر دەست پێ دەکات',
+    comingSoonSub: 'دوای ئەوەی ٤٨ تیم یەکەم یاریان لە قۆناغی گروپدا ئەندام دا',
     startingIn: 'دەستپێدەکات لە',
     days: 'ڕۆژ',
     hours: 'کاتژمێر',
@@ -209,9 +209,9 @@ const L = {
 
 const HOW_IT_WORKS = [
   { icon: '⚽', titleEN: 'Pick Your Team', descEN: 'Each round pick one team playing that matchday', titleKU: 'تیمەکەت هەڵبژێرە', descKU: 'هەر قۆناغێک یەک تیم هەڵبژێرە کە ئەو ڕۆژە یاری دەکات' },
-  { icon: '⚔️', titleEN: 'Face an Opponent', descEN: 'System pairs you with another user randomly', titleKU: 'بەرامبەر بەستن', descKU: 'سیستەم تۆ و کەسێکی تر بە ڕاستەوخۆ بەهەمبەر دەکات' },
-  { icon: '📊', titleEN: 'Better Result Wins', descEN: 'Your team wins = you advance. Tie decided by goal difference', titleKU: 'باشترین ئەنجام دەبات', descKU: 'تیمەکەت بردی = تۆ پێشدەکەوی. یەکسانی بەپێی جیاوازی گۆڵ' },
-  { icon: '🏆', titleEN: 'Survive to Win', descEN: 'Last user standing after the Final wins!', titleKU: 'بمێنەرەوە بۆ بردن', descKU: 'کۆتا کەسایەتی دوای فاینەل دەبات!' },
+  { icon: '⚔️', titleEN: 'Face an Opponent', descEN: 'System pairs you with another user randomly', titleKU: 'بەرامبەر دانان', descKU: 'سیستەم تۆ و کەسێکی تر بە ڕاستەوخۆ بەرامبەر یەک دادەنێت' },
+  { icon: '📊', titleEN: 'Better Result Wins', descEN: 'Your team wins = you advance. Tie decided by goal difference', titleKU: 'باشترین ئەنجام سەردەکەوێت بۆ ئاستی دواتر', descKU: 'ئەگەر تیمەکەت بردییەوە تۆ سەردەکەوی. یەکسانبوون لەگەل بەرەمبەر جیاواز گۆڵ هەژمار دەکرێت' },
+  { icon: '🏆', titleEN: 'Survive to Win', descEN: 'Last user standing after the Final wins!', titleKU: 'بمێنەرەوە بۆ سەرکەوتن', descKU: 'کۆتا کەسی ماوەتەوە بەرپرسی ناسنامەی یاریزان بوونەتی' },
 ]
 
 const SCHEDULE = [
