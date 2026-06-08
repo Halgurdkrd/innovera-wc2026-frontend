@@ -8,6 +8,21 @@ import { supabase } from '@/lib/supabase'
 import { API_BASE } from '@/lib/api'
 import { Sk } from '@/components/SkeletonCard'
 
+// ── H2H schedule gate ─────────────────────────────────────────────────────────
+
+// H2H starts June 15 2026 00:00 UTC (after all 48 teams play matchday 1)
+const H2H_START = new Date('2026-06-15T00:00:00Z')
+
+function getCountdown() {
+  const diff = H2H_START.getTime() - Date.now()
+  if (diff <= 0) return null
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+  const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+  const secs = Math.floor((diff % (1000 * 60)) / 1000)
+  return { days, hours, mins, secs }
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface TeamStats {
@@ -100,7 +115,7 @@ const L = {
     pickBtn: 'Pick this team',
     cancel: 'Cancel',
     confirmTitle: (team: string) => `Confirm: ${FLAGS[team] ?? ''} ${team}?`,
-    confirmSub: 'You can\'t change your pick later.',
+    confirmSub: "You can't change your pick later.",
     confirmYes: 'Yes, lock it in',
     picking: 'Locking…',
     pickedHeading: 'Your Pick',
@@ -121,6 +136,21 @@ const L = {
     alreadyPicked: 'You already made your pick!',
     stats: 'Team Stats',
     group: 'Group',
+    // Coming soon
+    comingSoonBadge: '⏳ H2H Challenge Starts June 15',
+    comingSoonSub: 'After all 48 teams play their first group stage match',
+    startingIn: 'Starting In',
+    days: 'Days',
+    hours: 'Hours',
+    mins: 'Mins',
+    secs: 'Secs',
+    howItWorks: 'How It Works',
+    schedule: 'Schedule',
+    registeredMsg: 'You are registered!',
+    registeredSub: 'Come back June 15 to make your first pick',
+    joinCta: 'Login to join H2H Challenge',
+    joinSub: 'Create an account now to be ready for June 15',
+    loginBtn: 'Login / Sign Up',
   },
   KU: {
     pageTitle: 'هەڵبژاردنی تیم',
@@ -159,8 +189,40 @@ const L = {
     alreadyPicked: 'تۆ پێشتر هەڵبژاردنت کردووە!',
     stats: 'ئامارەکانی تیم',
     group: 'گروپ',
+    // Coming soon
+    comingSoonBadge: '⏳ پێشبینیی H2H دەستپێدەکات ١٥ی ئەم مانگەدا',
+    comingSoonSub: 'دوای ئەوەی ٤٨ تیم یەکەم مەیدانیان لە قۆناغی گروپدا یاری بکەن',
+    startingIn: 'دەستپێدەکات لە',
+    days: 'ڕۆژ',
+    hours: 'کاتژمێر',
+    mins: 'خولەک',
+    secs: 'چرکە',
+    howItWorks: 'چۆن کاردەکات',
+    schedule: 'خشتەی مەیدانەکان',
+    registeredMsg: '✅ تۆ تۆمار کراوی!',
+    registeredSub: 'بگەڕێوە ١٥ی ئەم مانگەدا بۆ یەکەم هەڵبژاردنت',
+    joinCta: 'داخڵ بوو بۆ بەشداری لە H2H',
+    joinSub: 'ئێستا ئەکاونتت دروست بکە بۆ ١٥ی ئەم مانگەدا',
+    loginBtn: 'داخڵ بوو / تۆمار بکەرەوە',
   },
 }
+
+const HOW_IT_WORKS = [
+  { icon: '⚽', titleEN: 'Pick Your Team', descEN: 'Each round pick one team playing that matchday', titleKU: 'تیمەکەت هەڵبژێرە', descKU: 'هەر قۆناغێک یەک تیم هەڵبژێرە کە ئەو ڕۆژە یاری دەکات' },
+  { icon: '⚔️', titleEN: 'Face an Opponent', descEN: 'System pairs you with another user randomly', titleKU: 'بەرامبەر بەستن', descKU: 'سیستەم تۆ و کەسێکی تر بە ڕاستەوخۆ بەهەمبەر دەکات' },
+  { icon: '📊', titleEN: 'Better Result Wins', descEN: 'Your team wins = you advance. Tie decided by goal difference', titleKU: 'باشترین ئەنجام دەبات', descKU: 'تیمەکەت بردی = تۆ پێشدەکەوی. یەکسانی بەپێی جیاوازی گۆڵ' },
+  { icon: '🏆', titleEN: 'Survive to Win', descEN: 'Last user standing after the Final wins!', titleKU: 'بمێنەرەوە بۆ بردن', descKU: 'کۆتا کەسایەتی دوای فاینەل دەبات!' },
+]
+
+const SCHEDULE = [
+  { roundEN: 'Group Round 1', roundKU: 'قۆناغی گروپ ١', date: 'June 15–17', descEN: 'Pick from all 48 teams', descKU: 'هەڵبژاردن لە ٤٨ تیمەکان' },
+  { roundEN: 'Group Round 2', roundKU: 'قۆناغی گروپ ٢', date: 'June 17–21', descEN: 'Pick again — can change team', descKU: 'دووبارە هەڵبژێرە — تیمت بگۆڕە' },
+  { roundEN: 'Group Round 3', roundKU: 'قۆناغی گروپ ٣', date: 'June 21–26', descEN: 'Final group stage round', descKU: 'کۆتا قۆناغی گروپ' },
+  { roundEN: 'Round of 16', roundKU: 'قۆناغی ١٦', date: 'June 27 – July 1', descEN: 'Knockout — no draws', descKU: 'ناکاوت — یەکسانی نییە' },
+  { roundEN: 'Quarter Finals', roundKU: 'چارەکفاینەل', date: 'July 4–5', descEN: '8 teams remain', descKU: '٨ تیم دەمێننەوە' },
+  { roundEN: 'Semi Finals', roundKU: 'نیوەفاینەل', date: 'July 8–9', descEN: '4 teams remain', descKU: '٤ تیم دەمێننەوە' },
+  { roundEN: 'Final', roundKU: 'فاینەل', date: 'July 19', descEN: 'Champion decided!', descKU: 'پاڵەوان دیاردەبێت!' },
+]
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
@@ -169,6 +231,17 @@ export default function H2HPage() {
   const { user, loading: authLoading, openAuthModal } = useAuth()
   const t = L[language]
 
+  // ── Countdown state ──────────────────────────────────────────────────────────
+  const [countdown, setCountdown] = useState(getCountdown())
+  const H2H_STARTED = Date.now() >= H2H_START.getTime()
+
+  useEffect(() => {
+    if (H2H_STARTED) return
+    const timer = setInterval(() => setCountdown(getCountdown()), 1000)
+    return () => clearInterval(timer)
+  }, [H2H_STARTED])
+
+  // ── Pick flow state ──────────────────────────────────────────────────────────
   const [view, setView] = useState<View>('pick')
   const [tierFilter, setTierFilter] = useState<TierFilter>('all')
   const [search, setSearch] = useState('')
@@ -181,12 +254,11 @@ export default function H2HPage() {
   const [dataLoading, setDataLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // ── Load initial data ────────────────────────────────────────────────────────
-
+  // ── Load data (only when H2H is live) ───────────────────────────────────────
   useEffect(() => {
-    if (authLoading) return
+    if (!H2H_STARTED || authLoading) return
     loadData()
-  }, [authLoading, user])
+  }, [authLoading, user, H2H_STARTED])
 
   async function loadData() {
     setDataLoading(true)
@@ -195,34 +267,25 @@ export default function H2HPage() {
       const headers: Record<string, string> = {}
       if (user) {
         const { data: { session } } = await supabase.auth.getSession()
-        if (session?.access_token) {
-          headers['Authorization'] = `Bearer ${session.access_token}`
-        }
+        if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`
       }
-
       const [statsRes, lbRes, pickRes] = await Promise.all([
         fetch(`${API_BASE}/h2h/team-stats`),
         fetch(`${API_BASE}/h2h/leaderboard`),
         user ? fetch(`${API_BASE}/h2h/my-pick`, { headers }) : Promise.resolve(null),
       ])
-
       if (statsRes.ok) {
-        const statsData = await statsRes.json()
-        setTeamStats(Array.isArray(statsData) ? statsData : (statsData.teams ?? []))
+        const d = await statsRes.json()
+        setTeamStats(Array.isArray(d) ? d : (d.teams ?? []))
       }
-
       if (lbRes.ok) {
-        const lbData = await lbRes.json()
-        setLeaderboard(Array.isArray(lbData) ? lbData : (lbData.leaderboard ?? lbData.picks ?? []))
+        const d = await lbRes.json()
+        setLeaderboard(Array.isArray(d) ? d : (d.leaderboard ?? d.picks ?? []))
       }
-
-      if (pickRes && pickRes.ok) {
-        const pickData = await pickRes.json()
-        const pick = pickData.pick ?? pickData
-        if (pick?.team) {
-          setMyPick(pick)
-          setView('picked')
-        }
+      if (pickRes?.ok) {
+        const d = await pickRes.json()
+        const pick = d.pick ?? d
+        if (pick?.team) { setMyPick(pick); setView('picked') }
       }
     } catch {
       setError(t.error)
@@ -230,8 +293,6 @@ export default function H2HPage() {
       setDataLoading(false)
     }
   }
-
-  // ── Submit pick ──────────────────────────────────────────────────────────────
 
   async function submitPick(team: string) {
     if (!user) return
@@ -248,8 +309,8 @@ export default function H2HPage() {
         body: JSON.stringify({ team }),
       })
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.detail ?? errData.message ?? res.statusText)
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.detail ?? err.message ?? res.statusText)
       }
       const data = await res.json()
       setMyPick({ team, picked_at: data.picked_at ?? new Date().toISOString() })
@@ -262,8 +323,6 @@ export default function H2HPage() {
       setSubmitting(false)
     }
   }
-
-  // ── Derived data ─────────────────────────────────────────────────────────────
 
   const statsMap = useMemo(() => {
     const m: Record<string, TeamStats> = {}
@@ -289,20 +348,135 @@ export default function H2HPage() {
   const myPickStats = myPick ? statsMap[myPick.team] : null
   const myLbEntry = leaderboard.find(e => e.team === myPick?.team)
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Coming soon view ─────────────────────────────────────────────────────────
+
+  if (!H2H_STARTED) {
+    return (
+      <div className="min-h-screen bg-[#0D1117] text-[#E6EDF3]">
+        <Navbar language={language} onLanguageChange={changeLanguage} />
+
+        {/* Hero */}
+        <div className="bg-gradient-to-b from-[#161B22] to-[#0D1117] px-4 pt-10 pb-8 text-center">
+          <div className="text-6xl mb-4">🏆</div>
+          <h1 className="text-3xl font-bold mb-2">WC2026 H2H Challenge</h1>
+          <p className="text-[#8B949E] text-lg">Head-to-Head Team Prediction Contest</p>
+        </div>
+
+        <div className="mx-auto max-w-lg px-4 pb-10 space-y-5">
+
+          {/* Coming soon banner */}
+          <div className="rounded-2xl border border-[#F0A500] bg-[#F0A500]/10 p-6 text-center">
+            <p className="text-[#F0A500] text-lg font-bold mb-1">{t.comingSoonBadge}</p>
+            <p className="text-[#8B949E] text-sm">{t.comingSoonSub}</p>
+          </div>
+
+          {/* Countdown */}
+          {countdown && (
+            <div className="rounded-2xl bg-[#161B22] border border-[#30363D] p-6">
+              <p className="text-center text-[#8B949E] text-xs uppercase tracking-widest mb-4">
+                {t.startingIn}
+              </p>
+              <div className="grid grid-cols-4 gap-3">
+                {([
+                  { value: countdown.days, label: t.days },
+                  { value: countdown.hours, label: t.hours },
+                  { value: countdown.mins, label: t.mins },
+                  { value: countdown.secs, label: t.secs },
+                ] as { value: number; label: string }[]).map(({ value, label }) => (
+                  <div key={label} className="rounded-xl bg-[#21262D] p-3 text-center">
+                    <div className="text-3xl font-bold text-[#F0A500]">
+                      {String(value).padStart(2, '0')}
+                    </div>
+                    <div className="text-xs text-[#8B949E] mt-1">{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* How it works */}
+          <div>
+            <h2 className="text-lg font-bold mb-3 text-center">{t.howItWorks}</h2>
+            <div className="space-y-2">
+              {HOW_IT_WORKS.map(({ icon, titleEN, descEN, titleKU, descKU }) => (
+                <div key={titleEN} className="flex items-start gap-4 rounded-xl bg-[#161B22] border border-[#30363D] p-4">
+                  <span className="text-3xl flex-shrink-0">{icon}</span>
+                  <div>
+                    <p className="font-bold text-[#E6EDF3]">
+                      {language === 'KU' ? titleKU : titleEN}
+                    </p>
+                    <p className="text-[#8B949E] text-sm mt-0.5">
+                      {language === 'KU' ? descKU : descEN}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Schedule */}
+          <div>
+            <h2 className="text-lg font-bold mb-3 text-center">{t.schedule}</h2>
+            <div className="rounded-2xl bg-[#161B22] border border-[#30363D] overflow-hidden divide-y divide-[#30363D]">
+              {SCHEDULE.map(({ roundEN, roundKU, date, descEN, descKU }, i) => (
+                <div key={roundEN} className="flex items-center gap-4 px-4 py-3">
+                  <div className="w-7 h-7 rounded-full bg-[#21262D] flex items-center justify-center text-xs font-bold text-[#8B949E] flex-shrink-0">
+                    {i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-[#E6EDF3]">
+                      {language === 'KU' ? roundKU : roundEN}
+                    </p>
+                    <p className="text-[#8B949E] text-xs">
+                      {language === 'KU' ? descKU : descEN}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-xs font-semibold text-[#F0A500]">{date}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Register CTA */}
+          {!authLoading && (
+            user ? (
+              <div className="rounded-2xl border border-emerald-500/50 bg-emerald-500/10 p-5 text-center">
+                <p className="text-emerald-400 font-bold text-lg mb-1">{t.registeredMsg}</p>
+                <p className="text-[#8B949E] text-sm">{t.registeredSub}</p>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-[#30363D] bg-[#161B22] p-5 text-center">
+                <p className="text-[#E6EDF3] font-bold text-lg mb-1">{t.joinCta}</p>
+                <p className="text-[#8B949E] text-sm mb-4">{t.joinSub}</p>
+                <button
+                  onClick={() => openAuthModal(language)}
+                  className="inline-block rounded-xl bg-[#F0A500] px-8 py-3 text-sm font-bold text-[#0D1117] hover:bg-[#D4920A] transition-colors"
+                >
+                  {t.loginBtn}
+                </button>
+              </div>
+            )
+          )}
+
+        </div>
+      </div>
+    )
+  }
+
+  // ── Live pick / leaderboard views ────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-[#0D1117] text-[#E6EDF3]">
       <Navbar language={language} onLanguageChange={changeLanguage} />
 
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8">
-        {/* Page header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-[#E6EDF3]">{t.pageTitle}</h1>
           <p className="mt-1 text-sm text-[#8B949E]">{t.pageSub}</p>
         </div>
 
-        {/* Auth gate */}
         {!authLoading && !user && (
           <div className="mb-6 flex items-center justify-between rounded-xl border border-[#F0A500]/30 bg-[#F0A500]/10 px-4 py-3">
             <span className="text-sm text-[#E6EDF3]">{t.notLoggedIn}</span>
@@ -315,35 +489,29 @@ export default function H2HPage() {
           </div>
         )}
 
-        {/* Error */}
         {error && (
           <div className="mb-4 rounded-lg border border-[#F85149]/30 bg-[#F85149]/10 px-4 py-3 text-sm text-[#F85149]">
             {error}
           </div>
         )}
 
-        {/* Main loading skeleton */}
         {(authLoading || dataLoading) && (
           <div className="space-y-3">
             <Sk className="h-10 w-full" />
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <Sk key={i} className="h-14 w-full" />
-              ))}
+              {Array.from({ length: 12 }).map((_, i) => <Sk key={i} className="h-14 w-full" />)}
             </div>
           </div>
         )}
 
-        {/* ── View: pick (no pick yet) ── */}
+        {/* View: pick */}
         {!authLoading && !dataLoading && view === 'pick' && (
           <>
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-[#E6EDF3]">{t.pickHeading}</h2>
+                <h2 className="text-lg font-semibold">{t.pickHeading}</h2>
                 <p className="text-xs text-[#8B949E]">{t.pickSub}</p>
               </div>
-
-              {/* Leaderboard toggle */}
               <button
                 onClick={() => setView('leaderboard')}
                 className="self-start sm:self-auto rounded-lg border border-[#30363D] bg-[#161B22] px-3 py-1.5 text-xs font-medium text-[#8B949E] hover:text-[#E6EDF3] transition-colors"
@@ -352,7 +520,6 @@ export default function H2HPage() {
               </button>
             </div>
 
-            {/* Search + tier filter */}
             <div className="mb-4 flex flex-col gap-2 sm:flex-row">
               <input
                 type="text"
@@ -381,11 +548,10 @@ export default function H2HPage() {
               </div>
             </div>
 
-            {/* Teams grid by group */}
             <div className="space-y-4">
               {Object.entries(filteredTeams).map(([group, teams]) => (
                 <div key={group}>
-                  <div className="mb-2 flex items-center gap-2">
+                  <div className="mb-2">
                     <span className="rounded bg-[#21262D] px-2 py-0.5 text-xs font-bold text-[#8B949E]">
                       {t.groupLabel} {group}
                     </span>
@@ -420,10 +586,9 @@ export default function H2HPage() {
           </>
         )}
 
-        {/* ── View: picked ── */}
+        {/* View: picked */}
         {!authLoading && !dataLoading && view === 'picked' && myPick && (
           <div className="space-y-4">
-            {/* Your pick card */}
             <div className="rounded-2xl border border-[#F0A500]/40 bg-gradient-to-br from-[#F0A500]/10 to-[#161B22] p-5">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#F0A500]">
                 {t.pickedHeading}
@@ -431,7 +596,7 @@ export default function H2HPage() {
               <div className="flex items-center gap-4">
                 <span className="text-5xl">{FLAGS[myPick.team] ?? '🏳️'}</span>
                 <div>
-                  <h2 className="text-2xl font-bold text-[#E6EDF3]">{myPick.team}</h2>
+                  <h2 className="text-2xl font-bold">{myPick.team}</h2>
                   <p className="text-xs text-[#8B949E]">
                     {t.groupLabel} {teamGroup(myPick.team)} · {t.tierLabel(teamTier(myPick.team))}
                   </p>
@@ -442,8 +607,6 @@ export default function H2HPage() {
                   )}
                 </div>
               </div>
-
-              {/* Stats row */}
               {myPickStats && (
                 <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {myPickStats.win_probability != null && (
@@ -457,15 +620,13 @@ export default function H2HPage() {
                   {myPickStats.avg_goals_scored != null && (
                     <div className="rounded-lg bg-[#0D1117]/50 px-3 py-2">
                       <p className="text-[10px] text-[#8B949E]">Avg Goals</p>
-                      <p className="text-sm font-bold text-[#E6EDF3]">
-                        {myPickStats.avg_goals_scored.toFixed(2)}
-                      </p>
+                      <p className="text-sm font-bold">{myPickStats.avg_goals_scored.toFixed(2)}</p>
                     </div>
                   )}
                   {myLbEntry && (
                     <div className="rounded-lg bg-[#0D1117]/50 px-3 py-2">
                       <p className="text-[10px] text-[#8B949E]">Fan picks</p>
-                      <p className="text-sm font-bold text-[#E6EDF3]">
+                      <p className="text-sm font-bold">
                         {myLbEntry.pick_count} ({myLbEntry.percentage?.toFixed(1)}%)
                       </p>
                     </div>
@@ -473,8 +634,6 @@ export default function H2HPage() {
                 </div>
               )}
             </div>
-
-            {/* Leaderboard preview / toggle */}
             <button
               onClick={() => setView('leaderboard')}
               className="w-full rounded-xl border border-[#30363D] bg-[#161B22] px-4 py-3 text-sm font-medium text-[#8B949E] hover:text-[#E6EDF3] hover:border-[#F0A500]/30 transition-all text-center"
@@ -484,12 +643,12 @@ export default function H2HPage() {
           </div>
         )}
 
-        {/* ── View: leaderboard ── */}
+        {/* View: leaderboard */}
         {!authLoading && !dataLoading && view === 'leaderboard' && (
           <div>
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-[#E6EDF3]">{t.lbHeading}</h2>
+                <h2 className="text-lg font-semibold">{t.lbHeading}</h2>
                 <p className="text-xs text-[#8B949E]">{t.lbSub}</p>
               </div>
               <button
@@ -506,14 +665,11 @@ export default function H2HPage() {
               </div>
             ) : (
               <div className="rounded-xl border border-[#30363D] bg-[#161B22] overflow-hidden">
-                {/* Table header */}
                 <div className="grid grid-cols-[1fr_auto_auto] gap-4 border-b border-[#30363D] px-4 py-2.5">
                   <span className="text-xs font-semibold text-[#8B949E]">{t.lbTeam}</span>
                   <span className="text-xs font-semibold text-[#8B949E] text-right w-14">{t.lbPicks}</span>
                   <span className="text-xs font-semibold text-[#8B949E] text-right w-10">{t.lbPct}</span>
                 </div>
-
-                {/* Rows */}
                 <div className="divide-y divide-[#30363D]/40">
                   {leaderboard.map((entry, idx) => {
                     const isMyPick = entry.team === myPick?.team
@@ -521,15 +677,10 @@ export default function H2HPage() {
                     return (
                       <div
                         key={entry.team}
-                        className={`grid grid-cols-[1fr_auto_auto] gap-4 px-4 py-2.5 items-center ${
-                          isMyPick ? 'bg-[#F0A500]/10' : ''
-                        }`}
+                        className={`grid grid-cols-[1fr_auto_auto] gap-4 px-4 py-2.5 items-center ${isMyPick ? 'bg-[#F0A500]/10' : ''}`}
                       >
-                        {/* Team */}
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="w-5 text-center text-xs font-bold text-[#8B949E] flex-shrink-0">
-                            {idx + 1}
-                          </span>
+                          <span className="w-5 text-center text-xs font-bold text-[#8B949E] flex-shrink-0">{idx + 1}</span>
                           <span className="text-lg flex-shrink-0">{FLAGS[entry.team] ?? '🏳️'}</span>
                           <div className="min-w-0">
                             <span className={`text-sm font-semibold truncate block ${isMyPick ? 'text-[#F0A500]' : 'text-[#E6EDF3]'}`}>
@@ -540,7 +691,6 @@ export default function H2HPage() {
                                 </span>
                               )}
                             </span>
-                            {/* Bar */}
                             <div className="mt-0.5 h-1 w-full max-w-[120px] rounded-full bg-[#21262D]">
                               <div
                                 className="h-1 rounded-full bg-[#F0A500]/60"
@@ -549,11 +699,7 @@ export default function H2HPage() {
                             </div>
                           </div>
                         </div>
-                        {/* Picks count */}
-                        <span className="text-sm font-semibold text-[#E6EDF3] text-right w-14">
-                          {entry.pick_count}
-                        </span>
-                        {/* Percentage */}
+                        <span className="text-sm font-semibold text-[#E6EDF3] text-right w-14">{entry.pick_count}</span>
                         <span className={`text-sm font-bold text-right w-10 ${isMyPick ? 'text-[#F0A500]' : 'text-[#8B949E]'}`}>
                           {entry.percentage?.toFixed(1)}%
                         </span>
@@ -567,14 +713,12 @@ export default function H2HPage() {
         )}
       </main>
 
-      {/* ── Confirm modal ── */}
+      {/* Confirm modal */}
       {confirming && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm rounded-2xl border border-[#30363D] bg-[#161B22] p-6">
             <div className="mb-1 text-center text-4xl">{FLAGS[confirming] ?? '🏳️'}</div>
-            <h3 className="mb-1 text-center text-lg font-bold text-[#E6EDF3]">
-              {t.confirmTitle(confirming)}
-            </h3>
+            <h3 className="mb-1 text-center text-lg font-bold">{t.confirmTitle(confirming)}</h3>
             <p className="mb-5 text-center text-sm text-[#8B949E]">{t.confirmSub}</p>
             <div className="flex gap-3">
               <button
