@@ -17,7 +17,7 @@ interface Scorer {
   gls_per90?: number
   xag_per90?: number
   ast_per90?: number
-  fc26_ovr: number
+  rating: number
   opponent_factor: number
   composite_score: number
   data_source: string
@@ -268,7 +268,7 @@ export default function ScorersPage() {
 
                         {/* Rating */}
                         <td className="px-3 py-2.5 text-right text-xs text-[#8B949E] tabular-nums hidden md:table-cell">
-                          {player.fc26_ovr}
+                          {player.rating}
                         </td>
 
                         {/* Composite score */}
@@ -334,7 +334,7 @@ export default function ScorersPage() {
                       {[
                         { label: tab === 'goals' ? t.xg : t.xag, value: stat1 ?? 0, max: 1.5, color: '#F0A500' },
                         { label: tab === 'goals' ? t.gls : t.ast, value: stat2 ?? 0, max: 1.2, color: '#58A6FF' },
-                        { label: t.fc26, value: player.fc26_ovr, max: 100, color: '#2EA043' },
+                        { label: t.fc26, value: player.rating, max: 100, color: '#2EA043' },
                       ].map(({ label: bLabel, value, max, color: bColor }) => (
                         <div key={bLabel} className="flex items-center gap-2">
                           <span className="text-[9px] text-[#8B949E] w-14 flex-shrink-0">{bLabel}</span>
