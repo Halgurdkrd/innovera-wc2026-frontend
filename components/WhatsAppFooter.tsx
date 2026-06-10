@@ -90,32 +90,27 @@ export default function WhatsAppFooter() {
 
   return (
     <>
-      {/* ── Footer bar — fixed above BottomNav on mobile, static on desktop ── */}
-      <footer className="fixed bottom-[60px] left-0 right-0 z-[45] md:static md:bottom-auto border-t border-[#30363D] bg-[#0D1117] px-4 py-3">
-        <div className="mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-[11px] text-[#8B949E] flex items-center gap-1.5">
-            <WhatsAppIcon />
-            <span className="text-[#4ade80]">07742740404</span>
-            <span>·</span>
-            <span>{isKU ? 'پەیوەندیمان پێوە بکە' : 'Reach us on WhatsApp'}</span>
-          </p>
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => setModal('contact')}
-              className="inline-flex items-center gap-1.5 bg-[#4ade80]/10 hover:bg-[#4ade80]/20 border border-[#4ade80]/30 hover:border-[#4ade80]/60 text-[#4ade80] text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
-            >
-              <WhatsAppIcon />
-              {isKU ? 'پەیوەندیمان پێوە بکە' : 'Contact Us'}
-            </button>
-            <button
-              onClick={() => setModal('feedback')}
-              className="inline-flex items-center gap-1.5 bg-[#161B22] hover:bg-[#21262D] border border-[#30363D] hover:border-[#4ade80]/30 text-[#8B949E] hover:text-[#4ade80] text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
-            >
-              <WhatsAppIcon />
-              {isKU ? 'ڕەخنە و پێشنیار' : 'Feedback'}
-            </button>
-          </div>
+      {/* ── Footer bar — thin single-line text strip, scrolls with content ── */}
+      <footer className="border-t border-[#30363D]/50 bg-[#0D1117] px-4 py-2">
+        <div className="mx-auto max-w-7xl flex items-center justify-center gap-3 text-[11px] text-[#8B949E]">
+          <span className="flex items-center gap-1">
+            <WhatsAppIcon className="h-3 w-3" />
+            <span className="text-[#4ade80] tabular-nums">07742740404</span>
+          </span>
+          <span aria-hidden="true">·</span>
+          <button
+            onClick={() => setModal('contact')}
+            className="hover:text-[#4ade80] transition-colors"
+          >
+            {isKU ? 'پەیوەندی' : 'Contact Us'}
+          </button>
+          <span aria-hidden="true">·</span>
+          <button
+            onClick={() => setModal('feedback')}
+            className="hover:text-[#4ade80] transition-colors"
+          >
+            {isKU ? 'ڕەخنە و پێشنیار' : 'Feedback'}
+          </button>
         </div>
       </footer>
 
