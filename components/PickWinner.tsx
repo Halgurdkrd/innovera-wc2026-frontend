@@ -4,7 +4,9 @@ import { useEffect, useState, useMemo } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Sk } from '@/components/SkeletonCard'
-import { isPickLocked } from './CountdownTimer'
+
+// Champion pick locks after all matchday-1 group games complete
+const PICK_LOCK_DATE = new Date('2026-06-17T23:59:59Z')
 
 // ── Static data ───────────────────────────────────────────────────────────────
 
@@ -39,13 +41,14 @@ const FLAGS: Record<string, string> = {
 }
 
 const ALL_TEAMS = Object.values(GROUPS).flat()
+void ALL_TEAMS // referenced by parent via prop if needed
 
 // ── Labels ────────────────────────────────────────────────────────────────────
 
 const L = {
   EN: {
     title: '🏆 Who Will Win the World Cup?',
-    subtitle: 'Make your pick before June 11 and earn bonus points if you\'re right',
+    subtitle: 'Pick before June 17 — earn 50 bonus points if you\'re right',
     search: 'Search team…',
     group: 'Group',
     aiTitle: 'AI Thinks…',
@@ -54,16 +57,18 @@ const L = {
     loginBtn: 'Login to Save Your Pick',
     changeBtn: 'Change pick',
     alreadyPicked: 'You picked',
-    locked: 'Picks locked — tournament begins today',
+    lockedPick: '🔒 Your pick is locked',
+    lockedMsg: 'Picks are locked — matchday 1 is underway',
     saved: 'Pick saved! Good luck 🤞',
     saving: 'Saving…',
     points: 'Correct tournament winner = 50 bonus points',
     showAI: 'See AI predictions ▾',
     hideAI: 'Hide AI predictions ▴',
+    lockCountdown: (days: number) => `🔒 Locks in ${days} day${days === 1 ? '' : 's'}`,
   },
   KU: {
     title: '🏆 کێ جامی جیهانی دەبات؟',
-    subtitle: 'هەڵبژاردن خۆت بکە پێش ١١ی حوزەیران · خاڵی زیادە وەربگرە ئەگەر دروست بوو',
+    subtitle: 'هەڵبژاردن خۆت بکە پێش ١٧ی حوزەیران · ٥٠ خاڵی زیادە وەربگرە ئەگەر دروست بوو',
     search: 'تیم بگەڕێ…',
     group: 'گروپ',
     aiTitle: '‏AI چی فیکر دەکات…',
@@ -72,12 +77,14 @@ const L = {
     loginBtn: 'چوونەژوورەوە بۆ پاشەکەوتکردن',
     changeBtn: 'گۆڕانی هەڵبژاردن',
     alreadyPicked: 'هەڵبژاردتە',
-    locked: 'هەڵبژاردن داخراون — تورنامێنت ئەمڕۆ دەستپێدەکات',
+    lockedPick: '🔒 هەڵبژاردنەکەت قفڵ کرا',
+    lockedMsg: 'هەڵبژاردن داخراون — یارییەکانی ئەستێرەی یەکەم دەستپێکردووە',
     saved: 'پاشەکەوت کرا! بەختێکی باش 🤞',
     saving: 'پاشەکەوتکردن…',
     points: 'بەرزترین تیمی دروست = ٥٠ خاڵی زیادە',
     showAI: 'پێشبینی AI ببینە ▾',
     hideAI: 'پێشبینی AI بپۆشە ▴',
+    lockCountdown: (days: number) => `🔒 ${days} ڕۆژ تا قفڵبوون`,
   },
 }
 
@@ -94,32 +101,40 @@ interface Props {
 export default function PickWinner({ winnerProbs = {}, language }: Props) {
   const t = L[language]
   const { user, openAuthModal } = useAuth()
-  const locked = isPickLocked()
 
-  const [selected, setSelected] = useState<string | null>(null)
+  const isAfterLock = Date.now() >= PICK_LOCK_DATE.getTime()
+  const daysToLock  = Math.ceil((PICK_LOCK_DATE.getTime() - Date.now()) / 86_400_000)
+
+  const [selected,     setSelected]     = useState<string | null>(null)
   const [existingPick, setExistingPick] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [pickLoading, setPickLoading] = useState(false)
-  const [search, setSearch] = useState('')
-  const [showAI, setShowAI] = useState(false) // mobile toggle
+  const [saving,       setSaving]       = useState(false)
+  const [saved,        setSaved]        = useState(false)
+  const [pickLoading,  setPickLoading]  = useState(false)
+  const [search,       setSearch]       = useState('')
+  const [showAI,       setShowAI]       = useState(false)
 
-  // Load existing pick from Supabase
+  // After lock date, existing picks can't be changed. New users can still make a first pick.
+  const locked = isAfterLock && existingPick !== null
+
+  // Load existing pick from champion_picks table
   useEffect(() => {
-    if (!user) return
+    if (!user) { setExistingPick(null); setSelected(null); return }
     setPickLoading(true)
     ;(async () => {
       try {
-        const { data } = await supabase
-          .from('user_brackets')
-          .select('picks')
+        const { data, error } = await supabase
+          .from('champion_picks')
+          .select('team_name')
           .eq('user_id', user.id)
-          .eq('is_active', true)
-          .order('created_at', { ascending: false })
-          .limit(1)
           .maybeSingle()
-        const pick = (data?.picks as Record<string, unknown> | null)?.predicted_winner as string | undefined
-        if (pick) { setExistingPick(pick); setSelected(pick) }
+        if (error) {
+          console.warn('[PickWinner] load error:', error.message)
+          return
+        }
+        if (data?.team_name) {
+          setExistingPick(data.team_name)
+          setSelected(data.team_name)
+        }
       } finally {
         setPickLoading(false)
       }
@@ -131,10 +146,13 @@ export default function PickWinner({ winnerProbs = {}, language }: Props) {
     if (!user) { openAuthModal(language); return }
     setSaving(true)
     try {
-      await supabase.from('user_brackets').upsert(
-        { user_id: user.id, picks: { predicted_winner: selected }, score: 0, is_active: true },
-        { onConflict: 'user_id' }
-      )
+      const { error } = await supabase
+        .from('champion_picks')
+        .upsert({ user_id: user.id, team_name: selected }, { onConflict: 'user_id' })
+      if (error) {
+        console.error('[PickWinner] save error:', error.message)
+        return
+      }
       setExistingPick(selected)
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
@@ -169,7 +187,7 @@ export default function PickWinner({ winnerProbs = {}, language }: Props) {
     if (!q) return GROUPS
     const result: Record<string, string[]> = {}
     for (const [g, teams] of Object.entries(GROUPS)) {
-      const filtered = teams.filter(t => t.toLowerCase().includes(q))
+      const filtered = teams.filter(tm => tm.toLowerCase().includes(q))
       if (filtered.length) result[g] = filtered
     }
     return result
@@ -223,16 +241,30 @@ export default function PickWinner({ winnerProbs = {}, language }: Props) {
       <div>
         <h2 className="text-lg sm:text-xl font-extrabold text-[#E6EDF3]">{t.title}</h2>
         <p className="mt-1 text-xs text-[#8B949E]">{t.subtitle}</p>
+        {/* Countdown to lock — show 10 days out */}
+        {!isAfterLock && daysToLock <= 10 && (
+          <p className="mt-1 text-[11px] font-semibold text-[#F0A500]">
+            {t.lockCountdown(daysToLock)}
+          </p>
+        )}
       </div>
 
       {/* Already picked banner */}
       {existingPick && (
-        <div className="flex items-center justify-between bg-[#F0A500]/10 border border-[#F0A500]/30 rounded-xl px-4 py-3">
+        <div className={`flex items-center justify-between rounded-xl px-4 py-3 ${
+          locked
+            ? 'bg-[#30363D]/40 border border-[#30363D]'
+            : 'bg-[#F0A500]/10 border border-[#F0A500]/30'
+        }`}>
           <div className="flex items-center gap-2.5">
             <span className="text-2xl">{FLAGS[existingPick] ?? '🏳️'}</span>
             <div>
-              <p className="text-xs text-[#8B949E]">{t.alreadyPicked}</p>
-              <p className="text-sm font-bold text-[#F0A500]">{existingPick}</p>
+              <p className="text-xs text-[#8B949E]">
+                {locked ? t.lockedPick : t.alreadyPicked}
+              </p>
+              <p className={`text-sm font-bold ${locked ? 'text-[#E6EDF3]' : 'text-[#F0A500]'}`}>
+                {existingPick}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -261,78 +293,85 @@ export default function PickWinner({ winnerProbs = {}, language }: Props) {
         </div>
       )}
 
-      {/* Main layout: team picker + AI probs */}
-      <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-5 lg:space-y-0">
+      {/* Main layout: team picker + AI probs — hide picker when locked with existing pick */}
+      {!locked && (
+        <div className="lg:grid lg:grid-cols-2 lg:gap-6 space-y-5 lg:space-y-0">
 
-        {/* Left: team picker */}
-        <div className="space-y-3">
-          {/* Search */}
-          <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#8B949E]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder={t.search}
-              className="w-full bg-[#0D1117] border border-[#30363D] rounded-lg pl-8 pr-3 py-2 text-xs text-[#E6EDF3] placeholder-[#8B949E] focus:border-[#F0A500] focus:outline-none"
-            />
-          </div>
+          {/* Left: team picker */}
+          <div className="space-y-3">
+            {/* Search */}
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#8B949E]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder={t.search}
+                className="w-full bg-[#0D1117] border border-[#30363D] rounded-lg pl-8 pr-3 py-2 text-xs text-[#E6EDF3] placeholder-[#8B949E] focus:border-[#F0A500] focus:outline-none"
+              />
+            </div>
 
-          {/* Team grid by group */}
-          <div className="max-h-72 overflow-y-auto space-y-3 pr-1">
-            {Object.entries(filteredGroups).map(([group, teams]) => (
-              <div key={group}>
-                <p className="text-[9px] font-bold text-[#8B949E] uppercase tracking-widest mb-1.5">
-                  {t.group} {group}
-                </p>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {teams.map(team => {
-                    const isActive = selected === team
-                    return (
-                      <button
-                        key={team}
-                        disabled={locked}
-                        onClick={() => setSelected(isActive ? null : team)}
-                        className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition-all ${
-                          isActive
-                            ? 'border-[#F0A500] bg-[#F0A500]/15 text-[#F0A500]'
-                            : 'border-[#30363D] text-[#8B949E] hover:border-[#F0A500]/40 hover:text-[#E6EDF3]'
-                        } ${locked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        <span className="text-base flex-shrink-0">{FLAGS[team] ?? '🏳️'}</span>
-                        <span className="text-[11px] font-semibold truncate flex-1">{team}</span>
-                        {isActive && <span className="text-[10px] flex-shrink-0">✓</span>}
-                      </button>
-                    )
-                  })}
+            {/* Team grid by group */}
+            <div className="max-h-72 overflow-y-auto space-y-3 pr-1">
+              {Object.entries(filteredGroups).map(([group, teams]) => (
+                <div key={group}>
+                  <p className="text-[9px] font-bold text-[#8B949E] uppercase tracking-widest mb-1.5">
+                    {t.group} {group}
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {teams.map(team => {
+                      const isActive = selected === team
+                      return (
+                        <button
+                          key={team}
+                          onClick={() => setSelected(isActive ? null : team)}
+                          className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition-all ${
+                            isActive
+                              ? 'border-[#F0A500] bg-[#F0A500]/15 text-[#F0A500]'
+                              : 'border-[#30363D] text-[#8B949E] hover:border-[#F0A500]/40 hover:text-[#E6EDF3]'
+                          }`}
+                        >
+                          <span className="text-base flex-shrink-0">{FLAGS[team] ?? '🏳️'}</span>
+                          <span className="text-[11px] font-semibold truncate flex-1">{team}</span>
+                          {isActive && <span className="text-[10px] flex-shrink-0">✓</span>}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+
+          {/* Right: AI probabilities — always visible on desktop, toggle on mobile */}
+          <div>
+            <button
+              className="lg:hidden w-full text-xs font-semibold text-[#F0A500] bg-[#F0A500]/10 border border-[#F0A500]/30 rounded-lg px-3 py-2 mb-3 transition-colors hover:bg-[#F0A500]/20"
+              onClick={() => setShowAI(v => !v)}
+            >
+              {showAI ? t.hideAI : t.showAI}
+            </button>
+            <div className={showAI ? 'block' : 'hidden lg:block'}>
+              <AIProbsPanel />
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Right: AI probabilities — always visible on desktop, toggle on mobile */}
-        <div>
-          {/* Mobile toggle */}
-          <button
-            className="lg:hidden w-full text-xs font-semibold text-[#F0A500] bg-[#F0A500]/10 border border-[#F0A500]/30 rounded-lg px-3 py-2 mb-3 transition-colors hover:bg-[#F0A500]/20"
-            onClick={() => setShowAI(v => !v)}
-          >
-            {showAI ? t.hideAI : t.showAI}
-          </button>
-          <div className={showAI ? 'block' : 'hidden lg:block'}>
-            <AIProbsPanel />
-          </div>
+      {/* When locked with a pick, show AI panel alone */}
+      {locked && (
+        <div className="hidden lg:block">
+          <AIProbsPanel />
         </div>
-      </div>
+      )}
 
-      {/* Submit button */}
+      {/* Submit / lock state */}
       <div className="space-y-2">
         {locked ? (
           <p className="text-center text-xs font-semibold text-[#8B949E] bg-[#30363D]/40 rounded-xl py-3">
-            🔒 {t.locked}
+            {t.lockedMsg}
           </p>
         ) : !user ? (
           <button
