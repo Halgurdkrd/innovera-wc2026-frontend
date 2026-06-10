@@ -7,8 +7,8 @@ import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { API_BASE } from '@/lib/api'
 
-// H2H starts June 15 2026 00:00 UTC
-const H2H_START = new Date('2026-06-15T00:00:00Z')
+// H2H starts June 17 2026 00:00 UTC — after all teams have played matchday 1
+const H2H_START = new Date('2026-06-17T00:00:00Z')
 
 function getCountdown() {
   const diff = H2H_START.getTime() - Date.now()
@@ -19,6 +19,19 @@ function getCountdown() {
     mins: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
     secs: Math.floor((diff % (1000 * 60)) / 1000),
   }
+}
+
+function H2HIcon({ className = 'h-16 w-16' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 60 30" fill="none" className={className} aria-hidden="true">
+      <circle cx="10" cy="15" r="8" stroke="currentColor" strokeWidth="2" />
+      <circle cx="50" cy="15" r="8" stroke="currentColor" strokeWidth="2" />
+      <rect x="22" y="9" width="16" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="18" y1="15" x2="22" y2="15" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="38" y1="15" x2="42" y2="15" stroke="currentColor" strokeWidth="1.5" />
+      <text x="30" y="19.5" textAnchor="middle" fill="currentColor" fontSize="6" fontWeight="bold" fontFamily="sans-serif">VS</text>
+    </svg>
+  )
 }
 
 const TEAM_FLAGS: Record<string, string> = {
@@ -53,6 +66,136 @@ const STRENGTH_STYLE: Record<string, string> = {
   Underdog: 'border-gray-600 bg-gray-600/10',
 }
 
+const HOW_IT_WORKS = [
+  {
+    icon: '⚽',
+    titleEN: 'Pick Your Team',
+    titleKU: 'تیمەکەت هەڵبژێرە',
+    descEN: 'Each round pick one team playing that matchday',
+    descKU: 'هەر قۆناغێک یەک تیم هەڵبژێرە کە ئەو ڕۆژە یاری دەکات',
+  },
+  {
+    icon: '⚔️',
+    titleEN: 'Get Matched',
+    titleKU: 'بەرامبەر دانان',
+    descEN: 'System pairs you with another user randomly',
+    descKU: 'سیستەم تۆ و کەسێکی تر بە ڕاستەوخۆ بەرامبەر یەک دادەنێت',
+  },
+  {
+    icon: '📊',
+    titleEN: 'Best Result Advances',
+    titleKU: 'باشترین ئەنجام سەردەکەوێت بۆ ئاستی دواتر',
+    descEN: 'Your team wins = you advance. Ties decided by goal difference',
+    descKU: 'ئەگەر تیمەکەت بردییەوە تۆ سەردەکەوی. یەکسانبوون لەگەل بەرامبەر بەجیاوازی گۆڵ هەژمار دەکرێت',
+  },
+  {
+    icon: '🏆',
+    titleEN: 'Last One Standing Wins',
+    titleKU: 'بمێنەرەوە بۆ سەرکەوتن',
+    descEN: 'Last person standing wins the championship!',
+    descKU: 'کۆتا کەسایەتی براوەی جامەکە دەبێت',
+  },
+]
+
+const SCHEDULE = [
+  { n: 'Group Round 1', k: 'قۆناغی گروپ ١', d: 'June 17–21', desc: 'Pick from all 48 teams' },
+  { n: 'Group Round 2', k: 'قۆناغی گروپ ٢', d: 'June 21–26', desc: 'Can change your team' },
+  { n: 'Group Round 3', k: 'قۆناغی گروپ ٣', d: 'June 26–27', desc: 'Final group round' },
+  { n: 'Round of 16', k: 'چونە دەرەوە — یەکسانی نییە', d: 'June 28 – July 2', desc: 'Knockout begins' },
+  { n: 'Quarter Finals', k: 'چارەکی کۆتایی', d: 'July 4–5', desc: '8 teams remain' },
+  { n: 'Semi Finals', k: 'نیوەی کۆتایی', d: 'July 8–9', desc: '4 teams remain' },
+  { n: 'Final', k: 'پاڵەوان دیاری دەکرێت! 🏆', d: 'July 19', desc: 'Champion decided' },
+]
+
+const L = {
+  EN: {
+    back: '← Back',
+    title: 'WC2026 H2H Challenge',
+    subtitle: 'Head-to-Head · FIFA World Cup 2026',
+    comingSoonBadge: '⏳ H2H unlocks when all teams have played',
+    comingSoonSub: 'After all 48 teams play matchday 1',
+    countdownLabel: 'Starting In',
+    howItWorks: 'How It Works',
+    schedule: 'Schedule',
+    registeredTitle: '✅ You are registered!',
+    registeredSub: 'Come back June 17 to make your first pick',
+    loginTitle: 'Login to join H2H Challenge',
+    loginSub: 'Sign in to participate when H2H begins',
+    loginBtn: 'Login / Sign Up',
+    tabPick: 'Pick',
+    tabMatchup: 'My Match',
+    tabLeaders: 'Leaders',
+    alive: 'Alive',
+    total: 'Total',
+    loginRequired: 'Login required to pick',
+    loginBtn2: 'Login',
+    yourPick: 'Your Pick',
+    stillAlive: '✅ Still Alive!',
+    eliminatedMsg: '❌ Eliminated',
+    pickWindowOpen: 'Pick window open — you can change your team',
+    pickWindowClosed: '⏳ Pick window opens',
+    noPick: 'No pick yet',
+    noPickSub: 'Go to Pick tab to choose your team',
+    pickNow: 'Pick Now',
+    yourOpponent: 'Your Opponent',
+    you: 'You',
+    notPickedYet: 'Not picked yet',
+    awaitingOpponent: 'Opponent will be assigned when the round starts',
+    roundHistory: 'Round History',
+    stillAliveCount: 'Still Alive',
+    totalPlayers: 'Total Players',
+    survivors: '✅ Survivors',
+    eliminatedLabel: '❌ Eliminated',
+    outRound: 'Out: Round',
+    confirmPick: '🎯 Confirm Pick',
+    picking: 'Picking…',
+    loginFirst: 'Login First',
+  },
+  KU: {
+    back: '← گەڕانەوە',
+    title: 'چالەنجی H2H جامی جیهانی ٢٠٢٦',
+    subtitle: 'چالەنجی سەر بەسەر · جامی جیهانی ٢٠٢٦',
+    comingSoonBadge: 'H2H كراوەدەبێت کاتێک هەموو تیمەکان یاریان کردووە',
+    comingSoonSub: 'دوای ئەوەی ٤٨ تیم یەکەم یاریان لە قۆناغی گروپدا ئەندام دا',
+    countdownLabel: 'دەستپێدەکات لە',
+    howItWorks: 'چۆن کار دەکات',
+    schedule: 'خشتەی ئاستەکان',
+    registeredTitle: '✅ تۆ تۆمارکراوی!',
+    registeredSub: '١٧ی ئەم مانگە دێبەرەوە بۆ یەکەم هەڵبژاردنەکەت',
+    loginTitle: 'چوونەژوورەوە بۆ بەشداری لە چالەنجی H2H',
+    loginSub: 'چوونەژوورەوە بۆ بەشداریکردن کاتێک H2H دەستپێدەکات',
+    loginBtn: 'چوونەژووو / تۆمارکردن',
+    tabPick: 'هەڵبژاردن',
+    tabMatchup: 'یارییەکەم',
+    tabLeaders: 'پێشکەوتوان',
+    alive: 'ژیو',
+    total: 'کۆی گشتی',
+    loginRequired: 'چوونەژوورەوە پێویستە بۆ هەڵبژاردن',
+    loginBtn2: 'چوونەژوورەوە',
+    yourPick: 'هەڵبژاردنی تۆ',
+    stillAlive: '✅ هێشتا ژیوی!',
+    eliminatedMsg: '❌ دەرکراو',
+    pickWindowOpen: 'پەنجەرەی هەڵبژاردن کراوەیە — دەتوانی تیمەکەت بگۆڕی',
+    pickWindowClosed: '⏳ پەنجەرەی هەڵبژاردن دەکرێتەوە',
+    noPick: 'هێشتا هەڵبژاردن نەکراوە',
+    noPickSub: 'بڕۆ بۆ تابی هەڵبژاردن بۆ هەڵبژاردنی تیمەکەت',
+    pickNow: 'ئێستا هەڵبژێرە',
+    yourOpponent: 'بەرامبەرەکەت',
+    you: 'تۆ',
+    notPickedYet: 'هێشتا هەڵنەبژێراوە',
+    awaitingOpponent: 'بەرامبەرەکەت دیاری دەکرێت کاتێک قۆناغەکە دەستپێدەکات',
+    roundHistory: 'مێژووی قۆناغەکان',
+    stillAliveCount: 'هێشتا ژیو',
+    totalPlayers: 'کۆی یاریکەران',
+    survivors: '✅ بەردەوامان',
+    eliminatedLabel: '❌ دەرکراوان',
+    outRound: 'دەرکرا: قۆناغی',
+    confirmPick: '🎯 دڵنیابوونەوە لە هەڵبژاردن',
+    picking: 'هەڵبژێردراو…',
+    loginFirst: 'یەکەم چوونەژوورەوە',
+  },
+}
+
 export default function H2HPage() {
   const router = useRouter()
   const { language, changeLanguage } = useLanguage()
@@ -71,13 +214,14 @@ export default function H2HPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
+  const tx = L[language]
   const H2H_STARTED = Date.now() >= H2H_START.getTime()
 
   // ── Countdown ticker ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (H2H_STARTED) return
-    const t = setInterval(() => setCountdown(getCountdown()), 1000)
-    return () => clearInterval(t)
+    const timer = setInterval(() => setCountdown(getCountdown()), 1000)
+    return () => clearInterval(timer)
   }, [H2H_STARTED])
 
   // ── Load public data ─────────────────────────────────────────────────────────
@@ -159,162 +303,125 @@ export default function H2HPage() {
             onClick={() => router.back()}
             className="flex items-center gap-2 text-gray-400 mb-4 hover:text-white transition-colors"
           >
-            ← Back
+            {tx.back}
           </button>
         </div>
+
         {/* Header */}
         <div className="bg-gradient-to-b from-slate-800 to-slate-900 px-4 pt-6 pb-8 text-center">
-          <div className="text-6xl mb-3">⚔️</div>
-          <h1 className="text-3xl font-bold mb-2">WC2026 H2H Challenge</h1>
-          <p className="text-gray-400">چالەنجی سەر بەسەر · جامی جیهانی ٢٠٢٦</p>
+          <div className="flex justify-center mb-3 text-yellow-400">
+            <H2HIcon className="h-16 w-auto" />
+          </div>
+          <h1 className="text-3xl font-bold mb-2">{tx.title}</h1>
+          <p className="text-gray-400">{tx.subtitle}</p>
         </div>
 
         <div className="max-w-2xl mx-auto">
-        {/* Announcement banner */}
-        <div className="mx-4 mb-5">
-          <div className="bg-yellow-500/10 border border-yellow-500 rounded-2xl p-5 text-center">
-            <div className="text-yellow-400 font-bold text-lg mb-1">
-              ⏳ H2H Challenge starts June 15
-            </div>
-            <div className="text-gray-300 text-sm mb-3">
-              After all 48 teams play matchday 1
-            </div>
-            <div className="text-yellow-300 text-sm font-medium border-t border-yellow-500/30 pt-3">
-              ١٥ی ئەم مانگە یاری بەرامبەر یەکتر دەست پێ دەکات
-            </div>
-            <div className="text-gray-400 text-xs mt-1">
-              دوای ئەوەی ٤٨ تیم یەکەم یاریان لە قۆناغی گروپدا ئەندام دا
-            </div>
-          </div>
-        </div>
-
-        {/* Countdown */}
-        {countdown && (
+          {/* Announcement banner */}
           <div className="mx-4 mb-5">
-            <div className="bg-slate-800 rounded-2xl p-5">
-              <p className="text-center text-gray-400 text-xs mb-3 uppercase tracking-wider">
-                Starting In · دەستپێدەکات لە
-              </p>
-              <div className="grid grid-cols-4 gap-2">
-                {([
-                  { v: countdown.days, l: 'Days', k: 'ڕۆژ' },
-                  { v: countdown.hours, l: 'Hours', k: 'کاتژمێر' },
-                  { v: countdown.mins, l: 'Mins', k: 'خولەک' },
-                  { v: countdown.secs, l: 'Secs', k: 'چرکە' },
-                ] as { v: number; l: string; k: string }[]).map(({ v, l, k }) => (
-                  <div key={l} className="bg-slate-700 rounded-xl p-3 text-center">
-                    <div className="text-3xl font-bold text-yellow-400">
-                      {String(v).padStart(2, '0')}
+            <div className="bg-yellow-500/10 border border-yellow-500 rounded-2xl p-5 text-center">
+              <div className="text-yellow-400 font-bold text-lg mb-1">
+                {tx.comingSoonBadge}
+              </div>
+              <div className="text-gray-300 text-sm">
+                {tx.comingSoonSub}
+              </div>
+            </div>
+          </div>
+
+          {/* Countdown */}
+          {countdown && (
+            <div className="mx-4 mb-5">
+              <div className="bg-slate-800 rounded-2xl p-5">
+                <p className="text-center text-gray-400 text-xs mb-3 uppercase tracking-wider">
+                  {tx.countdownLabel}
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  {([
+                    { v: countdown.days,  lEN: 'Days',  lKU: 'ڕۆژ' },
+                    { v: countdown.hours, lEN: 'Hours', lKU: 'کاتژمێر' },
+                    { v: countdown.mins,  lEN: 'Mins',  lKU: 'خولەک' },
+                    { v: countdown.secs,  lEN: 'Secs',  lKU: 'چرکە' },
+                  ] as { v: number; lEN: string; lKU: string }[]).map(({ v, lEN, lKU }) => (
+                    <div key={lEN} className="bg-slate-700 rounded-xl p-3 text-center">
+                      <div className="text-3xl font-bold text-yellow-400">
+                        {String(v).padStart(2, '0')}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        {language === 'KU' ? lKU : lEN}
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-400 mt-1">{l}</div>
-                    <div className="text-xs text-gray-500">{k}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* How it works */}
-        <div className="mx-4 mb-5">
-          <h2 className="font-bold text-lg mb-3 text-center">How It Works · چۆن کار دەکات</h2>
-          <div className="space-y-3">
-            {[
-              {
-                icon: '⚽',
-                en: 'Pick Your Team',
-                den: 'Each round pick one team playing that matchday',
-                dku: 'هەر قۆناغێک یەک تیم هەڵبژێرە کە ئەو ڕۆژە یاری دەکات',
-              },
-              {
-                icon: '⚔️',
-                en: 'بەرامبەر دانان',
-                den: 'System pairs you with another user randomly',
-                dku: 'سیستەم تۆ و کەسێکی تر بە ڕاستەوخۆ بەرامبەر یەک دادەنێت',
-              },
-              {
-                icon: '📊',
-                en: 'باشترین ئەنجام سەردەکەوێت بۆ ئاستی دواتر',
-                den: 'Your team wins = you advance. Ties decided by goal difference',
-                dku: 'ئەگەر تیمەکەت بردییەوە تۆ سەردەکەوی. یەکسانبوون لەگەل بەرامبەر بەجیاوازی گۆڵ هەژمار دەکرێت',
-              },
-              {
-                icon: '🏆',
-                en: 'بمێنەرەوە بۆ سەرکەوتن',
-                den: 'Last person standing wins the championship!',
-                dku: 'کۆتا کەسایەتی براوەی جامەکە دەبێت',
-              },
-            ].map(({ icon, en, den, dku }) => (
-              <div key={en} className="bg-slate-800 rounded-xl p-4 flex gap-3">
-                <div className="text-3xl shrink-0">{icon}</div>
-                <div>
-                  <div className="font-bold mb-0.5">{en}</div>
-                  <div className="text-gray-400 text-sm mb-1">{den}</div>
-                  <div className="text-gray-500 text-xs">{dku}</div>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Schedule */}
-        <div className="mx-4 mb-5">
-          <h2 className="font-bold text-lg mb-3 text-center">خشتەی ئاستەکان · Schedule</h2>
-          <div className="bg-slate-800 rounded-2xl overflow-hidden">
-            {[
-              { n: 'Group Round 1', k: 'قۆناغی گروپ ١', d: 'June 15–17', desc: 'Pick from all 48 teams' },
-              { n: 'Group Round 2', k: 'قۆناغی گروپ ٢', d: 'June 17–21', desc: 'Can change your team' },
-              { n: 'Group Round 3', k: 'قۆناغی گروپ ٣', d: 'June 21–26', desc: 'Final group round' },
-              { n: 'Round of 16', k: 'چونە دەرەوە — یەکسانی نییە', d: 'June 27 – July 1', desc: 'Knockout begins' },
-              { n: 'Quarter Finals', k: 'چارەکی کۆتایی', d: 'July 4–5', desc: '8 teams remain' },
-              { n: 'Semi Finals', k: 'نیوەی کۆتایی', d: 'July 8–9', desc: '4 teams remain' },
-              { n: 'Final', k: 'پاڵەوان دیاری دەکرێت! 🏆', d: 'July 19', desc: 'Champion decided' },
-            ].map(({ n, k, d, desc }, i, arr) => (
-              <div
-                key={n}
-                className={`flex items-center gap-3 p-4 ${i < arr.length - 1 ? 'border-b border-slate-700' : ''}`}
-              >
-                <div className="w-7 h-7 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold text-gray-300 shrink-0">
-                  {i + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm">{n}</div>
-                  <div className="text-gray-500 text-xs">{k}</div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-yellow-400 text-sm font-medium">{d}</div>
-                  <div className="text-gray-500 text-xs">{desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* CTA */}
-        <div className="mx-4 mb-8">
-          {authUser ? (
-            <div className="bg-green-500/10 border border-green-500 rounded-2xl p-5 text-center">
-              <div className="text-green-400 font-bold text-lg mb-1">✅ You are registered!</div>
-              <div className="text-gray-400 text-sm">Come back June 15 to make your first pick</div>
-              <div className="text-gray-500 text-xs mt-2">
-                دێبەرەوە ١٥ی ئەم مانگە بۆ یەکەم هەڵبژاردنەکەت
-              </div>
-            </div>
-          ) : (
-            <div className="bg-blue-500/10 border border-blue-500 rounded-2xl p-5 text-center">
-              <div className="text-blue-400 font-bold text-lg mb-2">Login to join H2H Challenge</div>
-              <div className="text-gray-400 text-sm mb-4">
-                چوونەژوورەوە بۆ بەشداری لە چالەنجی H2H
-              </div>
-              <button
-                onClick={() => openAuthModal('EN')}
-                className="bg-blue-600 text-white font-bold px-8 py-3 rounded-xl hover:bg-blue-700 transition-colors"
-              >
-                Login / Sign Up
-              </button>
             </div>
           )}
-        </div>
+
+          {/* How it works */}
+          <div className="mx-4 mb-5">
+            <h2 className="font-bold text-lg mb-3 text-center">{tx.howItWorks}</h2>
+            <div className="space-y-3">
+              {HOW_IT_WORKS.map((step) => (
+                <div key={step.titleEN} className="bg-slate-800 rounded-xl p-4 flex gap-3">
+                  <div className="text-3xl shrink-0">{step.icon}</div>
+                  <div>
+                    <div className="font-bold mb-0.5">
+                      {language === 'KU' ? step.titleKU : step.titleEN}
+                    </div>
+                    <div className="text-gray-400 text-sm">
+                      {language === 'KU' ? step.descKU : step.descEN}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Schedule */}
+          <div className="mx-4 mb-5">
+            <h2 className="font-bold text-lg mb-3 text-center">{tx.schedule}</h2>
+            <div className="bg-slate-800 rounded-2xl overflow-hidden">
+              {SCHEDULE.map(({ n, k, d, desc }, i) => (
+                <div
+                  key={n}
+                  className={`flex items-center gap-3 p-4 ${i < SCHEDULE.length - 1 ? 'border-b border-slate-700' : ''}`}
+                >
+                  <div className="w-7 h-7 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold text-gray-300 shrink-0">
+                    {i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm">{language === 'KU' ? k : n}</div>
+                    {language === 'EN' && <div className="text-gray-500 text-xs">{k}</div>}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-yellow-400 text-sm font-medium">{d}</div>
+                    <div className="text-gray-500 text-xs">{desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* CTA */}
+          <div className="mx-4 mb-8">
+            {authUser ? (
+              <div className="bg-green-500/10 border border-green-500 rounded-2xl p-5 text-center">
+                <div className="text-green-400 font-bold text-lg mb-1">{tx.registeredTitle}</div>
+                <div className="text-gray-400 text-sm">{tx.registeredSub}</div>
+              </div>
+            ) : (
+              <div className="bg-blue-500/10 border border-blue-500 rounded-2xl p-5 text-center">
+                <div className="text-blue-400 font-bold text-lg mb-2">{tx.loginTitle}</div>
+                <div className="text-gray-400 text-sm mb-4">{tx.loginSub}</div>
+                <button
+                  onClick={() => openAuthModal(language)}
+                  className="bg-blue-600 text-white font-bold px-8 py-3 rounded-xl hover:bg-blue-700 transition-colors"
+                >
+                  {tx.loginBtn}
+                </button>
+              </div>
+            )}
+          </div>
         </div>{/* /max-w-2xl */}
       </div>
     )
@@ -328,9 +435,9 @@ export default function H2HPage() {
   const pickWindowOpen = (myStatus?.pick_window_open as boolean | undefined) || false
 
   const tabs = [
-    { id: 'pick', label: 'Pick', icon: '⚽' },
-    { id: 'matchup', label: 'My Match', icon: '⚔️' },
-    { id: 'leaderboard', label: 'Leaders', icon: '🏆' },
+    { id: 'pick',        label: tx.tabPick,    icon: '⚽' },
+    { id: 'matchup',     label: tx.tabMatchup, icon: '⚔️' },
+    { id: 'leaderboard', label: tx.tabLeaders, icon: '🏆' },
   ]
 
   return (
@@ -342,13 +449,16 @@ export default function H2HPage() {
           onClick={() => router.back()}
           className="flex items-center gap-2 text-gray-400 mb-2 hover:text-white transition-colors"
         >
-          ← Back
+          {tx.back}
         </button>
       </div>
 
       {/* Header */}
       <div className="bg-slate-800 px-4 pt-4 pb-4 text-center border-b border-slate-700">
-        <h1 className="text-2xl font-bold mb-1">⚔️ H2H Challenge</h1>
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <H2HIcon className="h-7 w-auto text-yellow-400" />
+          <h1 className="text-2xl font-bold">{tx.title}</h1>
+        </div>
         {currentRound && (
           <div className="text-yellow-400 text-sm font-medium">
             {currentRound.round_name as string}
@@ -359,13 +469,13 @@ export default function H2HPage() {
             <div className="text-xl font-bold text-green-400">
               {(status?.alive_count as number | undefined) ?? 0}
             </div>
-            <div className="text-gray-400 text-xs">Alive</div>
+            <div className="text-gray-400 text-xs">{tx.alive}</div>
           </div>
           <div className="text-center">
             <div className="text-xl font-bold text-blue-400">
               {(status?.total_participants as number | undefined) ?? 0}
             </div>
-            <div className="text-gray-400 text-xs">Total</div>
+            <div className="text-gray-400 text-xs">{tx.total}</div>
           </div>
         </div>
       </div>
@@ -392,12 +502,12 @@ export default function H2HPage() {
         <div className="max-w-2xl mx-auto p-4">
           {!authUser && (
             <div className="bg-yellow-500/10 border border-yellow-500 rounded-xl p-4 text-center mb-4">
-              <div className="text-yellow-400 font-bold mb-1">Login required to pick</div>
+              <div className="text-yellow-400 font-bold mb-1">{tx.loginRequired}</div>
               <button
-                onClick={() => openAuthModal('EN')}
+                onClick={() => openAuthModal(language)}
                 className="bg-yellow-500 text-black font-bold px-6 py-2 rounded-lg mt-2"
               >
-                Login
+                {tx.loginBtn2}
               </button>
             </div>
           )}
@@ -405,19 +515,17 @@ export default function H2HPage() {
           {myPick && (
             <div className="bg-green-500/10 border border-green-500 rounded-xl p-4 text-center mb-4">
               <div className="text-green-400 font-bold">
-                ✅ Your pick: {TEAM_FLAGS[myPick.team_picked as string] || ''} {myPick.team_picked as string}
+                ✅ {tx.yourPick}: {TEAM_FLAGS[myPick.team_picked as string] || ''} {myPick.team_picked as string}
               </div>
               {pickWindowOpen && (
-                <div className="text-gray-400 text-xs mt-1">
-                  Pick window open — you can change your team
-                </div>
+                <div className="text-gray-400 text-xs mt-1">{tx.pickWindowOpen}</div>
               )}
             </div>
           )}
 
           {!pickWindowOpen && currentRound && (
             <div className="bg-slate-800 rounded-xl p-4 text-center mb-4 text-gray-400 text-sm">
-              ⏳ Pick window opens{' '}
+              {tx.pickWindowClosed}{' '}
               {new Date(currentRound.pick_opens as string).toLocaleDateString()}
             </div>
           )}
@@ -444,7 +552,7 @@ export default function H2HPage() {
               {/* Team grid */}
               <div className="grid grid-cols-3 gap-2 mb-4">
                 {teams
-                  .filter(t => filter === 'All' || (TEAM_STRENGTH[t] || 'Underdog') === filter)
+                  .filter(teamName => filter === 'All' || (TEAM_STRENGTH[teamName] || 'Underdog') === filter)
                   .map(team => {
                     const picks = (teamStats?.teams as Array<{ team: string; count: number }> | undefined)
                       ?.find(s => s.team === team)?.count ?? 0
@@ -491,24 +599,24 @@ export default function H2HPage() {
           {!myStatus?.has_pick ? (
             <div className="text-center text-gray-400 py-12">
               <div className="text-5xl mb-3">⚽</div>
-              <div className="font-bold mb-1">No pick yet</div>
-              <div className="text-sm">Go to Pick tab to choose your team</div>
+              <div className="font-bold mb-1">{tx.noPick}</div>
+              <div className="text-sm">{tx.noPickSub}</div>
               <button
                 onClick={() => setActiveTab('pick')}
                 className="mt-4 bg-yellow-500 text-black font-bold px-6 py-2 rounded-xl"
               >
-                Pick Now
+                {tx.pickNow}
               </button>
             </div>
           ) : (
             <>
               {/* My pick card */}
               <div className="bg-slate-800 rounded-2xl p-5 mb-4 text-center">
-                <div className="text-xs text-gray-400 uppercase mb-2">Your Pick</div>
+                <div className="text-xs text-gray-400 uppercase mb-2">{tx.yourPick}</div>
                 <div className="text-6xl mb-2">{TEAM_FLAGS[myPick?.team_picked as string] || '🏳️'}</div>
                 <div className="text-xl font-bold">{myPick?.team_picked as string}</div>
                 <div className={`mt-2 text-sm font-medium ${myPick?.is_alive ? 'text-green-400' : 'text-red-400'}`}>
-                  {myPick?.is_alive ? '✅ Still Alive!' : '❌ Eliminated'}
+                  {myPick?.is_alive ? tx.stillAlive : tx.eliminatedMsg}
                 </div>
                 {myPick?.result !== 'pending' && (
                   <div className="mt-1 text-gray-400 text-sm">
@@ -523,32 +631,34 @@ export default function H2HPage() {
               {/* Opponent */}
               {opponent ? (
                 <div className="bg-slate-800 rounded-2xl p-5 mb-4">
-                  <div className="text-center text-xs text-gray-400 uppercase mb-4">Your Opponent</div>
+                  <div className="text-center text-xs text-gray-400 uppercase mb-4">{tx.yourOpponent}</div>
                   <div className="flex items-center justify-around">
                     <div className="text-center">
                       <div className="text-4xl mb-1">{TEAM_FLAGS[myPick?.team_picked as string] || '🏳️'}</div>
-                      <div className="text-sm font-bold">You</div>
+                      <div className="text-sm font-bold">{tx.you}</div>
                       <div className="text-xs text-gray-400">{myPick?.team_picked as string}</div>
                     </div>
                     <div className="text-2xl font-bold text-gray-500">VS</div>
                     <div className="text-center">
                       <div className="text-4xl mb-1">{TEAM_FLAGS[opponent.team_picked as string] || '❓'}</div>
                       <div className="text-sm font-bold">{opponent.username as string}</div>
-                      <div className="text-xs text-gray-400">{(opponent.team_picked as string) || 'Not picked yet'}</div>
+                      <div className="text-xs text-gray-400">
+                        {(opponent.team_picked as string) || tx.notPickedYet}
+                      </div>
                     </div>
                   </div>
                 </div>
               ) : (
                 <div className="bg-slate-800 rounded-2xl p-5 text-center text-gray-400 mb-4">
                   <div className="text-3xl mb-2">⏳</div>
-                  <div className="text-sm">Opponent will be assigned when the round starts</div>
+                  <div className="text-sm">{tx.awaitingOpponent}</div>
                 </div>
               )}
 
               {/* Round history */}
               {Array.isArray(myStatus?.history) && (myStatus.history as unknown[]).length > 0 && (
                 <div className="bg-slate-800 rounded-2xl p-4">
-                  <div className="font-bold mb-3 text-sm">Round History</div>
+                  <div className="font-bold mb-3 text-sm">{tx.roundHistory}</div>
                   {(myStatus.history as Array<Record<string, unknown>>).map(h => (
                     <div
                       key={h.round_number as number}
@@ -593,18 +703,18 @@ export default function H2HPage() {
               <div className="text-2xl font-bold text-green-400">
                 {(leaderboard?.alive_count as number | undefined) ?? 0}
               </div>
-              <div className="text-xs text-gray-400">Still Alive</div>
+              <div className="text-xs text-gray-400">{tx.stillAliveCount}</div>
             </div>
             <div className="bg-slate-800 rounded-xl p-3 text-center">
               <div className="text-2xl font-bold text-blue-400">
                 {(leaderboard?.total as number | undefined) ?? 0}
               </div>
-              <div className="text-xs text-gray-400">Total Players</div>
+              <div className="text-xs text-gray-400">{tx.totalPlayers}</div>
             </div>
           </div>
 
           {/* Alive */}
-          <h3 className="text-green-400 font-bold mb-2 text-sm">✅ Survivors</h3>
+          <h3 className="text-green-400 font-bold mb-2 text-sm">{tx.survivors}</h3>
           <div className="space-y-2 mb-4">
             {((leaderboard?.alive as Array<Record<string, unknown>>) || []).map((p, i) => (
               <div
@@ -618,7 +728,7 @@ export default function H2HPage() {
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm truncate">
                     {((p.user_profiles as Record<string, unknown> | undefined)?.username as string) || 'Player'}
-                    {p.user_id === authUser?.id && ' (You)'}
+                    {p.user_id === authUser?.id && ` (${tx.you})`}
                   </div>
                   <div className="text-xs text-gray-400">{p.team_picked as string}</div>
                 </div>
@@ -635,7 +745,7 @@ export default function H2HPage() {
           {/* Eliminated */}
           {((leaderboard?.eliminated as Array<Record<string, unknown>>) || []).length > 0 && (
             <>
-              <h3 className="text-red-400 font-bold mb-2 text-sm">❌ Eliminated</h3>
+              <h3 className="text-red-400 font-bold mb-2 text-sm">{tx.eliminatedLabel}</h3>
               <div className="space-y-2">
                 {((leaderboard?.eliminated as Array<Record<string, unknown>>) || []).map(p => (
                   <div
@@ -647,7 +757,7 @@ export default function H2HPage() {
                       <div className="font-medium text-sm truncate">
                         {((p.user_profiles as Record<string, unknown> | undefined)?.username as string) || 'Player'}
                       </div>
-                      <div className="text-xs text-red-400">Out: Round {p.round_number as number}</div>
+                      <div className="text-xs text-red-400">{tx.outRound} {p.round_number as number}</div>
                     </div>
                   </div>
                 ))}
@@ -673,7 +783,7 @@ export default function H2HPage() {
               disabled={submitting || !authUser}
               className="bg-yellow-400 text-black font-bold px-6 py-3 rounded-xl disabled:opacity-50 whitespace-nowrap transition-opacity"
             >
-              {submitting ? 'Picking…' : authUser ? '🎯 Confirm Pick' : 'Login First'}
+              {submitting ? tx.picking : authUser ? tx.confirmPick : tx.loginFirst}
             </button>
           </div>
         </div>
