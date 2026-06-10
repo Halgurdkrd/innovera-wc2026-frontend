@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import BottomNav from "@/components/BottomNav";
 import ChatWidget from "@/components/ChatWidget";
+import WhatsAppFooter from "@/components/WhatsAppFooter";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -76,6 +77,7 @@ export default function RootLayout({
         <AuthProvider>
           <div className="pb-20 md:pb-0">
             {children}
+            <WhatsAppFooter />
           </div>
           <BottomNav />
           <ChatWidget />
