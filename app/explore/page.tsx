@@ -529,23 +529,44 @@ function ExplorePageContent() {
         )}
 
         {/* ── Bracket tab ───────────────────────────────────────────────── */}
-        {activeTab === 'bracket' && (
-          <div className="space-y-4">
-            <div className="bg-[#F0A500]/10 border border-[#F0A500]/30 rounded-xl px-4 py-3">
-              <p className="text-sm font-semibold text-[#F0A500]">
-                {language === 'KU'
-                  ? '🔒 هەڵبژاردنی خشتەی یارییەکان لە ١٧ی حوزەیران قفڵ دەبێت. پێش ئەوە هەڵبژاردنەکەت بکە!'
-                  : '🔒 Bracket selections lock on June 17. Make your picks before then!'}
-              </p>
+        {activeTab === 'bracket' && (() => {
+          const BRACKET_LOCK_DATE = new Date('2026-06-28T23:59:59Z')
+          const bracketLocked = Date.now() >= BRACKET_LOCK_DATE.getTime()
+          return (
+            <div className="space-y-4">
+              {bracketLocked ? (
+                <div className="flex items-center gap-3 bg-[#30363D]/40 border border-[#30363D] rounded-xl px-4 py-3">
+                  <span className="text-xl flex-shrink-0">🔒</span>
+                  <p className="text-sm font-semibold text-[#8B949E]">
+                    {language === 'KU'
+                      ? 'بریکەت قفڵکرا — قۆناغی گروپ تەواو بووە'
+                      : 'Bracket locked — group stage complete'}
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-[#F0A500]/8 border border-[#F0A500]/40 rounded-xl px-4 py-4 flex gap-3">
+                  <span className="text-2xl flex-shrink-0 mt-0.5">🔮</span>
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-[#F0A500]">
+                      {language === 'KU' ? 'دۆخی پێشبینی' : 'Preview Mode'}
+                    </p>
+                    <p className="text-xs text-[#8B949E] leading-relaxed">
+                      {language === 'KU'
+                        ? 'ئەم بریکەتە لەسەر بنەمای ئەنجامی پێشبینیکراوی گرووپەکانە. دەتوانیت ئێستا هەڵبژاردن بکەیت بۆ خۆشی، بەڵام بریکەتەکە نوێ دەبێتەوە بە تیمە ڕاستەقینەکان دوای تەواوبوونی قۆناغی گرووپەکان (٢٨ی حوزەیران). هەڵبژاردنەکانت ڕیسێت دەبنەوە.'
+                        : 'This bracket is based on AI-predicted group results. You can make picks now for fun, but the bracket will update with real qualified teams after the group stage ends (June 28). Your picks will reset when the real bracket is set.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+              <BracketPredictions
+                simulation={simulation}
+                realSlots={bracketSlots}
+                loading={loading || simLoading}
+                language={language}
+              />
             </div>
-            <BracketPredictions
-              simulation={simulation}
-              realSlots={bracketSlots}
-              loading={loading || simLoading}
-              language={language}
-            />
-          </div>
-        )}
+          )
+        })()}
 
         {/* ── Scorers tab ───────────────────────────────────────────────── */}
         {activeTab === 'scorers' && (
