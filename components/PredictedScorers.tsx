@@ -123,6 +123,12 @@ function PredictedColumns({
   )
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function getLastName(name: string): string {
+  return name.replace(/^(GK|DF|MF|FW)\s+/i, '').trim().split(' ').at(-1)!.toLowerCase()
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function PredictedScorers({ matchId, homeTeam, awayTeam, isFinished, language }: Props) {
@@ -134,8 +140,45 @@ export default function PredictedScorers({ matchId, homeTeam, awayTeam, isFinish
     if (!matchId) { setLoading(false); return }
     ;(async () => {
       try {
-        const res = await fetch(`${API_BASE}/scorers/compare/${matchId}`)
-        if (res.ok) setData(await res.json())
+        // Parallel-fetch match scorers and squad-filtered allowlist
+        const [compareRes, squadRes] = await Promise.allSettled([
+          fetch(`${API_BASE}/scorers/compare/${matchId}`),
+          fetch(`${API_BASE}/scorers/predicted-goals?top=500`),
+        ])
+
+        if (compareRes.status !== 'fulfilled' || !compareRes.value.ok) return
+
+        const d: ScorersData = await compareRes.value.json()
+
+        // Filter predicted scorers to WC2026 squad members only
+        if (squadRes.status === 'fulfilled' && squadRes.value.ok) {
+          const sd = await squadRes.value.json()
+          const entries: { player_name: string; team: string }[] =
+            Array.isArray(sd) ? sd : (sd?.players ?? sd?.scorers ?? [])
+
+          // Per-team set of last names present in the WC squad
+          const byTeam = new Map<string, Set<string>>()
+          for (const e of entries) {
+            const t = (e.team ?? '').trim()
+            if (!byTeam.has(t)) byTeam.set(t, new Set())
+            byTeam.get(t)!.add(getLastName(e.player_name))
+          }
+
+          const filterToSquad = (scorers: PredictedScorer[], teamName: string) => {
+            const allowed = byTeam.get(teamName)
+            if (!allowed || allowed.size === 0) return scorers
+            return scorers.filter(s => allowed.has(getLastName(s.player_name)))
+          }
+
+          d.predicted.home_predicted_scorers = filterToSquad(
+            d.predicted.home_predicted_scorers ?? [], d.home_team
+          )
+          d.predicted.away_predicted_scorers = filterToSquad(
+            d.predicted.away_predicted_scorers ?? [], d.away_team
+          )
+        }
+
+        setData(d)
       } catch { /* fetch is best-effort — page still loads on error */ }
       finally { setLoading(false) }
     })()
@@ -214,11 +257,6 @@ export default function PredictedScorers({ matchId, homeTeam, awayTeam, isFinish
               homePredicted={homePredicted} awayPredicted={awayPredicted}
               realScorers={[]} compact={false} language={language}
             />
-            <p className="text-[10px] text-[#8B949E]/60 italic mt-3">
-              {isKU
-                ? '⚠️ لەسەر ئامارەکانی لیگەکانی ئەوروپا. دەرکەوتنی تیم جیاواز دەبێت.'
-                : '⚠️ Based on European league stats. Squad eligibility may vary.'}
-            </p>
           </>
         )}
 

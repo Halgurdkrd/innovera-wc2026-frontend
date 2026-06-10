@@ -318,16 +318,20 @@ export default function MyPredictionsPage() {
 
         const preds = (predsRes.data ?? []) as UserPrediction[]
 
-        // Fetch match details for each prediction
+        // Fetch match details for each prediction — non-fatal so badge still shows on failure
         const matchIds = preds.map(p => p.match_id).filter(Boolean)
         if (matchIds.length > 0) {
-          const { data: matchRows } = await supabasePublic
-            .from('matches')
-            .select('match_id,home_team,away_team,match_date,home_score,away_score,status,group_name,home_team_flag,away_team_flag')
-            .in('match_id', matchIds)
-          const matchMap: Record<string, Match> = {}
-          for (const m of matchRows ?? []) matchMap[m.match_id] = m as unknown as Match
-          for (const p of preds) { if (matchMap[p.match_id]) p.match = matchMap[p.match_id] }
+          try {
+            const { data: matchRows } = await supabasePublic
+              .from('matches')
+              .select('match_id,home_team,away_team,match_date,home_score,away_score,status,group_name,home_team_flag,away_team_flag')
+              .in('match_id', matchIds)
+            const matchMap: Record<string, Match> = {}
+            for (const m of matchRows ?? []) matchMap[m.match_id] = m as unknown as Match
+            for (const p of preds) { if (matchMap[p.match_id]) p.match = matchMap[p.match_id] }
+          } catch (matchErr) {
+            console.error('[my-predictions] match detail fetch failed (non-fatal):', matchErr)
+          }
         }
 
         setPredictions(preds)
