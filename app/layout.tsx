@@ -75,7 +75,7 @@ export default function RootLayout({
         className={`${inter.className} antialiased bg-[#0D1117] text-[#E6EDF3]`}
       >
         <AuthProvider>
-          <div className="pb-20 md:pb-0">
+          <div className="pb-[120px] md:pb-0">
             {children}
             <WhatsAppFooter />
           </div>

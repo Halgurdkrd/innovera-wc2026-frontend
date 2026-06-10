@@ -90,8 +90,8 @@ export default function WhatsAppFooter() {
 
   return (
     <>
-      {/* ── Footer bar ── */}
-      <footer className="border-t border-[#30363D] bg-[#0D1117] px-4 py-3">
+      {/* ── Footer bar — fixed above BottomNav on mobile, static on desktop ── */}
+      <footer className="fixed bottom-[60px] left-0 right-0 z-[45] md:static md:bottom-auto border-t border-[#30363D] bg-[#0D1117] px-4 py-3">
         <div className="mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-[11px] text-[#8B949E] flex items-center gap-1.5">
             <WhatsAppIcon />
