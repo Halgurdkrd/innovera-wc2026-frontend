@@ -140,7 +140,7 @@ export default function MatchCard({ match, language }: MatchCardProps) {
 
       {/* Watermark */}
       <p className="text-center text-[9px] text-[#30363D] tracking-widest font-medium select-none">
-        innovera.ai
+        Ennovera
       </p>
     </div>
   )

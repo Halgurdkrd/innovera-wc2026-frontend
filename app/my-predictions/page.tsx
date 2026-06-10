@@ -65,7 +65,7 @@ const L = {
     home: 'Home Win', draw: 'Draw', away: 'Away Win',
     share: 'Share My Stats',
     shareMsg: (name: string, pts: number, badge: string) =>
-      `${name} has ${pts} pts on @InnoVeraAI WC2026 predictions! Football identity: ${badge} ⚽ innovera.ai`,
+      `${name} has ${pts} pts on @InnoVeraAI WC2026 predictions! Football identity: ${badge} ⚽ Ennovera`,
     loadMore: 'Load more',
     error: 'Could not load predictions. Please refresh.',
     retry: 'Retry',
@@ -93,7 +93,7 @@ const L = {
     home: 'ماڵ دەبەرێت', draw: 'یەکسان', away: 'میوان دەبەرێت',
     share: 'ئامارەکانم هاوبەش بکە',
     shareMsg: (name: string, pts: number, badge: string) =>
-      `${name} ${pts} خاڵی لە پێشبینییەکانی @InnoVeraAI WC2026! نەریتی فوتبۆڵ: ${badge} ⚽ innovera.ai`,
+      `${name} ${pts} خاڵی لە پێشبینییەکانی @InnoVeraAI WC2026! نەریتی فوتبۆڵ: ${badge} ⚽ Ennovera`,
     loadMore: 'زیاتر بخوێنەوە',
     error: 'پێشبینییەکان نەگرانەوە. تکایە نوێ بکەوە.',
     retry: 'دووبارە هەوڵبدە',
@@ -495,7 +495,7 @@ export default function MyPredictionsPage() {
               {/* Branding header — included in PNG */}
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] font-bold text-[#F0A500] tracking-widest uppercase">🏆 Innovera WC2026</span>
-                <span className="text-[10px] text-[#8B949E]">innovera.ai</span>
+                <span className="text-[10px] text-[#8B949E]">Ennovera</span>
               </div>
 
               <p className="text-xs font-semibold text-[#F0A500] uppercase tracking-widest">{t.identity}</p>

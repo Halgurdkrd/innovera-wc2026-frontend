@@ -178,7 +178,7 @@ export default function LeaderboardPage() {
     })
     const rank = sortedProfiles.findIndex((p) => p.id === userProfile.id) + 1
     const pts = activeTab === 'weekly' ? userProfile.weekly_points : userProfile.total_points
-    const text = `I'm #${rank > 0 ? rank : '?'} on the Innovera WC2026 Leaderboard with ${pts} points! 🏆 Can you beat me? innovera.ai`
+    const text = `I'm #${rank > 0 ? rank : '?'} on the Ennovera WC2026 Leaderboard with ${pts} points! 🏆 Can you beat me? Ennovera`
 
     try {
       // Try API rank-card first
@@ -254,6 +254,15 @@ export default function LeaderboardPage() {
               {tab === 'weekly' ? t.weekly : t.total}
             </button>
           ))}
+        </div>
+
+        {/* Preview-mode notice */}
+        <div className="bg-[#58A6FF]/10 border border-[#58A6FF]/30 rounded-xl px-4 py-3">
+          <p className="text-sm text-[#58A6FF]">
+            {language === 'KU'
+              ? '🧪 خشتەی پلەبەندی لە دۆخی تاقیکردنەوەدایە. ژمارەکردنی خاڵی ڕەسمی لە ١٧ی حوزەیران دەست پێدەکات پاش ئەوەی هەموو تیمەکان یاری یەکەمیان تەواو دەکەن.'
+              : '🧪 Leaderboard is in preview mode. Official point calculations begin June 17 after all teams complete their first match, ensuring fair competition.'}
+          </p>
         </div>
 
         {/* Login prompt (non-blocking) */}
@@ -425,7 +434,7 @@ export default function LeaderboardPage() {
         )}
 
         {/* Footer watermark */}
-        <p className="text-center text-[10px] text-[#30363D] tracking-widest">innovera.ai</p>
+        <p className="text-center text-[10px] text-[#30363D] tracking-widest">Ennovera</p>
       </main>
     </div>
   )

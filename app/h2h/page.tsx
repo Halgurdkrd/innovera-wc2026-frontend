@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
+import H2HIcon from '@/components/H2HIcon'
 import { useLanguage } from '@/hooks/useLanguage'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
@@ -21,18 +22,6 @@ function getCountdown() {
   }
 }
 
-function H2HIcon({ className = 'h-16 w-16' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 60 30" fill="none" className={className} aria-hidden="true">
-      <circle cx="10" cy="15" r="8" stroke="currentColor" strokeWidth="2" />
-      <circle cx="50" cy="15" r="8" stroke="currentColor" strokeWidth="2" />
-      <rect x="22" y="9" width="16" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.5" />
-      <line x1="18" y1="15" x2="22" y2="15" stroke="currentColor" strokeWidth="1.5" />
-      <line x1="38" y1="15" x2="42" y2="15" stroke="currentColor" strokeWidth="1.5" />
-      <text x="30" y="19.5" textAnchor="middle" fill="currentColor" fontSize="6" fontWeight="bold" fontFamily="sans-serif">VS</text>
-    </svg>
-  )
-}
 
 const TEAM_FLAGS: Record<string, string> = {
   France: '🇫🇷', Argentina: '🇦🇷', Spain: '🇪🇸', England: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
@@ -309,8 +298,8 @@ export default function H2HPage() {
 
         {/* Header */}
         <div className="bg-gradient-to-b from-slate-800 to-slate-900 px-4 pt-6 pb-8 text-center">
-          <div className="flex justify-center mb-3 text-yellow-400">
-            <H2HIcon className="h-16 w-auto" />
+          <div className="flex justify-center mb-3">
+            <H2HIcon size={48} />
           </div>
           <h1 className="text-3xl font-bold mb-2">{tx.title}</h1>
           <p className="text-gray-400">{tx.subtitle}</p>
@@ -456,7 +445,7 @@ export default function H2HPage() {
       {/* Header */}
       <div className="bg-slate-800 px-4 pt-4 pb-4 text-center border-b border-slate-700">
         <div className="flex items-center justify-center gap-2 mb-1">
-          <H2HIcon className="h-7 w-auto text-yellow-400" />
+          <H2HIcon size={32} />
           <h1 className="text-2xl font-bold">{tx.title}</h1>
         </div>
         {currentRound && (

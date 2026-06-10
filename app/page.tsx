@@ -8,6 +8,7 @@ import MatchCard from '@/components/MatchCard'
 import LuckScoreSection from '@/components/LuckScoreSection'
 import GroupStandingsPreview from '@/components/GroupStandingsPreview'
 import WinnerProbsList from '@/components/WinnerProbsList'
+import H2HIcon from '@/components/H2HIcon'
 import CountdownTimer, { isTournamentStarted } from '@/components/CountdownTimer'
 import PickWinner from '@/components/PickWinner'
 import GroupPreviewTeaser from '@/components/GroupPreviewTeaser'
@@ -193,14 +194,7 @@ export default function HomePage() {
         {/* ── H2H Challenge card ── */}
         <Link href="/h2h">
           <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500 rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:border-yellow-400 transition-colors">
-            <svg viewBox="0 0 60 30" fill="none" className="h-10 w-auto text-yellow-400 shrink-0" aria-hidden="true">
-              <circle cx="10" cy="15" r="8" stroke="currentColor" strokeWidth="2" />
-              <circle cx="50" cy="15" r="8" stroke="currentColor" strokeWidth="2" />
-              <rect x="22" y="9" width="16" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.5" />
-              <line x1="18" y1="15" x2="22" y2="15" stroke="currentColor" strokeWidth="1.5" />
-              <line x1="38" y1="15" x2="42" y2="15" stroke="currentColor" strokeWidth="1.5" />
-              <text x="30" y="19.5" textAnchor="middle" fill="currentColor" fontSize="6" fontWeight="bold" fontFamily="sans-serif">VS</text>
-            </svg>
+            <H2HIcon size={40} className="shrink-0" />
             <div className="flex-1">
               <div className="font-bold text-lg text-white">H2H Challenge</div>
               <div className="text-yellow-400 text-sm">
@@ -299,8 +293,8 @@ export default function HomePage() {
               <span>·</span>
               <span>
                 {language === 'KU'
-                  ? 'هەموو حوقوقەکان پارێزراون © ٢٠٢٦ innovera.ai'
-                  : '© 2026 innovera.ai · AI predictions for entertainment purposes.'}
+                  ? 'هەموو حوقوقەکان پارێزراون © ٢٠٢٦ Ennovera'
+                  : '© 2026 Ennovera · AI predictions for entertainment purposes.'}
               </span>
             </div>
           </div>

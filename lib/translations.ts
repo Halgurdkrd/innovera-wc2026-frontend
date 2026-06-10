@@ -110,7 +110,7 @@ const translations = {
 
   // ── Footer ───────────────────────────────────────────────────────────────────
   footer_brand:     { EN: 'Innovera Predictor',  KU: 'ئینۆڤێرا پێشبینیکەر' },
-  footer_copyright: { EN: '© 2026 innovera.ai · AI predictions for entertainment purposes.', KU: 'هەموو حوقوقەکان پارێزراون © ٢٠٢٦ innovera.ai' },
+  footer_copyright: { EN: '© 2026 Ennovera · AI predictions for entertainment purposes.', KU: 'هەموو حوقوقەکان پارێزراون © ٢٠٢٦ Ennovera' },
   footer_about:     { EN: 'About',               KU: 'دەربارە' },
 
   // ── Auth modal ───────────────────────────────────────────────────────────────

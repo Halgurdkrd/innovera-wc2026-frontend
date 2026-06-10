@@ -6,6 +6,7 @@ import Navbar from '@/components/Navbar'
 import { useLanguage } from '@/hooks/useLanguage'
 import TeamCard from '@/components/TeamCard'
 import GroupStagePredictions from '@/components/GroupStagePredictions'
+import GroupStandingsPreview from '@/components/GroupStandingsPreview'
 import BracketPredictions from '@/components/BracketPredictions'
 import { supabasePublic } from '@/lib/supabase'
 import { API_BASE } from '@/lib/api'
@@ -503,23 +504,47 @@ function ExplorePageContent() {
 
         {/* ── Group Stage tab ───────────────────────────────────────────── */}
         {activeTab === 'group_stage' && (
-          <GroupStagePredictions
-            groups={simulation?.groups ?? []}
-            stageAppearances={rawSim?.stage_appearances ?? {}}
-            standings={standings}
-            loading={loading || simLoading}
-            language={language}
-          />
+          <div className="space-y-10">
+            {/* Real standings — all 12 groups, no "View All" link */}
+            <GroupStandingsPreview
+              standings={standings}
+              language={language}
+              loading={loading}
+              maxGroups={12}
+            />
+            {/* AI simulation predictions below real data */}
+            <div>
+              <h3 className="text-lg font-bold text-[#E6EDF3] mb-4">
+                {language === 'KU' ? '📊 پێشبینی AI — شێوەکاری' : '📊 AI Simulation — Predicted Standings'}
+              </h3>
+              <GroupStagePredictions
+                groups={simulation?.groups ?? []}
+                stageAppearances={rawSim?.stage_appearances ?? {}}
+                standings={standings}
+                loading={loading || simLoading}
+                language={language}
+              />
+            </div>
+          </div>
         )}
 
         {/* ── Bracket tab ───────────────────────────────────────────────── */}
         {activeTab === 'bracket' && (
-          <BracketPredictions
-            simulation={simulation}
-            realSlots={bracketSlots}
-            loading={loading || simLoading}
-            language={language}
-          />
+          <div className="space-y-4">
+            <div className="bg-[#F0A500]/10 border border-[#F0A500]/30 rounded-xl px-4 py-3">
+              <p className="text-sm font-semibold text-[#F0A500]">
+                {language === 'KU'
+                  ? '🔒 هەڵبژاردنی خشتەی یارییەکان لە ١٧ی حوزەیران قفڵ دەبێت. پێش ئەوە هەڵبژاردنەکەت بکە!'
+                  : '🔒 Bracket selections lock on June 17. Make your picks before then!'}
+              </p>
+            </div>
+            <BracketPredictions
+              simulation={simulation}
+              realSlots={bracketSlots}
+              loading={loading || simLoading}
+              language={language}
+            />
+          </div>
         )}
 
         {/* ── Scorers tab ───────────────────────────────────────────────── */}

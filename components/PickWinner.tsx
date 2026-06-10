@@ -164,8 +164,8 @@ export default function PickWinner({ winnerProbs = {}, language }: Props) {
   const handleShare = async () => {
     if (!existingPick) return
     const msg = language === 'KU'
-      ? `${FLAGS[existingPick] ?? '🏳️'} ${existingPick} هەڵدەبژێرم بۆ برینی جامی جیهانی ٢٠٢٦ • innovera.ai`
-      : `${FLAGS[existingPick] ?? '🏳️'} I'm backing ${existingPick} to win the 2026 World Cup • innovera.ai`
+      ? `${FLAGS[existingPick] ?? '🏳️'} ${existingPick} هەڵدەبژێرم بۆ برینی جامی جیهانی ٢٠٢٦ • Ennovera`
+      : `${FLAGS[existingPick] ?? '🏳️'} I'm backing ${existingPick} to win the 2026 World Cup • Ennovera`
     if (navigator.share) {
       await navigator.share({ title: 'Innovera — My World Cup Pick', text: msg }).catch(() => {})
     } else {

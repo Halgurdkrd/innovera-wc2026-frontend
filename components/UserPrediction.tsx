@@ -36,6 +36,7 @@ const labels = {
     placeholder: '--',
     vs: '-',
     saveError: 'Saved locally — login to sync',
+    scoreRequired: 'Enter your predicted score to lock',
   },
   KU: {
     title: 'پێشبینیەکەت',
@@ -52,6 +53,7 @@ const labels = {
     placeholder: '--',
     vs: '-',
     saveError: 'لە ئامێرەکەت پارێزرا — بچە ژوورەوە بۆ هاوکێشانەوە',
+    scoreRequired: 'خاڵی پێشبینیت بنووسە بۆ قفڵکردن',
   },
 }
 
@@ -69,7 +71,8 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
   const kickoffTime = match.match_date ?? match.match_time
   const pastKickoff = !isScheduled || (kickoffTime ? new Date(kickoffTime) < new Date() : false)
 
-  const canLock = !locked && !pastKickoff && outcome !== null
+  const scoresEntered = homeScore !== '' && awayScore !== ''
+  const canLock = !locked && !pastKickoff && outcome !== null && scoresEntered
 
   const handleLock = async () => {
     if (!canLock) return
@@ -201,6 +204,11 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
           </div>
         </div>
       </div>
+
+      {/* Score-required hint */}
+      {outcome !== null && !scoresEntered && !locked && !pastKickoff && (
+        <p className="text-xs text-[#F0A500] text-center">{t.scoreRequired}</p>
+      )}
 
       {/* Lock button */}
       <button

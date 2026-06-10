@@ -9,6 +9,7 @@ interface GroupStandingsPreviewProps {
   standings: GroupStanding[]
   language: Language
   loading?: boolean
+  maxGroups?: number
 }
 
 const labels = {
@@ -93,7 +94,7 @@ function GroupTable({ groupName, rows, t, language }: {
   )
 }
 
-export default function GroupStandingsPreview({ standings, language, loading = false }: GroupStandingsPreviewProps) {
+export default function GroupStandingsPreview({ standings, language, loading = false, maxGroups = 4 }: GroupStandingsPreviewProps) {
   const t = labels[language]
 
   if (loading) {
@@ -116,18 +117,20 @@ export default function GroupStandingsPreview({ standings, language, loading = f
     return acc
   }, {})
 
-  const groupNames = Object.keys(groups).slice(0, 4)
+  const groupNames = Object.keys(groups).slice(0, maxGroups)
 
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-[#E6EDF3]">{t.title}</h2>
-        <Link
-          href="/explore?tab=group_stage"
-          className="text-sm text-[#F0A500] hover:text-[#D4920A] font-medium transition-colors"
-        >
-          {t.viewAll} →
-        </Link>
+        {maxGroups < 12 && (
+          <Link
+            href="/explore?tab=group_stage"
+            className="text-sm text-[#F0A500] hover:text-[#D4920A] font-medium transition-colors"
+          >
+            {t.viewAll} →
+          </Link>
+        )}
       </div>
 
       {groupNames.length > 0 ? (

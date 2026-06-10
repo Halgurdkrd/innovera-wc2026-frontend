@@ -66,7 +66,7 @@ function Footer() {
   return (
     <div style={{ padding: '10px 20px', borderTop: `1px solid ${T.border}`, display: 'flex', justifyContent: 'center', gap: '16px' }}>
       <span style={{ color: T.muted, fontSize: '10px' }}>#WC2026</span>
-      <span style={{ color: T.gold, fontSize: '10px', fontWeight: 'bold' }}>innovera.ai</span>
+      <span style={{ color: T.gold, fontSize: '10px', fontWeight: 'bold' }}>Ennovera</span>
     </div>
   )
 }

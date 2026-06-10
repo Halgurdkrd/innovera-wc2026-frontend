@@ -171,7 +171,7 @@ export default function AboutPage() {
               }
             </h1>
             <p className="mt-1 text-sm text-[#8B949E]">{t.tagline}</p>
-            <p className="mt-1 text-[10px] text-[#30363D] tracking-widest font-medium">innovera.ai</p>
+            <p className="mt-1 text-[10px] text-[#30363D] tracking-widest font-medium">Ennovera</p>
           </div>
         </div>
 
@@ -315,7 +315,7 @@ export default function AboutPage() {
 
         {/* ── Footer stamp ─────────────────────────────────────────────────── */}
         <div className="border-t border-[#30363D] pt-8 flex items-center justify-between">
-          <p className="text-xs text-[#30363D] tracking-widest font-medium">innovera.ai</p>
+          <p className="text-xs text-[#30363D] tracking-widest font-medium">Ennovera</p>
           <p className="text-xs text-[#8B949E]">
             {language === 'KU' ? '© ٢٠٢٦ Innovera' : '© 2026 Innovera · All rights reserved'}
           </p>
