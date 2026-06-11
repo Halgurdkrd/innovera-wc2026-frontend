@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import type { Match } from '@/types'
 import type { Language } from './Navbar'
+import { teamFlagEmoji } from '@/lib/flags'
 
 interface MatchCardProps {
   match: Match
@@ -66,7 +67,7 @@ export default function MatchCard({ match, language }: MatchCardProps) {
       <div className="flex items-center justify-between gap-3">
         {/* Home team */}
         <div className="flex flex-col items-center gap-1.5 flex-1 text-center">
-          <span className="text-2xl">{match.home_team_flag || '🏳️'}</span>
+          <span className="text-2xl">{teamFlagEmoji(match.home_team)}</span>
           <Link href={`/team/${encodeURIComponent(match.home_team)}`} className="text-sm font-semibold text-[#E6EDF3] hover:text-[#F0A500] leading-tight transition-colors" onClick={e => e.stopPropagation()}>{match.home_team}</Link>
           {match.status === 'finished' && match.home_score !== undefined ? (
             <span className="text-xl font-extrabold text-[#E6EDF3]">{match.home_score}</span>
@@ -93,7 +94,7 @@ export default function MatchCard({ match, language }: MatchCardProps) {
 
         {/* Away team */}
         <div className="flex flex-col items-center gap-1.5 flex-1 text-center">
-          <span className="text-2xl">{match.away_team_flag || '🏳️'}</span>
+          <span className="text-2xl">{teamFlagEmoji(match.away_team)}</span>
           <Link href={`/team/${encodeURIComponent(match.away_team)}`} className="text-sm font-semibold text-[#E6EDF3] hover:text-[#F0A500] leading-tight transition-colors" onClick={e => e.stopPropagation()}>{match.away_team}</Link>
           {match.status === 'finished' && match.away_score !== undefined ? (
             <span className="text-xl font-extrabold text-[#E6EDF3]">{match.away_score}</span>
