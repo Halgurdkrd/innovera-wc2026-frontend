@@ -60,7 +60,7 @@ function SlotCard({ slot, language }: { slot: BracketSlot; language: Language })
       {slot.match_date && (
         <div className="px-2.5 py-1 bg-[#161B22] border-t border-[#30363D]">
           <span className="text-[9px] text-[#8B949E]">
-            {new Date(slot.match_date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+            {new Date(slot.match_date.endsWith('Z') || slot.match_date.includes('+') ? slot.match_date : slot.match_date + 'Z').toLocaleDateString([], { month: 'short', day: 'numeric' })}
           </span>
         </div>
       )}

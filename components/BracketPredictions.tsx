@@ -372,7 +372,7 @@ function MatchModal({ match, t, onClose }: {
 
         {match.match_date && (
           <p className="text-[10px] text-[#30363D]">
-            {new Date(match.match_date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+            {new Date(match.match_date.endsWith('Z') || match.match_date.includes('+') ? match.match_date : match.match_date + 'Z').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
           </p>
         )}
 

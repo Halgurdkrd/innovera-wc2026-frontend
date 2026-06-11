@@ -25,7 +25,8 @@ import { teamFlagUrl, teamFlagEmoji } from '@/lib/flags'
 
 function fmtDateTime(iso?: string) {
   if (!iso) return ''
-  return new Date(iso).toLocaleString([], {
+  const utc = iso.endsWith('Z') || iso.includes('+') ? iso : iso + 'Z'
+  return new Date(utc).toLocaleString([], {
     weekday: 'short', month: 'short', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
   })
@@ -727,7 +728,7 @@ export default function MatchDetailPage() {
               awayTeam={match.away_team}
               homeFlag={teamFlagUrl(match.home_team)}
               awayFlag={teamFlagUrl(match.away_team)}
-              matchDate={match.match_date ? new Date(match.match_date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : undefined}
+              matchDate={match.match_date ? new Date(match.match_date.endsWith('Z') || match.match_date.includes('+') ? match.match_date : match.match_date + 'Z').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : undefined}
               venue={match.venue ?? undefined}
               group={match.group_name ?? undefined}
               homeWinProb={match.home_win_probability ?? 33}

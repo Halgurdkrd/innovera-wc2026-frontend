@@ -139,8 +139,9 @@ function FixtureCard({ match, teamName, lang }: { match: Match; teamName: string
   const opponent = isHome ? match.away_team : match.home_team
   const opponentFlag = FLAG_MAP[opponent] ?? '🏳️'
   const datetime = match.match_date ?? match.match_time
-  const dateStr = datetime ? new Date(datetime).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : ''
-  const timeStr = datetime ? new Date(datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+  const utcDatetime = datetime ? (datetime.endsWith('Z') || datetime.includes('+') ? datetime : datetime + 'Z') : null
+  const dateStr = utcDatetime ? new Date(utcDatetime).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : ''
+  const timeStr = utcDatetime ? new Date(utcDatetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
   const matchId = match.match_id ?? match.id
 
   return (
