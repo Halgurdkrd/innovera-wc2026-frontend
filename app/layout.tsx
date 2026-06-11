@@ -5,6 +5,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import BottomNav from "@/components/BottomNav";
 import ChatWidget from "@/components/ChatWidget";
 import WhatsAppFooter from "@/components/WhatsAppFooter";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -82,6 +83,7 @@ export default function RootLayout({
           <BottomNav />
           <ChatWidget />
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
