@@ -76,9 +76,8 @@ function ScorerRow({
         <span className={`text-xs font-medium truncate block ${correct ? 'text-[#2EA043]' : 'text-[#E6EDF3]'}`}>
           {displayName}
         </span>
-        {!compact && (
-          <span className="text-[10px] text-[#8B949E] truncate block">{scorer.club}</span>
-        )}
+        {/* Club name hidden — some clubs go stale (transfers); name + flag + xG kept.
+            `scorer.club` still arrives in the data, just not displayed. */}
       </div>
 
       {!compact && (
