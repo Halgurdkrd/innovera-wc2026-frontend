@@ -334,6 +334,7 @@ export default function ChatWidget() {
               <input
                 ref={inputRef}
                 type="text"
+                dir="auto"
                 value={input}
                 onChange={e => setInput(e.target.value.slice(0, 200))}
                 placeholder={c.placeholder}
