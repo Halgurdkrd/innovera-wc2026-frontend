@@ -391,16 +391,17 @@ export default function MatchDetailPage() {
     const mid = match.match_id ?? match.id ?? ''
     supabase
       .from('user_predictions')
-      .select('predicted_outcome,predicted_home_score,predicted_away_score')
+      .select('predicted_winner,predicted_score')
       .eq('user_id', user.id)
       .eq('match_id', mid)
       .maybeSingle()
       .then(({ data }) => {
         if (data) {
+          const parts = (data.predicted_score as string | null)?.split('-')
           setLockedPrediction({
-            outcome: data.predicted_outcome as 'home' | 'draw' | 'away',
-            homeScore: data.predicted_home_score ?? undefined,
-            awayScore: data.predicted_away_score ?? undefined,
+            outcome: data.predicted_winner as 'home' | 'draw' | 'away',
+            homeScore: parts?.[0] != null ? Number(parts[0]) : undefined,
+            awayScore: parts?.[1] != null ? Number(parts[1]) : undefined,
           })
         }
       })

@@ -97,9 +97,8 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
         {
           user_id: user.id,
           match_id: matchId,
-          predicted_outcome: outcome,
-          predicted_home_score: homeScore !== '' ? Number(homeScore) : null,
-          predicted_away_score: awayScore !== '' ? Number(awayScore) : null,
+          predicted_winner: outcome,
+          predicted_score: homeScore !== '' && awayScore !== '' ? `${homeScore}-${awayScore}` : null,
         },
         { onConflict: 'user_id,match_id' }
       )
