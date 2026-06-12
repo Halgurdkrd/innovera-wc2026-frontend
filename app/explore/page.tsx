@@ -389,15 +389,6 @@ function ExplorePageContent() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data: RawSimulation | null) => {
         clearTimeout(tid)
-        if (data) {
-          const sampleGroup = Object.keys(data.avg_group_tables ?? data.group_tables ?? {})[0]
-          const sampleTeam = sampleGroup
-            ? (data.avg_group_tables ?? data.group_tables ?? {})[sampleGroup]?.[0]
-            : null
-          console.log('[preSim] has stage_appearances:', !!data.stage_appearances,
-            '| sample team fields:', sampleTeam ? Object.keys(sampleTeam).join(', ') : 'none',
-            '| sample team:', JSON.stringify(sampleTeam))
-        }
         setRawPreSim(data ?? null)
       })
       .catch(() => clearTimeout(tid))

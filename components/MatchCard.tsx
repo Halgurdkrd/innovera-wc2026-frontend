@@ -32,9 +32,6 @@ export default function MatchCard({ match, language }: MatchCardProps) {
   const confidence = confidenceLabel(match.ai_confidence ?? 0, language)
   const live = statusBadge(match.status, language)
   const matchId = match.match_id ?? match.id ?? ''
-  console.log('[MatchCard time]', match.home_team, 'vs', match.away_team,
-    '| match_date:', JSON.stringify(match.match_date),
-    '| match_time:', JSON.stringify(match.match_time))
   const timeStr = fmtMatchTime(match.match_date ?? match.match_time)
   const hasProbs = (match.home_win_probability ?? 0) > 0 || (match.away_win_probability ?? 0) > 0
 

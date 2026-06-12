@@ -29,9 +29,11 @@ const labels = {
     awayWin: 'Away Win',
     score: 'Predicted Score',
     lock: 'Lock My Prediction',
+    update: 'Update Prediction',
     locked: 'Prediction Locked ✓',
     saving: 'Saving…',
     pastKickoff: 'Predictions closed',
+    savedBadge: 'Prediction Saved ✓',
     loginHint: 'Login to save your prediction',
     loginBtn: 'Login',
     placeholder: '--',
@@ -46,9 +48,11 @@ const labels = {
     awayWin: 'میوان دەبەرێت',
     score: 'ئەنجامی پێشبینیکراو',
     lock: 'پێشبینیەکەم قووڵ بکە',
+    update: 'نوێکردنەوەی پێشبینی',
     locked: 'پێشبینی قووڵکراو ✓',
     saving: 'پاراستن…',
     pastKickoff: 'پێشبینی داخرابوو',
+    savedBadge: 'پێشبینی پارێزراو ✓',
     loginHint: 'بچە ژوورەوە بۆ پاراستنی پێشبینیەکەت',
     loginBtn: 'چوونەژوورەوە',
     placeholder: '--',
@@ -67,10 +71,16 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
   const [awayScore, setAwayScore] = useState('')
   const [locked, setLocked] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [hasSavedPrediction, setHasSavedPrediction] = useState(false)
 
   const matchId = match.match_id ?? match.id
 
-  // Load existing prediction and lock the form on mount
+  const isScheduled = match.status === 'scheduled' || match.status === 'upcoming'
+  const kickoffDate = parseMatchDate(match.match_date ?? match.match_time)
+  const pastKickoff = !isScheduled || (kickoffDate ? kickoffDate < new Date() : false)
+
+  // Load existing prediction on mount.
+  // Pre-fills the form; only locks permanently if kickoff has already passed.
   useEffect(() => {
     if (!user || !matchId) return
     supabase
@@ -88,8 +98,13 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
         setOutcome(parsedOutcome)
         setHomeScore(hs)
         setAwayScore(as_)
-        setLocked(true)
-        // Notify parent so the downloadable PreMatchCard also reflects this prediction
+        setHasSavedPrediction(true)
+        // Lock the form permanently only if kickoff has already passed
+        const kd = parseMatchDate(match.match_date ?? match.match_time)
+        const isAfterKickoff = !(match.status === 'scheduled' || match.status === 'upcoming')
+          || (kd ? kd < new Date() : false)
+        if (isAfterKickoff) setLocked(true)
+        // Notify parent so PreMatchCard reflects this prediction
         if (parsedOutcome) {
           onLock?.({
             outcome: parsedOutcome,
@@ -98,11 +113,8 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
           })
         }
       })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, matchId])
-
-  const isScheduled = match.status === 'scheduled' || match.status === 'upcoming'
-  const kickoffDate = parseMatchDate(match.match_date ?? match.match_time)
-  const pastKickoff = !isScheduled || (kickoffDate ? kickoffDate < new Date() : false)
 
   const scoresEntered = homeScore !== '' && awayScore !== ''
   const canLock = !locked && !pastKickoff && outcome !== null && scoresEntered
@@ -116,7 +128,7 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
       awayScore: awayScore !== '' ? Number(awayScore) : undefined,
     })
 
-    if (!user) return  // just lock locally if not logged in (UI already handled)
+    if (!user) return
 
     if (!matchId) {
       console.error('[UserPrediction] match has no match_id — cannot persist')
@@ -161,11 +173,18 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
       {/* Title */}
       <div className="flex items-center justify-between">
         <h3 className="text-base font-bold text-[#E6EDF3]">{t.title}</h3>
-        {pastKickoff && !locked && (
-          <span className="text-xs text-[#F85149] font-medium bg-[#F85149]/10 border border-[#F85149]/30 px-2.5 py-0.5 rounded-full">
-            {t.pastKickoff}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {hasSavedPrediction && !locked && !pastKickoff && (
+            <span className="text-xs text-[#2EA043] font-medium bg-[#2EA043]/10 border border-[#2EA043]/30 px-2.5 py-0.5 rounded-full">
+              {t.savedBadge}
+            </span>
+          )}
+          {pastKickoff && !locked && (
+            <span className="text-xs text-[#F85149] font-medium bg-[#F85149]/10 border border-[#F85149]/30 px-2.5 py-0.5 rounded-full">
+              {t.pastKickoff}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Login hint (non-blocking) */}
@@ -252,7 +271,7 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
         <p className="text-xs text-[#F0A500] text-center">{t.scoreRequired}</p>
       )}
 
-      {/* Lock button */}
+      {/* Lock / Update button */}
       <button
         onClick={handleLock}
         disabled={!canLock || saving}
@@ -264,7 +283,7 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
             : 'bg-[#30363D]/50 text-[#8B949E] cursor-not-allowed'
         }`}
       >
-        {saving ? t.saving : locked ? t.locked : t.lock}
+        {saving ? t.saving : locked ? t.locked : hasSavedPrediction ? t.update : t.lock}
       </button>
     </div>
   )
