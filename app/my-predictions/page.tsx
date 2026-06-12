@@ -18,13 +18,14 @@ interface UserPrediction {
   id: string
   user_id: string
   match_id: string
-  predicted_outcome: 'home' | 'draw' | 'away'
-  predicted_home_score: number | null
-  predicted_away_score: number | null
+  predicted_winner: string          // 'home' | 'draw' | 'away'
+  predicted_score: string | null    // "2-1"
+  outcome?: string | null
   actual_outcome?: string | null
   points_earned?: number | null
   beat_ai?: boolean | null
-  created_at: string
+  is_correct?: boolean | null
+  created_at?: string
   match?: Match
 }
 
@@ -139,10 +140,10 @@ function computeBadge(preds: UserPrediction[]): BadgeKey {
   if (preds.length < 5) return 'BEGINNER'
 
   const withResults = preds.filter(p => p.actual_outcome != null)
-  const correct = withResults.filter(p => p.predicted_outcome === p.actual_outcome).length
+  const correct = withResults.filter(p => p.predicted_winner === p.actual_outcome).length
   const accuracy = withResults.length > 0 ? correct / withResults.length : 0
   const beatAi = preds.filter(p => p.beat_ai === true).length
-  const draws = preds.filter(p => p.predicted_outcome === 'draw').length
+  const draws = preds.filter(p => p.predicted_winner === 'draw').length
   const drawRatio = preds.length > 0 ? draws / preds.length : 0
 
   if (withResults.length >= 10 && accuracy >= 0.7) return 'TACTICAL_GENIUS'
@@ -186,8 +187,8 @@ function PredCard({ pred, lang }: { pred: UserPrediction; lang: 'EN' | 'KU' }) {
   const t = L[lang]
   const m = pred.match
   const hasResult = pred.actual_outcome != null
-  const isCorrect = hasResult && pred.predicted_outcome === pred.actual_outcome
-  const isWrong = hasResult && pred.predicted_outcome !== pred.actual_outcome
+  const isCorrect = hasResult && pred.predicted_winner === pred.actual_outcome
+  const isWrong = hasResult && pred.predicted_winner !== pred.actual_outcome
   const pts = pred.points_earned ?? 0
 
   const borderColor = isCorrect ? 'border-l-[#2EA043]' : isWrong ? 'border-l-[#F85149]' : 'border-l-[#F0A500]'
@@ -216,7 +217,7 @@ function PredCard({ pred, lang }: { pred: UserPrediction; lang: 'EN' | 'KU' }) {
             : isWrong ? 'bg-[#F85149]/20 text-[#F85149]'
             : 'bg-[#F0A500]/15 text-[#F0A500]'
           }`}>
-            <OutcomeLabel outcome={pred.predicted_outcome} lang={lang} homeTeam={m?.home_team} awayTeam={m?.away_team} />
+            <OutcomeLabel outcome={pred.predicted_winner} lang={lang} homeTeam={m?.home_team} awayTeam={m?.away_team} />
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -372,7 +373,7 @@ export default function MyPredictionsPage() {
 
   // Stats computation
   const withResults = predictions.filter(p => p.actual_outcome != null)
-  const correct = withResults.filter(p => p.predicted_outcome === p.actual_outcome).length
+  const correct = withResults.filter(p => p.predicted_winner === p.actual_outcome).length
   const totalPoints = predictions.reduce((s, p) => s + (p.points_earned ?? 0), 0)
   const accuracy = withResults.length > 0 ? Math.round((correct / withResults.length) * 100) : null
   const beatAiCount = predictions.filter(p => p.beat_ai === true).length
@@ -380,7 +381,7 @@ export default function MyPredictionsPage() {
   let streak = 0
   for (const p of predictions) {
     if (p.actual_outcome == null) continue
-    if (p.predicted_outcome === p.actual_outcome) streak++
+    if (p.predicted_winner === p.actual_outcome) streak++
     else break
   }
 
@@ -601,11 +602,11 @@ export default function MyPredictionsPage() {
                                 awayScore={pred.match.away_score ?? 0}
                                 group={pred.match.group_name ?? undefined}
                                 userPrediction={
-                                  pred.predicted_outcome === 'home' ? `${pred.match.home_team} Win`
-                                  : pred.predicted_outcome === 'away' ? `${pred.match.away_team} Win`
+                                  pred.predicted_winner === 'home' ? `${pred.match.home_team} Win`
+                                  : pred.predicted_winner === 'away' ? `${pred.match.away_team} Win`
                                   : 'Draw'
                                 }
-                                userCorrect={pred.actual_outcome != null ? pred.predicted_outcome === pred.actual_outcome : undefined}
+                                userCorrect={pred.actual_outcome != null ? pred.predicted_winner === pred.actual_outcome : undefined}
                                 pointsEarned={pred.points_earned ?? undefined}
                                 isLoggedIn={!!user}
                                 language={language}
@@ -622,13 +623,12 @@ export default function MyPredictionsPage() {
                                 drawProb={pred.match.draw_probability ?? 34}
                                 awayWinProb={pred.match.away_win_probability ?? 33}
                                 userPrediction={
-                                  pred.predicted_outcome === 'home' ? `${pred.match.home_team} Win`
-                                  : pred.predicted_outcome === 'away' ? `${pred.match.away_team} Win`
+                                  pred.predicted_winner === 'home' ? `${pred.match.home_team} Win`
+                                  : pred.predicted_winner === 'away' ? `${pred.match.away_team} Win`
                                   : 'Draw'
                                 }
                                 userScore={
-                                  pred.predicted_home_score != null && pred.predicted_away_score != null
-                                    ? `${pred.predicted_home_score} — ${pred.predicted_away_score}` : undefined
+                                  (() => { const p = pred.predicted_score?.split('-'); return p?.length === 2 ? `${p[0]} — ${p[1]}` : undefined })()
                                 }
                                 isLocked={true}
                                 language={language}
