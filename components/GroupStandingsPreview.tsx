@@ -10,6 +10,7 @@ interface GroupStandingsPreviewProps {
   language: Language
   loading?: boolean
   maxGroups?: number
+  title?: string
 }
 
 const labels = {
@@ -108,14 +109,15 @@ function GroupTable({ groupName, rows, t, language }: {
   )
 }
 
-export default function GroupStandingsPreview({ standings, language, loading = false, maxGroups = 4 }: GroupStandingsPreviewProps) {
+export default function GroupStandingsPreview({ standings, language, loading = false, maxGroups = 4, title }: GroupStandingsPreviewProps) {
   const t = labels[language]
+  const heading = title ?? t.title
 
   if (loading) {
     return (
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-[#E6EDF3]">{t.title}</h2>
+          <h2 className="text-xl font-bold text-[#E6EDF3]">{heading}</h2>
           <div className="animate-pulse bg-[#21262D] rounded h-4 w-28" />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -136,7 +138,7 @@ export default function GroupStandingsPreview({ standings, language, loading = f
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-[#E6EDF3]">{t.title}</h2>
+        <h2 className="text-xl font-bold text-[#E6EDF3]">{heading}</h2>
         {maxGroups < 12 && (
           <Link
             href="/explore?tab=group_stage"

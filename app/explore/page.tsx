@@ -440,6 +440,12 @@ function ExplorePageContent() {
     })
   }, [teams, search, confFilter])
 
+  // ── Filter standings to groups with at least one match played ────────────
+  const playedStandings = useMemo(() => {
+    const playedGroups = new Set(standings.filter((r) => r.played > 0).map((r) => r.group_name))
+    return standings.filter((r) => playedGroups.has(r.group_name))
+  }, [standings])
+
   // ── Champion probability deltas ───────────────────────────────────────────
   const liveWinnerProbs = simulation?.winner_probs ?? {}
   const preWinnerProbs  = preSim?.winner_probs ?? {}
@@ -540,20 +546,8 @@ function ExplorePageContent() {
         {/* ── Group Stage tab ───────────────────────────────────────────── */}
         {activeTab === 'group_stage' && (
           <div className="space-y-10">
-            {/* Real standings — all 12 groups, no "View All" link */}
-            <GroupStandingsPreview
-              standings={standings}
-              language={language}
-              loading={loading}
-              maxGroups={12}
-            />
-
             {/* AI simulation with dual pre-tournament / live view */}
             <div className="space-y-4">
-              <h3 className="text-lg font-bold text-[#E6EDF3]">
-                {language === 'KU' ? '📊 پێشبینی AI — شێوەکاری' : '📊 AI Simulation — Predicted Standings'}
-              </h3>
-
               {/* Dual-view tab toggle */}
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="flex items-center gap-1 bg-[#161B22] border border-[#30363D] p-1 rounded-xl w-fit">
@@ -568,15 +562,15 @@ function ExplorePageContent() {
                       }`}
                     >
                       {mode === 'live'
-                        ? (language === 'KU' ? '📊 نوێکراوەی بەکردەوە' : '📊 Live Updated')
-                        : (language === 'KU' ? '🔮 پێش تواناکارییەکان' : '🔮 AI Pre-Tournament')}
+                        ? (language === 'KU' ? '📊 نوێکراوە' : '📊 Live Updated')
+                        : (language === 'KU' ? '🔮 پێشبینی AI پێش تواناکارییەکان' : '🔮 Pre-Tournament AI')}
                     </button>
                   ))}
                 </div>
                 <p className="text-xs text-[#8B949E]">
                   {predTab === 'live'
                     ? (language === 'KU' ? 'نوێکراوە بە ئەنجامی ڕاستەقینەی یارییەکان' : 'Updated with real match results')
-                    : (language === 'KU' ? 'پێشبینی AIـی پێش تواناکارییەکان' : "Our AI's original predictions before the World Cup")}
+                    : (language === 'KU' ? 'پێشبینی AIـی پێش تواناکارییەکان — هەرگیز نابدرێتەوە' : "Frozen snapshot — our AI's original predictions before any matches")}
                 </p>
               </div>
 
@@ -622,6 +616,17 @@ function ExplorePageContent() {
                 qualifyDiff={predTab === 'live' ? qualifyDiff : undefined}
               />
             </div>
+
+            {/* Real Group Standings — always visible, only groups with matches played */}
+            {playedStandings.length > 0 && (
+              <GroupStandingsPreview
+                standings={playedStandings}
+                language={language}
+                loading={loading}
+                maxGroups={12}
+                title={language === 'KU' ? 'خشتەی ڕاستەقینەی گرووپەکان' : 'Real Group Standings'}
+              />
+            )}
           </div>
         )}
 
