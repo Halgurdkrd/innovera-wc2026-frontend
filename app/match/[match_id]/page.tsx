@@ -727,8 +727,8 @@ export default function MatchDetailPage() {
           </div>
         </section>
 
-        {/* ── SECTION 6: User Prediction (scheduled only) ─────────────────── */}
-        {(isScheduled || isLive) && (
+        {/* ── SECTION 6: User Prediction ──────────────────────────────────── */}
+        {!isFinished && (
           <UserPrediction
             match={match}
             language={language}
