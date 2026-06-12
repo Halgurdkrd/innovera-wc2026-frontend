@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { Match } from '@/types'
 import type { Language } from './Navbar'
 import { useAuth } from '@/context/AuthContext'
@@ -67,6 +67,27 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
   const [locked, setLocked] = useState(false)
   const [saving, setSaving] = useState(false)
 
+  const matchId = match.match_id ?? match.id
+
+  // Load existing prediction and lock the form on mount
+  useEffect(() => {
+    if (!user || !matchId) return
+    supabase
+      .from('user_predictions')
+      .select('predicted_winner,predicted_score')
+      .eq('user_id', user.id)
+      .eq('match_id', matchId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return
+        setOutcome(data.predicted_winner as Outcome)
+        const parts = (data.predicted_score as string | null)?.split('-')
+        setHomeScore(parts?.[0] ?? '')
+        setAwayScore(parts?.[1] ?? '')
+        setLocked(true)
+      })
+  }, [user?.id, matchId])
+
   const isScheduled = match.status === 'scheduled' || match.status === 'upcoming'
   const kickoffTime = match.match_date ?? match.match_time
   const pastKickoff = !isScheduled || (kickoffTime ? new Date(kickoffTime) < new Date() : false)
@@ -85,7 +106,6 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
 
     if (!user) return  // just lock locally if not logged in (UI already handled)
 
-    const matchId = match.match_id ?? match.id
     if (!matchId) {
       console.error('[UserPrediction] match has no match_id — cannot persist')
       return
