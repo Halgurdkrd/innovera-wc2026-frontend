@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { Match } from '@/types'
 import type { Language } from './Navbar'
 import { teamFlagUrl } from '@/lib/flags'
+import { fmtMatchTime } from '@/lib/dates'
 
 interface MatchCardProps {
   match: Match
@@ -31,10 +32,7 @@ export default function MatchCard({ match, language }: MatchCardProps) {
   const confidence = confidenceLabel(match.ai_confidence ?? 0, language)
   const live = statusBadge(match.status, language)
   const matchId = match.match_id ?? match.id ?? ''
-  const datetime = match.match_date ?? match.match_time
-  const timeStr = datetime
-    ? new Date(datetime.endsWith('Z') || datetime.includes('+') ? datetime : datetime + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : '--:--'
+  const timeStr = fmtMatchTime(match.match_date ?? match.match_time)
   const hasProbs = (match.home_win_probability ?? 0) > 0 || (match.away_win_probability ?? 0) > 0
 
   return (

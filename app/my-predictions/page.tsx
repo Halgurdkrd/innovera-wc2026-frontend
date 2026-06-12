@@ -10,6 +10,7 @@ import { supabase, supabasePublic } from '@/lib/supabase'
 import { Sk } from '@/components/SkeletonCard'
 import { PreMatchCard, PostMatchCard } from '@/components/PredictionCard'
 import { teamFlagUrl } from '@/lib/flags'
+import { fmtMatchDate } from '@/lib/dates'
 import type { Match } from '@/types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -233,7 +234,7 @@ function PredCard({ pred, lang }: { pred: UserPrediction; lang: 'EN' | 'KU' }) {
       {/* Date */}
       {m?.match_date && (
         <p className="text-[10px] text-[#30363D]">
-          {new Date(m.match_date.endsWith('Z') || m.match_date.includes('+') ? m.match_date : m.match_date + 'Z').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+          {fmtMatchDate(m.match_date)}
         </p>
       )}
     </div>
@@ -617,7 +618,7 @@ export default function MyPredictionsPage() {
                                 awayTeam={pred.match.away_team}
                                 homeFlag={teamFlagUrl(pred.match.home_team)}
                                 awayFlag={teamFlagUrl(pred.match.away_team)}
-                                matchDate={pred.match.match_date ? new Date(pred.match.match_date.endsWith('Z') || pred.match.match_date.includes('+') ? pred.match.match_date : pred.match.match_date + 'Z').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : undefined}
+                                matchDate={fmtMatchDate(pred.match.match_date) || undefined}
                                 group={pred.match.group_name ?? undefined}
                                 homeWinProb={pred.match.home_win_probability ?? 33}
                                 drawProb={pred.match.draw_probability ?? 34}

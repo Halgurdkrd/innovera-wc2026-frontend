@@ -12,6 +12,7 @@ import type { Language } from './Navbar'
 import WinnerProbsList from './WinnerProbsList'
 import { Sk, SkProbRow } from './SkeletonCard'
 import { API_BASE } from '@/lib/api'
+import { fmtMatchDate } from '@/lib/dates'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -372,7 +373,7 @@ function MatchModal({ match, t, onClose }: {
 
         {match.match_date && (
           <p className="text-[10px] text-[#30363D]">
-            {new Date(match.match_date.endsWith('Z') || match.match_date.includes('+') ? match.match_date : match.match_date + 'Z').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+            {fmtMatchDate(match.match_date)}
           </p>
         )}
 

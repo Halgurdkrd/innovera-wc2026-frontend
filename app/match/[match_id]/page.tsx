@@ -20,17 +20,11 @@ import { supabase, supabasePublic } from '@/lib/supabase'
 import type { Match, Prediction, LuckScore } from '@/types'
 import { API_BASE } from '@/lib/api'
 import { teamFlagUrl, teamFlagEmoji } from '@/lib/flags'
+import { parseMatchDate, fmtMatchDateTime, fmtMatchDate } from '@/lib/dates'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function fmtDateTime(iso?: string) {
-  if (!iso) return ''
-  const utc = iso.endsWith('Z') || iso.includes('+') ? iso : iso + 'Z'
-  return new Date(utc).toLocaleString([], {
-    weekday: 'short', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
-}
+const fmtDateTime = fmtMatchDateTime
 
 
 function confidenceCfg(score?: number) {
@@ -750,7 +744,7 @@ export default function MatchDetailPage() {
               awayTeam={match.away_team}
               homeFlag={teamFlagUrl(match.home_team)}
               awayFlag={teamFlagUrl(match.away_team)}
-              matchDate={match.match_date ? new Date(match.match_date.endsWith('Z') || match.match_date.includes('+') ? match.match_date : match.match_date + 'Z').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : undefined}
+              matchDate={fmtMatchDate(match.match_date) || undefined}
               venue={match.venue ?? undefined}
               group={match.group_name ?? undefined}
               homeWinProb={match.home_win_probability ?? 33}
