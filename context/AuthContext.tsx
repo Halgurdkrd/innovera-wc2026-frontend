@@ -44,8 +44,8 @@ export function useAuth() {
 async function upsertUserProfile(user: User) {
   const { data: existing } = await supabase
     .from('user_profiles')
-    .select('id')
-    .eq('id', user.id)
+    .select('user_id')
+    .eq('user_id', user.id)
     .maybeSingle()
 
   if (!existing) {
@@ -56,8 +56,8 @@ async function upsertUserProfile(user: User) {
       'Predictor'
     const avatar_url = (user.user_metadata?.avatar_url as string | undefined) ?? null
 
-    await supabase.from('user_profiles').insert({
-      id: user.id,
+    const { error } = await supabase.from('user_profiles').insert({
+      user_id: user.id,
       username,
       avatar_url,
       total_points: 0,
@@ -65,6 +65,7 @@ async function upsertUserProfile(user: User) {
       beat_ai_count: 0,
       streak: 0,
     })
+    if (error) console.error('[AuthContext] profile insert failed:', error.message, error.code)
   }
 }
 
