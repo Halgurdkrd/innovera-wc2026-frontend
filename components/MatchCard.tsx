@@ -35,6 +35,7 @@ export default function MatchCard({ match, language }: MatchCardProps) {
   const timeStr = datetime
     ? new Date(datetime.endsWith('Z') || datetime.includes('+') ? datetime : datetime + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : '--:--'
+  const hasProbs = (match.home_win_probability ?? 0) > 0 || (match.away_win_probability ?? 0) > 0
 
   return (
     <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-5 flex flex-col gap-4 hover:border-[#F0A500]/40 transition-colors group">
@@ -71,8 +72,8 @@ export default function MatchCard({ match, language }: MatchCardProps) {
           <Link href={`/team/${encodeURIComponent(match.home_team)}`} className="text-sm font-semibold text-[#E6EDF3] hover:text-[#F0A500] leading-tight transition-colors" onClick={e => e.stopPropagation()}>{match.home_team}</Link>
           {match.status === 'finished' && match.home_score !== undefined ? (
             <span className="text-xl font-extrabold text-[#E6EDF3]">{match.home_score}</span>
-          ) : match.home_win_probability != null ? (
-            <span className="text-xs font-bold text-[#F0A500]">{Math.round(match.home_win_probability)}%</span>
+          ) : hasProbs ? (
+            <span className="text-xs font-bold text-[#F0A500]">{Math.round(match.home_win_probability ?? 0)}%</span>
           ) : null}
         </div>
 
@@ -98,14 +99,14 @@ export default function MatchCard({ match, language }: MatchCardProps) {
           <Link href={`/team/${encodeURIComponent(match.away_team)}`} className="text-sm font-semibold text-[#E6EDF3] hover:text-[#F0A500] leading-tight transition-colors" onClick={e => e.stopPropagation()}>{match.away_team}</Link>
           {match.status === 'finished' && match.away_score !== undefined ? (
             <span className="text-xl font-extrabold text-[#E6EDF3]">{match.away_score}</span>
-          ) : match.away_win_probability != null ? (
-            <span className="text-xs font-bold text-[#F0A500]">{Math.round(match.away_win_probability)}%</span>
+          ) : hasProbs ? (
+            <span className="text-xs font-bold text-[#F0A500]">{Math.round(match.away_win_probability ?? 0)}%</span>
           ) : null}
         </div>
       </div>
 
-      {/* Probability bars (hide for finished matches) */}
-      {match.status !== 'finished' && match.home_win_probability != null && (
+      {/* Probability bars (hide for finished matches and when no real data) */}
+      {match.status !== 'finished' && hasProbs && (
         <div className="space-y-1.5">
           <div className="flex gap-0.5 h-2 rounded-full overflow-hidden">
             <div

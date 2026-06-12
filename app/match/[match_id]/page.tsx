@@ -68,19 +68,6 @@ const L = {
     squads: 'Team Squads',
     viewSquad: 'Full squad →',
     postMatch: 'Post-Match Analysis',
-    resultTitle: 'Match Result',
-    aiPredicted: 'AI predicted',
-    youPredicted: 'You predicted',
-    correct: '✅ Correct',
-    wrong: '❌ Wrong',
-    exactBonus: '+5 Exact Score Bonus!',
-    pointsEarned: 'Points earned',
-    youBeatAI: 'You beat the AI! 🏆',
-    aiWasCloser: 'AI was closer 🤖',
-    bothCorrect: 'Both correct! 🎯',
-    bothWrong: 'Both missed 😬',
-    notPredicted: 'No prediction made',
-    winLabel: 'Win',
     luckTitle: 'Luck Scores',
     narrative: 'AI Match Narrative',
     share: 'Share Prediction Card',
@@ -108,19 +95,6 @@ const L = {
     squads: 'تیمەکان',
     viewSquad: 'تیمی تەواو →',
     postMatch: 'شیکاری دوای یاری',
-    resultTitle: 'ئەنجامی یاری',
-    aiPredicted: 'AI پێشبینی کرد',
-    youPredicted: 'تۆ پێشبینی کرد',
-    correct: '✅ دروست',
-    wrong: '❌ ئەشتباە',
-    exactBonus: '+5 خاڵی زیادەی ئەنجامی دروست!',
-    pointsEarned: 'خاڵی بەدەستهاتوو',
-    youBeatAI: 'تۆ AI دەستبەسەر کردی! 🏆',
-    aiWasCloser: 'AI نزیکتر بوو 🤖',
-    bothCorrect: 'هەردووکیان دروست! 🎯',
-    bothWrong: 'هەردووکیان هەڵەیان کرد 😬',
-    notPredicted: 'هیچ پێشبینییەک نەکراوە',
-    winLabel: 'دەبەرێت',
     luckTitle: 'خەمەی بەخت',
     narrative: 'چیرۆکی یاری بە AI',
     share: 'کارتی پێشبینی بەشبکە',
@@ -486,40 +460,6 @@ export default function MatchDetailPage() {
   const confidence = confidenceCfg(match.ai_confidence)
 
   const hasProbs = match.home_win_probability != null
-
-  // ── Post-match result helpers ─────────────────────────────────────────────
-  const actualOutcome: 'home' | 'draw' | 'away' | null = isFinished
-    ? (match.home_score ?? 0) > (match.away_score ?? 0) ? 'home'
-      : (match.away_score ?? 0) > (match.home_score ?? 0) ? 'away'
-      : 'draw'
-    : null
-
-  const aiPredictedOutcome: 'home' | 'draw' | 'away' | null = (() => {
-    const h = match.home_win_probability ?? 0
-    const d = match.draw_probability ?? 0
-    const a = match.away_win_probability ?? 0
-    if (h === 0 && d === 0 && a === 0) return null
-    if (h >= d && h >= a) return 'home'
-    if (a >= d && a >= h) return 'away'
-    return 'draw'
-  })()
-
-  const aiCorrect = actualOutcome != null && aiPredictedOutcome === actualOutcome
-  const userCorrect = actualOutcome != null && lockedPrediction?.outcome === actualOutcome
-  const exactScore = userCorrect
-    && lockedPrediction?.homeScore === (match.home_score ?? -1)
-    && lockedPrediction?.awayScore === (match.away_score ?? -1)
-  const userPoints = lockedPrediction
-    ? (exactScore ? 8 : userCorrect ? 3 : 0)
-    : null
-
-  const outcomeLabel = (o: 'home' | 'draw' | 'away' | null) => {
-    if (!o) return '–'
-    if (o === 'draw') return language === 'KU' ? 'یەکسان' : 'Draw'
-    return o === 'home'
-      ? `${match.home_team} ${t.winLabel}`
-      : `${match.away_team} ${t.winLabel}`
-  }
 
   // TEMP: mock lineup_info so the badge is visible in dev before June 11
   // Remove this block once real lineup data flows from the API.
@@ -893,84 +833,6 @@ export default function MatchDetailPage() {
         {isFinished && (
           <section className="space-y-5">
             <h2 className="text-lg font-bold text-[#E6EDF3]">{t.postMatch}</h2>
-
-            {/* Result comparison card */}
-            <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-5 space-y-4">
-              <h3 className="text-sm font-bold text-[#E6EDF3] flex items-center gap-2">
-                <span>🏆</span> {t.resultTitle}
-              </h3>
-
-              {/* Actual score */}
-              <div className="flex items-center justify-center gap-4 py-2">
-                <span className="text-sm font-semibold text-[#E6EDF3]">{match.home_team}</span>
-                <span className="text-2xl font-extrabold text-[#F0A500] tabular-nums">
-                  {match.home_score ?? '?'} – {match.away_score ?? '?'}
-                </span>
-                <span className="text-sm font-semibold text-[#E6EDF3]">{match.away_team}</span>
-              </div>
-
-              {/* AI row */}
-              {aiPredictedOutcome && (
-                <div className="flex items-center justify-between bg-[#0D1117] rounded-lg px-4 py-2.5">
-                  <span className="text-xs text-[#8B949E]">
-                    🤖 {t.aiPredicted}: <span className="text-[#E6EDF3] font-medium">{outcomeLabel(aiPredictedOutcome)}</span>
-                    {match.home_win_probability != null && (
-                      <span className="text-[#8B949E]">
-                        {' '}({Math.round(
-                          aiPredictedOutcome === 'home' ? (match.home_win_probability ?? 0) :
-                          aiPredictedOutcome === 'away' ? (match.away_win_probability ?? 0) :
-                          (match.draw_probability ?? 0)
-                        )}%)
-                      </span>
-                    )}
-                  </span>
-                  <span className={`text-xs font-bold ${aiCorrect ? 'text-[#2EA043]' : 'text-[#F85149]'}`}>
-                    {aiCorrect ? t.correct : t.wrong}
-                  </span>
-                </div>
-              )}
-
-              {/* User row */}
-              <div className="flex items-center justify-between bg-[#0D1117] rounded-lg px-4 py-2.5">
-                {lockedPrediction ? (
-                  <>
-                    <span className="text-xs text-[#8B949E]">
-                      👤 {t.youPredicted}: <span className="text-[#E6EDF3] font-medium">{outcomeLabel(lockedPrediction.outcome)}</span>
-                      {lockedPrediction.homeScore != null && lockedPrediction.awayScore != null && (
-                        <span className="text-[#8B949E]"> ({lockedPrediction.homeScore}–{lockedPrediction.awayScore})</span>
-                      )}
-                    </span>
-                    <span className={`text-xs font-bold ${userCorrect ? 'text-[#2EA043]' : 'text-[#F85149]'}`}>
-                      {userCorrect ? t.correct : t.wrong}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-xs text-[#30363D] italic">{t.notPredicted}</span>
-                )}
-              </div>
-
-              {/* Points + verdict */}
-              {lockedPrediction && (
-                <div className="flex items-center justify-between pt-1 border-t border-[#30363D]/50">
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-bold text-[#F0A500]">
-                      {t.pointsEarned}: {userPoints} {exactScore && <span className="text-[#2EA043]">({t.exactBonus})</span>}
-                    </p>
-                  </div>
-                  <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
-                    userCorrect && aiCorrect ? 'text-[#2EA043] border-[#2EA043]/40 bg-[#2EA043]/10' :
-                    userCorrect && !aiCorrect ? 'text-[#F0A500] border-[#F0A500]/40 bg-[#F0A500]/10' :
-                    !userCorrect && aiCorrect ? 'text-[#8B949E] border-[#30363D]' :
-                    'text-[#F85149] border-[#F85149]/40 bg-[#F85149]/10'
-                  }`}>
-                    {userCorrect && aiCorrect ? t.bothCorrect :
-                     userCorrect && !aiCorrect ? t.youBeatAI :
-                     !userCorrect && aiCorrect ? t.aiWasCloser :
-                     t.bothWrong}
-                  </span>
-                </div>
-              )}
-            </div>
 
             {/* Luck bars — one per team */}
             {(homeLuck || awayLuck) && (
