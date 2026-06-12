@@ -736,8 +736,8 @@ export default function MatchDetailPage() {
           />
         )}
 
-        {/* ── Pre-match card (always shown when scheduled, download unlocks after locking) */}
-        {isScheduled && (
+        {/* ── Pre-match card (shown for any non-finished match, download unlocks after locking) */}
+        {!isFinished && (
           <div className="overflow-x-auto pb-2">
             <PreMatchCard
               homeTeam={match.home_team}

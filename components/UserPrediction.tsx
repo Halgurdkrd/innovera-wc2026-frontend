@@ -146,7 +146,7 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
       if (error) {
         console.error('[UserPrediction] upsert failed:', error.message, '| code:', error.code, '| details:', error.details)
       } else {
-        console.log('[UserPrediction] saved — match_id:', matchId, 'outcome:', outcome)
+        setHasSavedPrediction(true)
       }
     } catch (err) {
       console.error('[UserPrediction] unexpected error:', err)
@@ -158,10 +158,13 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
   const btnClass = (type: Outcome) => {
     const base =
       'flex-1 py-4 px-3 rounded-xl border-2 font-semibold text-sm transition-all duration-200 flex flex-col items-center gap-1'
+    if (locked || pastKickoff) {
+      if (outcome === type)
+        return `${base} border-[#2EA043]/60 bg-[#2EA043]/10 text-[#2EA043] cursor-default`
+      return `${base} border-[#30363D]/50 text-[#8B949E]/40 cursor-not-allowed opacity-40`
+    }
     if (outcome === type)
       return `${base} border-[#F0A500] bg-[#F0A500]/15 text-[#F0A500]`
-    if (locked)
-      return `${base} border-[#30363D] text-[#8B949E] cursor-not-allowed opacity-50`
     return `${base} border-[#30363D] text-[#8B949E] hover:border-[#F0A500]/50 hover:text-[#E6EDF3]`
   }
 
