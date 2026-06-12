@@ -5,6 +5,7 @@ import type { Match } from '@/types'
 import type { Language } from './Navbar'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { parseMatchDate } from '@/lib/dates'
 
 export interface LockedPrediction {
   outcome: 'home' | 'draw' | 'away'
@@ -100,8 +101,8 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
   }, [user?.id, matchId])
 
   const isScheduled = match.status === 'scheduled' || match.status === 'upcoming'
-  const kickoffTime = match.match_date ?? match.match_time
-  const pastKickoff = !isScheduled || (kickoffTime ? new Date(kickoffTime) < new Date() : false)
+  const kickoffDate = parseMatchDate(match.match_date ?? match.match_time)
+  const pastKickoff = !isScheduled || (kickoffDate ? kickoffDate < new Date() : false)
 
   const scoresEntered = homeScore !== '' && awayScore !== ''
   const canLock = !locked && !pastKickoff && outcome !== null && scoresEntered
