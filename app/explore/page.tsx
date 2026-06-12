@@ -286,12 +286,12 @@ function ExplorePageContent() {
   const qualifyDiff = useMemo<Record<string, number>>(() => {
     if (!simulation || !preSim) return {}
     const preMap: Record<string, number> = {}
-    for (const g of preSim.groups) {
-      for (const t of g.teams) preMap[t.team] = t.qualify_prob
+    for (const g of (preSim.groups ?? [])) {
+      for (const t of (g.teams ?? [])) preMap[t.team] = t.qualify_prob
     }
     const diff: Record<string, number> = {}
-    for (const g of simulation.groups) {
-      for (const t of g.teams) {
+    for (const g of (simulation.groups ?? [])) {
+      for (const t of (g.teams ?? [])) {
         if (preMap[t.team] != null) diff[t.team] = t.qualify_prob - preMap[t.team]
       }
     }
