@@ -25,6 +25,9 @@ interface RawAvgGroupTeam {
   team: string; avg_pts: number; avg_gd: number; avg_gf: number
   avg_ga: number; expected_rank: number
   pts?: number; gd?: number; gf?: number
+  // pre-tournament API may embed qualify data per-team instead of stage_appearances
+  qualify_probability?: number
+  qualify_prob?: number
 }
 interface RawMatchResult { team_a?: string; team_b?: string; winner?: string }
 interface RawSimulation {
@@ -214,7 +217,10 @@ function buildTournamentSim(
           predicted_gd:  avg.avg_gd  ?? single.avg_gd  ?? single.gd  ?? 0,
           predicted_gf:  avg.avg_gf  ?? single.avg_gf  ?? single.gf  ?? 0,
           expected_rank: avg.expected_rank ?? undefined,
-          qualify_prob: raw.stage_appearances?.[t.team]?.R32 ?? 0.5,
+          qualify_prob: raw.stage_appearances?.[t.team]?.R32
+            ?? avg.qualify_probability
+            ?? avg.qualify_prob
+            ?? 0.5,
         }
       }),
     })
@@ -282,21 +288,23 @@ function ExplorePageContent() {
   const simulation = useMemo(() => buildTournamentSim(rawLiveSim, standings), [rawLiveSim, standings])
   const preSim    = useMemo(() => buildTournamentSim(rawPreSim, standings), [rawPreSim, standings])
 
-  // qualify% delta: live minus pre-tournament per team
+  // qualify% delta: live minus pre-tournament, only for groups with real matches played
   const qualifyDiff = useMemo<Record<string, number>>(() => {
     if (!simulation || !preSim) return {}
+    const playedGroups = new Set(standings.filter((r) => r.played > 0).map((r) => r.group_name))
     const preMap: Record<string, number> = {}
     for (const g of (preSim.groups ?? [])) {
       for (const t of (g.teams ?? [])) preMap[t.team] = t.qualify_prob
     }
     const diff: Record<string, number> = {}
     for (const g of (simulation.groups ?? [])) {
+      if (!playedGroups.has(g.group)) continue  // skip groups with no real results yet
       for (const t of (g.teams ?? [])) {
         if (preMap[t.team] != null) diff[t.team] = t.qualify_prob - preMap[t.team]
       }
     }
     return diff
-  }, [simulation, preSim])
+  }, [simulation, preSim, standings])
 
   const [search, setSearch] = useState('')
   const [confFilter, setConfFilter] = useState<Conf>('All')
@@ -377,7 +385,19 @@ function ExplorePageContent() {
 
     fetch(`${API_BASE}/simulate/tournament?mode=pre_tournament`, { signal: ctrl.signal })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: RawSimulation | null) => { clearTimeout(tid); setRawPreSim(data ?? null) })
+      .then((data: RawSimulation | null) => {
+        clearTimeout(tid)
+        if (data) {
+          const sampleGroup = Object.keys(data.avg_group_tables ?? data.group_tables ?? {})[0]
+          const sampleTeam = sampleGroup
+            ? (data.avg_group_tables ?? data.group_tables ?? {})[sampleGroup]?.[0]
+            : null
+          console.log('[preSim] has stage_appearances:', !!data.stage_appearances,
+            '| sample team fields:', sampleTeam ? Object.keys(sampleTeam).join(', ') : 'none',
+            '| sample team:', JSON.stringify(sampleTeam))
+        }
+        setRawPreSim(data ?? null)
+      })
       .catch(() => clearTimeout(tid))
       .finally(() => setPreSimLoading(false))
 
