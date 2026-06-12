@@ -25,7 +25,8 @@ interface RawAvgGroupTeam {
   team: string; avg_pts: number; avg_gd: number; avg_gf: number
   avg_ga: number; expected_rank: number
   pts?: number; gd?: number; gf?: number
-  // pre-tournament API may embed qualify data per-team instead of stage_appearances
+  // pre-tournament API embeds qualify data per-team instead of stage_appearances
+  qualify?: number
   qualify_probability?: number
   qualify_prob?: number
 }
@@ -218,6 +219,7 @@ function buildTournamentSim(
           predicted_gf:  avg.avg_gf  ?? single.avg_gf  ?? single.gf  ?? 0,
           expected_rank: avg.expected_rank ?? undefined,
           qualify_prob: raw.stage_appearances?.[t.team]?.R32
+            ?? avg.qualify
             ?? avg.qualify_probability
             ?? avg.qualify_prob
             ?? 0.5,
