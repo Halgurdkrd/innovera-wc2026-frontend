@@ -75,9 +75,8 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
 
   const matchId = match.match_id ?? match.id
 
-  const isScheduled = match.status === 'scheduled' || match.status === 'upcoming'
   const kickoffDate = parseMatchDate(match.match_date ?? match.match_time)
-  const pastKickoff = !isScheduled || (kickoffDate ? kickoffDate < new Date() : false)
+  const pastKickoff = kickoffDate ? kickoffDate < new Date() : false
 
   // Load existing prediction on mount.
   // Pre-fills the form; only locks permanently if kickoff has already passed.
@@ -101,9 +100,7 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
         setHasSavedPrediction(true)
         // Lock the form permanently only if kickoff has already passed
         const kd = parseMatchDate(match.match_date ?? match.match_time)
-        const isAfterKickoff = !(match.status === 'scheduled' || match.status === 'upcoming')
-          || (kd ? kd < new Date() : false)
-        if (isAfterKickoff) setLocked(true)
+        if (kd && kd < new Date()) setLocked(true)
         // Notify parent so PreMatchCard reflects this prediction
         if (parsedOutcome) {
           onLock?.({
