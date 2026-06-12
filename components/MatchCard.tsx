@@ -122,9 +122,9 @@ export default function MatchCard({ match, language }: MatchCardProps) {
             />
           </div>
           <div className="flex justify-between text-[10px] text-[#8B949E]">
-            <span className="truncate max-w-[70px]">{match.home_team}</span>
+            <span className="text-[#2EA043] font-semibold">{Math.round(match.home_win_probability ?? 0)}%</span>
             <span className="flex-shrink-0 mx-1">{language === 'KU' ? 'یەکسان' : 'Draw'} {Math.round(match.draw_probability ?? 0)}%</span>
-            <span className="truncate max-w-[70px] text-right">{match.away_team}</span>
+            <span className="text-[#F85149] font-semibold">{Math.round(match.away_win_probability ?? 0)}%</span>
           </div>
         </div>
       )}

@@ -395,7 +395,7 @@ export default function MyPredictionsPage() {
   const handleShare = async () => {
     const msg = t.shareMsg(displayName, totalPoints, badge.nameEN)
     if (navigator.share) {
-      await navigator.share({ title: 'Innovera Predictor', text: msg, url: 'https://innovera-wc2026-frontend.vercel.app' })
+      await navigator.share({ title: 'Innovera Predictor', text: msg, url: 'https://aifootballp.com' })
     } else {
       await navigator.clipboard.writeText(msg)
     }

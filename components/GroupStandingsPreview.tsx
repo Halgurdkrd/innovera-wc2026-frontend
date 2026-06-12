@@ -22,6 +22,9 @@ const labels = {
     w: 'W',
     d: 'D',
     l: 'L',
+    gf: 'GF',
+    ga: 'GA',
+    gd: 'GD',
     pts: 'Pts',
   },
   KU: {
@@ -33,6 +36,9 @@ const labels = {
     w: 'ب',
     d: 'ی',
     l: 'د',
+    gf: 'گۆ',
+    ga: 'دژ',
+    gd: 'جیا',
     pts: 'خاڵ',
   },
 }
@@ -50,46 +56,54 @@ function GroupTable({ groupName, rows, t, language }: {
           {language === 'KU' ? 'گروپ' : 'Group'} {groupName}
         </h3>
       </div>
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="text-[#8B949E] border-b border-[#30363D]/50">
-            <th className="px-3 py-2 text-left w-6">{t.pos}</th>
-            <th className="px-3 py-2 text-left">{t.team}</th>
-            <th className="px-3 py-2 text-center">{t.p}</th>
-            <th className="px-3 py-2 text-center">{t.w}</th>
-            <th className="px-3 py-2 text-center">{t.d}</th>
-            <th className="px-3 py-2 text-center">{t.l}</th>
-            <th className="px-3 py-2 text-center font-bold text-[#E6EDF3]">{t.pts}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, idx) => (
-            <tr
-              key={row.id}
-              className={`border-b border-[#30363D]/30 hover:bg-[#0D1117]/40 transition-colors ${
-                idx < 2 ? 'border-l-2 border-l-[#2EA043]' : ''
-              }`}
-            >
-              <td className="px-3 py-2.5 text-[#8B949E]">{row.position}</td>
-              <td className="px-3 py-2.5">
-                <div className="flex items-center gap-1.5">
-                  <span>{row.team_flag || '🏳️'}</span>
-                  <Link href={`/team/${encodeURIComponent(row.team_name)}`} className="text-[#E6EDF3] font-medium truncate max-w-[80px] hover:text-[#F0A500] transition-colors">{row.team_name}</Link>
-                </div>
-              </td>
-              <td className="px-3 py-2.5 text-center text-[#8B949E]">{row.played}</td>
-              <td className="px-3 py-2.5 text-center text-[#2EA043]">{row.won}</td>
-              <td className="px-3 py-2.5 text-center text-[#8B949E]">{row.drawn}</td>
-              <td className="px-3 py-2.5 text-center text-[#F85149]">{row.lost}</td>
-              <td className="px-3 py-2.5 text-center font-bold text-[#E6EDF3]">
-                {row.played === 0 && row.avg_points != null
-                  ? Number(row.avg_points).toFixed(1)
-                  : row.points}
-              </td>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs min-w-[320px]">
+          <thead>
+            <tr className="text-[#8B949E] border-b border-[#30363D]/50">
+              <th className="px-2 py-2 text-left w-5">{t.pos}</th>
+              <th className="px-2 py-2 text-left">{t.team}</th>
+              <th className="px-2 py-2 text-center">{t.p}</th>
+              <th className="px-2 py-2 text-center">{t.w}</th>
+              <th className="px-2 py-2 text-center">{t.d}</th>
+              <th className="px-2 py-2 text-center">{t.l}</th>
+              <th className="px-2 py-2 text-center text-[#8B949E]">{t.gf}</th>
+              <th className="px-2 py-2 text-center text-[#8B949E]">{t.ga}</th>
+              <th className="px-2 py-2 text-center text-[#8B949E]">{t.gd}</th>
+              <th className="px-2 py-2 text-center font-bold text-[#E6EDF3]">{t.pts}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row, idx) => (
+              <tr
+                key={row.id}
+                className={`border-b border-[#30363D]/30 hover:bg-[#0D1117]/40 transition-colors ${
+                  idx < 2 ? 'border-l-2 border-l-[#2EA043]' : ''
+                }`}
+              >
+                <td className="px-2 py-2.5 text-[#8B949E]">{row.position}</td>
+                <td className="px-2 py-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <span>{row.team_flag || '🏳️'}</span>
+                    <Link href={`/team/${encodeURIComponent(row.team_name)}`} className="text-[#E6EDF3] font-medium truncate max-w-[70px] hover:text-[#F0A500] transition-colors">{row.team_name}</Link>
+                  </div>
+                </td>
+                <td className="px-2 py-2.5 text-center text-[#8B949E]">{row.played}</td>
+                <td className="px-2 py-2.5 text-center text-[#2EA043]">{row.won}</td>
+                <td className="px-2 py-2.5 text-center text-[#8B949E]">{row.drawn}</td>
+                <td className="px-2 py-2.5 text-center text-[#F85149]">{row.lost}</td>
+                <td className="px-2 py-2.5 text-center text-[#8B949E]">{row.goals_for ?? (row.played === 0 && row.avg_gf != null ? Number(row.avg_gf).toFixed(1) : '-')}</td>
+                <td className="px-2 py-2.5 text-center text-[#8B949E]">{row.goals_against ?? (row.played === 0 && row.avg_ga != null ? Number(row.avg_ga).toFixed(1) : '-')}</td>
+                <td className="px-2 py-2.5 text-center text-[#8B949E]">{row.goal_difference ?? (row.played === 0 && row.avg_gd != null ? Number(row.avg_gd).toFixed(1) : '-')}</td>
+                <td className="px-2 py-2.5 text-center font-bold text-[#E6EDF3]">
+                  {row.played === 0 && row.avg_points != null
+                    ? Number(row.avg_points).toFixed(1)
+                    : row.points}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

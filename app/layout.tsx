@@ -10,7 +10,7 @@ import { Analytics } from "@vercel/analytics/next";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://innovera-wc2026-frontend.vercel.app'),
+  metadataBase: new URL('https://aifootballp.com'),
   title: {
     default: "Innovera World Cup AI Predictor",
     template: "%s | Innovera Predictor",
