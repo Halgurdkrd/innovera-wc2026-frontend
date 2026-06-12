@@ -80,11 +80,22 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
       .maybeSingle()
       .then(({ data }) => {
         if (!data) return
-        setOutcome(data.predicted_winner as Outcome)
+        const parsedOutcome = data.predicted_winner as Outcome
         const parts = (data.predicted_score as string | null)?.split('-')
-        setHomeScore(parts?.[0] ?? '')
-        setAwayScore(parts?.[1] ?? '')
+        const hs = parts?.[0] ?? ''
+        const as_ = parts?.[1] ?? ''
+        setOutcome(parsedOutcome)
+        setHomeScore(hs)
+        setAwayScore(as_)
         setLocked(true)
+        // Notify parent so the downloadable PreMatchCard also reflects this prediction
+        if (parsedOutcome) {
+          onLock?.({
+            outcome: parsedOutcome,
+            homeScore: hs !== '' ? Number(hs) : undefined,
+            awayScore: as_ !== '' ? Number(as_) : undefined,
+          })
+        }
       })
   }, [user?.id, matchId])
 
