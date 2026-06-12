@@ -92,6 +92,7 @@ interface Props {
   standings: GroupStanding[]
   loading: boolean
   language: Language
+  qualifyDiff?: Record<string, number>
 }
 
 const labels = {
@@ -125,15 +126,28 @@ const labels = {
   },
 }
 
-function QualProb({ prob }: { prob: number }) {
+function QualDelta({ delta }: { delta: number }) {
+  const absPct = Math.round(Math.abs(delta * 100))
+  if (absPct < 1) return null
+  return (
+    <span className={`text-[9px] font-bold ml-0.5 ${delta > 0 ? 'text-[#2EA043]' : 'text-[#F85149]'}`}>
+      {delta > 0 ? '↑' : '↓'}{absPct}%
+    </span>
+  )
+}
+
+function QualProb({ prob, delta }: { prob: number; delta?: number }) {
   const pct = Math.round(prob * 100)
   const cls =
     pct >= 70 ? 'text-[#2EA043] bg-[#2EA043]/10 border-[#2EA043]/30'
     : pct >= 40 ? 'text-[#F0A500] bg-[#F0A500]/10 border-[#F0A500]/30'
     : 'text-[#F85149] bg-[#F85149]/10 border-[#F85149]/30'
   return (
-    <span className={`text-[10px] font-bold border rounded px-1.5 py-0.5 tabular-nums ${cls}`}>
-      {pct}%
+    <span className="inline-flex items-center">
+      <span className={`text-[10px] font-bold border rounded px-1.5 py-0.5 tabular-nums ${cls}`}>
+        {pct}%
+      </span>
+      {delta != null && <QualDelta delta={delta} />}
     </span>
   )
 }
@@ -144,11 +158,13 @@ function RealGroupCard({
   groupName,
   rows,
   aiTeams,
+  qualifyDiff,
   t,
 }: {
   groupName: string
   rows: GroupStanding[]
   aiTeams: TournamentGroupTeam[]
+  qualifyDiff?: Record<string, number>
   t: typeof labels['EN']
 }) {
   const sorted = [...rows].sort(
@@ -204,7 +220,9 @@ function RealGroupCard({
                   </td>
                   <td className="px-3 py-2.5 text-center text-[#8B949E]">{row.goals_for}</td>
                   <td className="px-3 py-2.5 text-center">
-                    {aiTeam ? <QualProb prob={aiTeam.qualify_prob} /> : <span className="text-[#30363D]">—</span>}
+                    {aiTeam
+                      ? <QualProb prob={aiTeam.qualify_prob} delta={qualifyDiff?.[row.team_name]} />
+                      : <span className="text-[#30363D]">—</span>}
                   </td>
                 </tr>
               )
@@ -225,10 +243,12 @@ function RealGroupCard({
 function AiGroupCard({
   groupName,
   aiTeams,
+  qualifyDiff,
   t,
 }: {
   groupName: string
   aiTeams: TournamentGroupTeam[]
+  qualifyDiff?: Record<string, number>
   t: typeof labels['EN']
 }) {
   // Sort by expected_rank (Supabase average) when available, fall back to predicted_pts
@@ -288,7 +308,7 @@ function AiGroupCard({
                   </td>
                   <td className="px-3 py-2.5 text-center text-[#8B949E]">{Number(team.predicted_gf).toFixed(1)}</td>
                   <td className="px-3 py-2.5 text-center">
-                    <QualProb prob={team.qualify_prob} />
+                    <QualProb prob={team.qualify_prob} delta={qualifyDiff?.[team.team]} />
                   </td>
                 </tr>
               )
@@ -306,7 +326,7 @@ function AiGroupCard({
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export default function GroupStagePredictions({ groups, stageAppearances, standings, loading, language }: Props) {
+export default function GroupStagePredictions({ groups, stageAppearances, standings, loading, language, qualifyDiff }: Props) {
   const t = labels[language]
 
   if (loading) {
@@ -351,9 +371,6 @@ export default function GroupStagePredictions({ groups, stageAppearances, standi
       const saProb = stageAppearances?.[fbTeam.team]?.R32
       const apiStats = apiStatsByTeam[fbTeam.team]
       const sbRow = standingsMap[fbTeam.team]
-      // API avg_pts takes priority (from avg_group_tables — accurate across all runs).
-      // Supabase avg_points only used if API value is missing (Supabase avg_points=0 is
-      // skipped with || so a true zero never blocks a real API value).
       return {
         ...fbTeam,
         ...(apiStats ?? {}),
@@ -381,9 +398,9 @@ export default function GroupStagePredictions({ groups, stageAppearances, standi
         const hasRealGames = realRows.some((r) => r.played > 0)
 
         return hasRealGames ? (
-          <RealGroupCard key={groupName} groupName={groupName} rows={realRows} aiTeams={aiTeams} t={t} />
+          <RealGroupCard key={groupName} groupName={groupName} rows={realRows} aiTeams={aiTeams} qualifyDiff={qualifyDiff} t={t} />
         ) : (
-          <AiGroupCard key={groupName} groupName={groupName} aiTeams={aiTeams} t={t} />
+          <AiGroupCard key={groupName} groupName={groupName} aiTeams={aiTeams} qualifyDiff={qualifyDiff} t={t} />
         )
       })}
     </div>

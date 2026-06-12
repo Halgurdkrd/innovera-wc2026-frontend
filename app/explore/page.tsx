@@ -24,13 +24,12 @@ interface RawGroupTeam {
 interface RawAvgGroupTeam {
   team: string; avg_pts: number; avg_gd: number; avg_gf: number
   avg_ga: number; expected_rank: number
-  // single-run fields present for compat but prefer avg_*
   pts?: number; gd?: number; gf?: number
 }
 interface RawMatchResult { team_a?: string; team_b?: string; winner?: string }
 interface RawSimulation {
   group_tables?: Record<string, RawGroupTeam[]>
-  avg_group_tables?: Record<string, RawAvgGroupTeam[]>   // averages across all simulations
+  avg_group_tables?: Record<string, RawAvgGroupTeam[]>
   stage_appearances?: Record<string, Record<string, number>>
   predicted_bracket?: Record<string, RawMatchResult[]> & { champion?: string }
   winner_probs?: Record<string, number>
@@ -39,27 +38,21 @@ interface RawSimulation {
 // ── Confederation lookup ───────────────────────────────────────────────────────
 
 const CONFEDERATION_MAP: Record<string, string> = {
-  // CONCACAF
   USA: 'CONCACAF', Canada: 'CONCACAF', Mexico: 'CONCACAF',
   Panama: 'CONCACAF', Haiti: 'CONCACAF', Curaçao: 'CONCACAF',
-  // CONMEBOL
   Brazil: 'CONMEBOL', Argentina: 'CONMEBOL', Uruguay: 'CONMEBOL',
   Colombia: 'CONMEBOL', Ecuador: 'CONMEBOL', Paraguay: 'CONMEBOL',
-  // UEFA
   Germany: 'UEFA', France: 'UEFA', England: 'UEFA', Spain: 'UEFA',
   Portugal: 'UEFA', Netherlands: 'UEFA', Belgium: 'UEFA',
   Switzerland: 'UEFA', Croatia: 'UEFA', Austria: 'UEFA', Turkey: 'UEFA',
   Scotland: 'UEFA', Norway: 'UEFA', Sweden: 'UEFA',
   'Czech Republic': 'UEFA', 'Bosnia-Herzegovina': 'UEFA',
-  // AFC
   Japan: 'AFC', 'South Korea': 'AFC', Australia: 'AFC', Iran: 'AFC',
   'Saudi Arabia': 'AFC', Qatar: 'AFC', Iraq: 'AFC',
   Jordan: 'AFC', Uzbekistan: 'AFC',
-  // CAF
   Morocco: 'CAF', Senegal: 'CAF', Egypt: 'CAF', Ghana: 'CAF',
   Tunisia: 'CAF', Algeria: 'CAF', "Côte d'Ivoire": 'CAF',
   'South Africa': 'CAF', 'Cabo Verde': 'CAF', 'Congo DR': 'CAF',
-  // OFC
   'New Zealand': 'OFC',
 }
 
@@ -137,7 +130,6 @@ function ScorersTabContent({ language }: { language: 'EN' | 'KU' }) {
 
   return (
     <div className="space-y-4">
-      {/* Sub-tab toggle */}
       <div className="flex gap-2">
         {(['goals', 'assists'] as const).map(tab => (
           <button
@@ -190,6 +182,75 @@ function ScorersTabContent({ language }: { language: 'EN' | 'KU' }) {
   )
 }
 
+// ── Transform raw API response → typed TournamentSimulation ──────────────────
+
+const ROUND_MAP: Record<string, string> = {
+  R32: 'Round of 32', R16: 'Round of 16',
+  QF: 'Quarter-Finals', SF: 'Semi-Finals', Final: 'Final',
+}
+
+function buildTournamentSim(
+  raw: RawSimulation | null,
+  standings: GroupStanding[]
+): TournamentSimulation | null {
+  if (!raw) return null
+
+  const flagLookup: Record<string, string> = {}
+  for (const s of standings) {
+    if (s.team_flag) flagLookup[s.team_name] = s.team_flag
+  }
+
+  const sourceGroups = raw.avg_group_tables ?? raw.group_tables ?? {}
+  const groups: TournamentGroup[] = Object.entries(sourceGroups).map(
+    ([group, rawTeams]) => ({
+      group,
+      teams: (rawTeams as (RawAvgGroupTeam | RawGroupTeam)[]).map((t) => {
+        const avg = t as RawAvgGroupTeam
+        const single = t as RawGroupTeam
+        return {
+          team: t.team,
+          flag: flagLookup[t.team] ?? '🏳️',
+          predicted_pts: avg.avg_pts ?? single.avg_pts ?? single.pts ?? 0,
+          predicted_gd:  avg.avg_gd  ?? single.avg_gd  ?? single.gd  ?? 0,
+          predicted_gf:  avg.avg_gf  ?? single.avg_gf  ?? single.gf  ?? 0,
+          expected_rank: avg.expected_rank ?? undefined,
+          qualify_prob: raw.stage_appearances?.[t.team]?.R32 ?? 0.5,
+        }
+      }),
+    })
+  )
+
+  const bracket: TournamentBracketMatch[] = []
+  for (const [key, name] of Object.entries(ROUND_MAP)) {
+    const matches: RawMatchResult[] = raw.predicted_bracket?.[key] ?? []
+    matches.forEach((m, idx) => {
+      bracket.push({
+        round: name,
+        slot_number: idx + 1,
+        team_a: m.team_a,
+        team_a_flag: m.team_a ? (flagLookup[m.team_a] ?? '🏳️') : undefined,
+        team_b: m.team_b,
+        team_b_flag: m.team_b ? (flagLookup[m.team_b] ?? '🏳️') : undefined,
+        predicted_winner: m.winner,
+      })
+    })
+  }
+
+  const probs = raw.winner_probs ?? {}
+  const topEntry = Object.entries(probs).sort(([, a], [, b]) => b - a)[0]
+  const champion = topEntry?.[0] ?? raw.predicted_bracket?.champion
+
+  return {
+    groups,
+    bracket,
+    predicted_champion: champion
+      ? { team: champion, flag: flagLookup[champion], probability: probs[champion] ?? 0 }
+      : undefined,
+    winner_probs: probs,
+    flag_map: flagLookup,
+  }
+}
+
 // ── Inner page component (uses useSearchParams — must be inside Suspense) ─────
 
 function ExplorePageContent() {
@@ -198,7 +259,6 @@ function ExplorePageContent() {
   const [activeTab, setActiveTab] = useState<Tab>('teams')
   const tabsRef = useRef<HTMLDivElement>(null)
 
-  // Re-runs whenever the URL search params change (works with client-side <Link> navigation)
   useEffect(() => {
     const tab = searchParams.get('tab') as Tab | null
     if (tab && tab in tabLabels) {
@@ -212,84 +272,39 @@ function ExplorePageContent() {
   const [standings, setStandings] = useState<GroupStanding[]>([])
   const [luckScores, setLuckScores] = useState<LuckScore[]>([])
   const [bracketSlots, setBracketSlots] = useState<BracketSlot[]>([])
-  const [rawSim, setRawSim] = useState<RawSimulation | null>(null)
+  const [rawLiveSim, setRawLiveSim] = useState<RawSimulation | null>(null)
+  const [rawPreSim, setRawPreSim] = useState<RawSimulation | null>(null)
+  const [predTab, setPredTab] = useState<'live' | 'pre'>('live')
   const [loading, setLoading] = useState(true)
   const [simLoading, setSimLoading] = useState(true)
+  const [preSimLoading, setPreSimLoading] = useState(true)
 
-  // Transform raw API response into typed TournamentSimulation whenever
-  // either the raw API data or the standings (flags) change.
-  const simulation = useMemo<TournamentSimulation | null>(() => {
-    if (!rawSim) return null
+  const simulation = useMemo(() => buildTournamentSim(rawLiveSim, standings), [rawLiveSim, standings])
+  const preSim    = useMemo(() => buildTournamentSim(rawPreSim, standings), [rawPreSim, standings])
 
-    const flagLookup: Record<string, string> = {}
-    for (const s of standings) {
-      if (s.team_flag) flagLookup[s.team_name] = s.team_flag
+  // qualify% delta: live minus pre-tournament per team
+  const qualifyDiff = useMemo<Record<string, number>>(() => {
+    if (!simulation || !preSim) return {}
+    const preMap: Record<string, number> = {}
+    for (const g of preSim.groups) {
+      for (const t of g.teams) preMap[t.team] = t.qualify_prob
     }
-
-    // Prefer avg_group_tables (averages across all runs) over group_tables (single run)
-    const sourceGroups = rawSim.avg_group_tables ?? rawSim.group_tables ?? {}
-    const groups: TournamentGroup[] = Object.entries(sourceGroups).map(
-      ([group, rawTeams]) => ({
-        group,
-        teams: (rawTeams as (RawAvgGroupTeam | RawGroupTeam)[]).map((t) => {
-          const avg = t as RawAvgGroupTeam
-          const single = t as RawGroupTeam
-          return {
-            team: t.team,
-            flag: flagLookup[t.team] ?? '🏳️',
-            predicted_pts: avg.avg_pts ?? single.avg_pts ?? single.pts ?? 0,
-            predicted_gd:  avg.avg_gd  ?? single.avg_gd  ?? single.gd  ?? 0,
-            predicted_gf:  avg.avg_gf  ?? single.avg_gf  ?? single.gf  ?? 0,
-            expected_rank: avg.expected_rank ?? undefined,
-            qualify_prob: rawSim.stage_appearances?.[t.team]?.R32 ?? 0.5,
-          }
-        }),
-      })
-    )
-
-    const ROUND_MAP: Record<string, string> = {
-      R32: 'Round of 32', R16: 'Round of 16',
-      QF: 'Quarter-Finals', SF: 'Semi-Finals', Final: 'Final',
+    const diff: Record<string, number> = {}
+    for (const g of simulation.groups) {
+      for (const t of g.teams) {
+        if (preMap[t.team] != null) diff[t.team] = t.qualify_prob - preMap[t.team]
+      }
     }
-    const bracket: TournamentBracketMatch[] = []
-    for (const [key, name] of Object.entries(ROUND_MAP)) {
-      const matches: RawMatchResult[] = rawSim.predicted_bracket?.[key] ?? []
-      matches.forEach((m, idx) => {
-        bracket.push({
-          round: name,
-          slot_number: idx + 1,
-          team_a: m.team_a,
-          team_a_flag: m.team_a ? (flagLookup[m.team_a] ?? '🏳️') : undefined,
-          team_b: m.team_b,
-          team_b_flag: m.team_b ? (flagLookup[m.team_b] ?? '🏳️') : undefined,
-          predicted_winner: m.winner,
-        })
-      })
-    }
-
-    const probs = rawSim.winner_probs ?? {}
-    // Use the highest-probability team from the aggregate, not the last single-run winner
-    const topEntry = Object.entries(probs).sort(([, a], [, b]) => b - a)[0]
-    const champion = topEntry?.[0] ?? rawSim.predicted_bracket?.champion
-    return {
-      groups,
-      bracket,
-      predicted_champion: champion
-        ? { team: champion, flag: flagLookup[champion], probability: probs[champion] ?? 0 }
-        : undefined,
-      winner_probs: probs,
-      flag_map: flagLookup,
-    }
-  }, [rawSim, standings])
+    return diff
+  }, [simulation, preSim])
 
   const [search, setSearch] = useState('')
   const [confFilter, setConfFilter] = useState<Conf>('All')
 
   const t = labels[language]
 
-  // ── Feature flags — enable when tables are created and RLS configured ────────
-  const ENABLE_LUCK_SCORES = false   // luck_scores table not yet in schema
-  const ENABLE_BRACKET     = false   // bracket table not yet in schema
+  const ENABLE_LUCK_SCORES = false
+  const ENABLE_BRACKET     = false
 
   // ── Fetch Supabase data ───────────────────────────────────────────────────
   useEffect(() => {
@@ -341,16 +356,30 @@ function ExplorePageContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── Fetch tournament simulation (10 s timeout so simLoading never hangs) ──
+  // ── Fetch live simulation ─────────────────────────────────────────────────
   useEffect(() => {
     const ctrl = new AbortController()
     const tid = setTimeout(() => ctrl.abort(), 10000)
 
     fetch(`${API_BASE}/simulate/tournament`, { signal: ctrl.signal })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: RawSimulation | null) => { clearTimeout(tid); setRawSim(data ?? null) })
+      .then((data: RawSimulation | null) => { clearTimeout(tid); setRawLiveSim(data ?? null) })
       .catch(() => clearTimeout(tid))
       .finally(() => setSimLoading(false))
+
+    return () => { ctrl.abort(); clearTimeout(tid) }
+  }, [])
+
+  // ── Fetch pre-tournament snapshot ─────────────────────────────────────────
+  useEffect(() => {
+    const ctrl = new AbortController()
+    const tid = setTimeout(() => ctrl.abort(), 10000)
+
+    fetch(`${API_BASE}/simulate/tournament?mode=pre_tournament`, { signal: ctrl.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: RawSimulation | null) => { clearTimeout(tid); setRawPreSim(data ?? null) })
+      .catch(() => clearTimeout(tid))
+      .finally(() => setPreSimLoading(false))
 
     return () => { ctrl.abort(); clearTimeout(tid) }
   }, [])
@@ -411,6 +440,13 @@ function ExplorePageContent() {
     })
   }, [teams, search, confFilter])
 
+  // ── Champion probability deltas ───────────────────────────────────────────
+  const liveWinnerProbs = simulation?.winner_probs ?? {}
+  const preWinnerProbs  = preSim?.winner_probs ?? {}
+  const topChampions = Object.entries(liveWinnerProbs)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 8)
+
   return (
     <div className="min-h-screen bg-[#0D1117]">
       <Navbar language={language} onLanguageChange={changeLanguage} />
@@ -442,7 +478,6 @@ function ExplorePageContent() {
         {/* ── Teams tab ─────────────────────────────────────────────────── */}
         {activeTab === 'teams' && (
           <div className="space-y-6">
-            {/* Search + filter row */}
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <svg
@@ -512,17 +547,79 @@ function ExplorePageContent() {
               loading={loading}
               maxGroups={12}
             />
-            {/* AI simulation predictions below real data */}
-            <div>
-              <h3 className="text-lg font-bold text-[#E6EDF3] mb-4">
+
+            {/* AI simulation with dual pre-tournament / live view */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-[#E6EDF3]">
                 {language === 'KU' ? '📊 پێشبینی AI — شێوەکاری' : '📊 AI Simulation — Predicted Standings'}
               </h3>
+
+              {/* Dual-view tab toggle */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-center gap-1 bg-[#161B22] border border-[#30363D] p-1 rounded-xl w-fit">
+                  {(['live', 'pre'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => setPredTab(mode)}
+                      className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                        predTab === mode
+                          ? 'bg-[#F0A500] text-[#0D1117]'
+                          : 'text-[#8B949E] hover:text-[#E6EDF3]'
+                      }`}
+                    >
+                      {mode === 'live'
+                        ? (language === 'KU' ? '📊 نوێکراوەی بەکردەوە' : '📊 Live Updated')
+                        : (language === 'KU' ? '🔮 پێش تواناکارییەکان' : '🔮 AI Pre-Tournament')}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-[#8B949E]">
+                  {predTab === 'live'
+                    ? (language === 'KU' ? 'نوێکراوە بە ئەنجامی ڕاستەقینەی یارییەکان' : 'Updated with real match results')
+                    : (language === 'KU' ? 'پێشبینی AIـی پێش تواناکارییەکان' : "Our AI's original predictions before the World Cup")}
+                </p>
+              </div>
+
+              {/* Champion probability changes — only on Live tab when both datasets loaded */}
+              {predTab === 'live' && topChampions.length > 0 && Object.keys(preWinnerProbs).length > 0 && (
+                <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-4">
+                  <p className="text-[10px] font-bold text-[#8B949E] uppercase tracking-wider mb-3">
+                    {language === 'KU' ? '🏆 گۆڕانکاری پێشبینی بەرپیاو' : '🏆 Champion Probability Changes'}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {topChampions.map(([team, liveProb]) => {
+                      const preProb = preWinnerProbs[team] ?? 0
+                      const delta = liveProb - preProb
+                      const livePct = (liveProb * 100).toFixed(1)
+                      const absDeltaPct = (Math.abs(delta) * 100).toFixed(1)
+                      const flag = simulation?.flag_map?.[team] ?? '🏳️'
+                      return (
+                        <div
+                          key={team}
+                          className="flex items-center gap-1.5 bg-[#0D1117] border border-[#30363D] rounded-lg px-3 py-2"
+                        >
+                          <span className="text-sm">{flag}</span>
+                          <span className="text-xs font-semibold text-[#E6EDF3]">{team}</span>
+                          <span className="text-xs font-bold text-[#F0A500] tabular-nums">{livePct}%</span>
+                          {Math.abs(delta) * 100 >= 0.1 && (
+                            <span className={`text-[10px] font-bold tabular-nums ${delta > 0 ? 'text-[#2EA043]' : 'text-[#F85149]'}`}>
+                              {delta > 0 ? '↑' : '↓'}{absDeltaPct}%
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
               <GroupStagePredictions
-                groups={simulation?.groups ?? []}
-                stageAppearances={rawSim?.stage_appearances ?? {}}
+                groups={(predTab === 'live' ? simulation : preSim)?.groups ?? []}
+                stageAppearances={(predTab === 'live' ? rawLiveSim : rawPreSim)?.stage_appearances ?? {}}
                 standings={standings}
-                loading={loading || simLoading}
+                loading={loading || (predTab === 'live' ? simLoading : preSimLoading)}
                 language={language}
+                qualifyDiff={predTab === 'live' ? qualifyDiff : undefined}
               />
             </div>
           </div>
