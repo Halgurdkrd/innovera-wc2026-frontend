@@ -73,7 +73,16 @@ export default function HomePage() {
           supabasePublic.from('group_standings').select('*').order('group_name').order('position'),
         ])
 
-        if (matchRes.data) setMatches(matchRes.data as Match[])
+        if (matchRes.data) {
+          // Supabase stores probabilities as 0–1 decimals; MatchCard expects 0–100
+          const normalized = (matchRes.data as Match[]).map(m => ({
+            ...m,
+            home_win_probability: m.home_win_probability != null ? m.home_win_probability * 100 : undefined,
+            draw_probability: m.draw_probability != null ? m.draw_probability * 100 : undefined,
+            away_win_probability: m.away_win_probability != null ? m.away_win_probability * 100 : undefined,
+          }))
+          setMatches(normalized)
+        }
         if (standingsRes.data) setStandings(standingsRes.data as GroupStanding[])
 
         // luck_scores disabled until table is in schema — set to empty

@@ -85,20 +85,31 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
 
     if (!user) return  // just lock locally if not logged in (UI already handled)
 
+    const matchId = match.match_id ?? match.id
+    if (!matchId) {
+      console.error('[UserPrediction] match has no match_id — cannot persist')
+      return
+    }
+
     setSaving(true)
     try {
-      await supabase.from('user_predictions').upsert(
+      const { error } = await supabase.from('user_predictions').upsert(
         {
           user_id: user.id,
-          match_id: match.match_id ?? match.id,
+          match_id: matchId,
           predicted_outcome: outcome,
           predicted_home_score: homeScore !== '' ? Number(homeScore) : null,
           predicted_away_score: awayScore !== '' ? Number(awayScore) : null,
         },
         { onConflict: 'user_id,match_id' }
       )
-    } catch {
-      // best-effort — prediction is locked locally regardless
+      if (error) {
+        console.error('[UserPrediction] upsert failed:', error.message, '| code:', error.code, '| details:', error.details)
+      } else {
+        console.log('[UserPrediction] saved — match_id:', matchId, 'outcome:', outcome)
+      }
+    } catch (err) {
+      console.error('[UserPrediction] unexpected error:', err)
     } finally {
       setSaving(false)
     }
