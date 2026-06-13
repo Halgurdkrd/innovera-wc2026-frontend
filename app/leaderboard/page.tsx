@@ -114,8 +114,7 @@ export default function LeaderboardPage() {
   const t = labels[language]
 
   // Fetch top 50 + current user's profile
-  // ENABLE_LEADERBOARD: user_profiles RLS blocks read until policies are configured
-  const ENABLE_LEADERBOARD = false
+  const ENABLE_LEADERBOARD = true
 
   useEffect(() => {
     if (!ENABLE_LEADERBOARD) {
