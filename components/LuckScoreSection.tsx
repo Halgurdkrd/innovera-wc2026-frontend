@@ -2,6 +2,7 @@
 
 import type { LuckScore } from '@/types'
 import type { Language } from './Navbar'
+import { teamFlagUrl } from '@/lib/flags'
 
 interface LuckScoreSectionProps {
   scores: LuckScore[]
@@ -10,20 +11,41 @@ interface LuckScoreSectionProps {
 
 const labels = {
   EN: {
-    title: "Yesterday's Luck Scores",
+    title: "Luck Scores",
     luckiest: 'Luckiest Teams',
     unluckiest: 'Unluckiest Teams',
     luckScore: 'Luck Score',
   },
   KU: {
-    title: 'خەمەکانی دوێنێ',
+    title: 'خەمەکانی بەخت',
     luckiest: 'تیمە بە بەختەکان',
     unluckiest: 'بێ بەختترین تیمەکان',
     luckScore: 'خەمە',
   },
 }
 
-function ScoreCard({ score, rank, isLucky }: { score: LuckScore; rank: number; isLucky: boolean }) {
+function luckDesc(score: LuckScore, language: Language): string {
+  const goals = score.actual_goals ?? 0
+  const xg = score.xg_total ?? 0
+  const label = score.luck_label?.toLowerCase() ?? ''
+  const isLucky = label === 'lucky' || (score.luck_rating ?? 0) > 1
+  const isUnlucky = label === 'unlucky' || (score.luck_rating ?? 0) < -1
+
+  if (language === 'KU') {
+    if (isLucky)
+      return `${goals} گۆڵی تۆمار کرد لە ${xg.toFixed(1)} چاوەڕوانکراو — تەواوکاری باش`
+    if (isUnlucky)
+      return `دەرفەتی بەرامبەر بە ${xg.toFixed(1)} گۆڵ دروست کرد بەڵام تەنها ${goals}ی تۆمار کرد`
+    return `${goals} گۆڵی تۆمار کرد لە ${xg.toFixed(1)} چاوەڕوانکراو — ئەنجامی شایستە`
+  }
+  if (isLucky)
+    return `Scored ${goals} goals from just ${xg.toFixed(1)} expected — clinical finishing`
+  if (isUnlucky)
+    return `Created chances worth ${xg.toFixed(1)} goals but only scored ${goals}`
+  return `Scored ${goals} from ${xg.toFixed(1)} expected — fair result`
+}
+
+function ScoreCard({ score, rank, isLucky, language }: { score: LuckScore; rank: number; isLucky: boolean; language: Language }) {
   const color = isLucky ? '#2EA043' : '#F85149'
   const sign = isLucky ? '+' : ''
 
@@ -35,10 +57,10 @@ function ScoreCard({ score, rank, isLucky }: { score: LuckScore; rank: number; i
       >
         {rank}
       </span>
-      <span className="text-xl flex-shrink-0">{score.team_flag || '🏳️'}</span>
+      <img src={teamFlagUrl(score.team_name)} alt={score.team_name} className="h-6 w-auto rounded-sm flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-[#E6EDF3] truncate">{score.team_name}</p>
-        <p className="text-xs text-[#8B949E] capitalize">{score.luck_label ?? ''}</p>
+        <p className="text-[11px] text-[#8B949E] leading-snug">{luckDesc(score, language)}</p>
       </div>
       <span
         className="text-sm font-bold flex-shrink-0"
@@ -70,7 +92,7 @@ export default function LuckScoreSection({ scores, language }: LuckScoreSectionP
           </div>
           {luckiest.length > 0 ? (
             luckiest.map((s, i) => (
-              <ScoreCard key={s.id} score={s} rank={i + 1} isLucky={true} />
+              <ScoreCard key={s.id} score={s} rank={i + 1} isLucky={true} language={language} />
             ))
           ) : (
             <p className="text-sm text-[#8B949E] text-center py-4">
@@ -87,7 +109,7 @@ export default function LuckScoreSection({ scores, language }: LuckScoreSectionP
           </div>
           {unluckiest.length > 0 ? (
             unluckiest.map((s, i) => (
-              <ScoreCard key={s.id} score={s} rank={i + 1} isLucky={false} />
+              <ScoreCard key={s.id} score={s} rank={i + 1} isLucky={false} language={language} />
             ))
           ) : (
             <p className="text-sm text-[#8B949E] text-center py-4">
