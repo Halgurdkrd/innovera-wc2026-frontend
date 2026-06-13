@@ -77,7 +77,7 @@ const labels = {
 
 export default function UserPrediction({ match, language, onLock }: UserPredictionProps) {
   const t = labels[language]
-  const { user, openAuthModal } = useAuth()
+  const { user, openAuthModal, loading: authLoading } = useAuth()
 
   const [outcome, setOutcome] = useState<Outcome>(null)
   const [homeScore, setHomeScore] = useState('')
@@ -98,7 +98,7 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
   // Load existing prediction on mount.
   // Pre-fills the form; only locks permanently if kickoff has already passed.
   useEffect(() => {
-    if (!user || !matchId) return
+    if (authLoading || !user || !matchId) return
     console.log('[UserPrediction] loading prediction for match', matchId, 'user', user.id)
     supabase
       .from('user_predictions')
@@ -134,7 +134,7 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
         }
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, matchId])
+  }, [user?.id, matchId, authLoading])
 
   // Derive winner from score — scores are the source of truth
   useEffect(() => {

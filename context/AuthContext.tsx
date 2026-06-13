@@ -96,7 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === 'SIGNED_IN' && session?.user) {
         if (!initialised.current) {
           initialised.current = true
-          await upsertUserProfile(session.user)
+          // Fire-and-forget: awaiting Supabase queries inside onAuthStateChange
+          // causes a deadlock — the callback holds the GoTrueClient lock while
+          // the inner query also tries to acquire it.
+          void upsertUserProfile(session.user)
         }
         setShowAuthModal(false)
       }

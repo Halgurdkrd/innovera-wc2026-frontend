@@ -24,7 +24,6 @@ export const supabasePublic = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: false,
     detectSessionInUrl: false,
     storageKey: 'sb-public-anon',
-    flowType: 'implicit',       // prevents PKCE refresh loop on tab focus
   },
   global: { headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}` } },
 })

@@ -82,6 +82,10 @@ export default function HomePage() {
         ])
 
         if (matchRes.data) {
+          // Debug: log raw match_date values to diagnose timezone display issues
+          if (matchRes.data.length > 0) {
+            console.log('[home] sample match_date raw:', (matchRes.data[0] as Match).match_date)
+          }
           // Supabase stores probabilities as 0–1 decimals; MatchCard expects 0–100
           const normalized = (matchRes.data as Match[]).map(m => ({
             ...m,
