@@ -318,14 +318,12 @@ export default function MatchDetailPage() {
           }
         }
 
-        // Prediction data comes from VPS API (Supabase predictions table is empty)
+        // Analysis data (shap, scorelines, narrative) comes from VPS.
+        // Probabilities come from the matches table above — DO NOT overwrite them here.
         try {
           const predRes = await fetch(`${API_BASE}/predictions/${match_id}`)
           if (predRes.ok) {
             const vps = await predRes.json()
-            // Map VPS field names → frontend Prediction type
-            // VPS: { home_win_prob, draw_prob, away_win_prob, confidence, shap_reasons }
-            // shap direction: "favors_home" → positive/home, "favors_away" → negative/away
             const mapDir = (d: string): { direction: 'positive' | 'negative' | 'neutral'; team: 'home' | 'away' } => {
               if (d === 'favors_home') return { direction: 'positive', team: 'home' }
               if (d === 'favors_away') return { direction: 'negative', team: 'away' }
@@ -346,22 +344,10 @@ export default function MatchDetailPage() {
               ai_narrative: vps.ai_narrative ?? undefined,
               lineup_info: vps.lineup_info ?? undefined,
             }
-            // Populate match probabilities from prediction if not already in match row
-            if (raw && vps.home_win_prob != null) {
-              // API returns 0-1 scale; frontend displays as percentage (0-100)
-              // Math.round(0.88) = 1% — WRONG. Must multiply by 100 first.
-              setMatch(prev => prev ? {
-                ...prev,
-                home_win_probability: vps.home_win_prob * 100,
-                draw_probability: vps.draw_prob * 100,
-                away_win_probability: vps.away_win_prob * 100,
-                ai_confidence: Math.round((vps.confidence ?? vps.home_win_prob) * 100),
-              } : prev)
-            }
             setPrediction(pred)
-            console.log('[match-detail] prediction loaded from VPS — home_win:', vps.home_win_prob)
+            console.log('[match-detail] analysis loaded from VPS')
           } else {
-            console.log('[match-detail] prediction not available yet — status:', predRes.status)
+            console.log('[match-detail] VPS prediction not available — status:', predRes.status)
           }
         } catch (predErr) {
           console.error('[match-detail] prediction fetch error:', predErr)
