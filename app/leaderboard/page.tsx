@@ -10,13 +10,14 @@ import { API_BASE } from '@/lib/api'
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface UserProfile {
-  id: string
+  user_id: string
   username: string
-  avatar_url?: string | null
   total_points: number
   weekly_points: number
   beat_ai_count: number
-  streak: number
+  prediction_streak: number
+  correct_predictions: number
+  total_predictions: number
 }
 
 type Tab = 'weekly' | 'total'
@@ -133,14 +134,14 @@ export default function LeaderboardPage() {
         const [topRes, myRes] = await Promise.all([
           supabase
             .from('user_profiles')
-            .select('id,username,avatar_url,total_points,weekly_points,beat_ai_count,streak')
+            .select('user_id,username,total_points,weekly_points,beat_ai_count,prediction_streak,correct_predictions,total_predictions')
             .order(orderCol, { ascending: false })
             .limit(50),
           user
             ? supabase
                 .from('user_profiles')
-                .select('id,username,avatar_url,total_points,weekly_points,beat_ai_count,streak')
-                .eq('id', user.id)
+                .select('user_id,username,total_points,weekly_points,beat_ai_count,prediction_streak,correct_predictions,total_predictions')
+                .eq('user_id', user.id)
                 .maybeSingle()
             : Promise.resolve({ data: null }),
         ])
@@ -175,14 +176,14 @@ export default function LeaderboardPage() {
       const col = activeTab === 'weekly' ? 'weekly_points' : 'total_points'
       return b[col] - a[col]
     })
-    const rank = sortedProfiles.findIndex((p) => p.id === userProfile.id) + 1
+    const rank = sortedProfiles.findIndex((p) => p.user_id === userProfile.user_id) + 1
     const pts = activeTab === 'weekly' ? userProfile.weekly_points : userProfile.total_points
     const text = `I'm #${rank > 0 ? rank : '?'} on the Ennovera WC2026 Leaderboard with ${pts} points! 🏆 Can you beat me? Ennovera`
 
     try {
       // Try API rank-card first
       const apiUrl = API_BASE
-      const res = await fetch(`${apiUrl}/rank-card?user_id=${userProfile.id}&rank=${rank}&points=${pts}`)
+      const res = await fetch(`${apiUrl}/rank-card?user_id=${userProfile.user_id}&rank=${rank}&points=${pts}`)
       if (res.ok) {
         const data = await res.json()
         const shareUrl = data.url ?? data.download_url
@@ -218,7 +219,7 @@ export default function LeaderboardPage() {
   })
 
   const userRank = userProfile
-    ? sortedProfiles.findIndex((p) => p.id === userProfile.id) + 1
+    ? sortedProfiles.findIndex((p) => p.user_id === userProfile.user_id) + 1
     : 0
   const userInTop50 = userRank > 0
   const displayPts = (p: UserProfile) =>
@@ -280,7 +281,7 @@ export default function LeaderboardPage() {
         {/* My rank + share (when logged in) */}
         {user && userProfile && (
           <div className="bg-[#161B22] border border-[#F0A500]/30 rounded-xl p-4 flex items-center gap-4">
-            <Avatar url={userProfile.avatar_url} name={userProfile.username} size="md" />
+            <Avatar name={userProfile.username} size="md" />
             <div className="flex-1 min-w-0">
               <p className="text-xs text-[#8B949E]">{t.myRank}</p>
               <p className="text-base font-bold text-[#E6EDF3] truncate">{userProfile.username}</p>
@@ -336,12 +337,12 @@ export default function LeaderboardPage() {
 
             {sortedProfiles.map((profile, index) => {
               const rank = index + 1
-              const isCurrentUser = profile.id === user?.id
+              const isCurrentUser = profile.user_id === user?.id
               const medal = t.top3Labels[index]
 
               return (
                 <div
-                  key={profile.id}
+                  key={profile.user_id}
                   className={`grid grid-cols-[3rem_1fr_5rem_4rem_4rem] gap-2 px-4 py-3 items-center border-b border-[#30363D]/50 transition-colors ${
                     isCurrentUser
                       ? 'bg-[#F0A500]/8 border-l-2 border-l-[#F0A500]'
@@ -365,7 +366,7 @@ export default function LeaderboardPage() {
 
                   {/* Player */}
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <Avatar url={profile.avatar_url} name={profile.username} />
+                    <Avatar name={profile.username} />
                     <div className="min-w-0">
                       <p
                         className={`text-sm font-semibold truncate ${
@@ -394,7 +395,7 @@ export default function LeaderboardPage() {
                   {/* Streak */}
                   <div className="text-center">
                     <span className="text-xs text-[#8B949E] font-medium">
-                      {profile.streak > 0 ? `🔥 ${profile.streak}` : `${profile.streak}`}
+                      {profile.prediction_streak > 0 ? `🔥 ${profile.prediction_streak}` : `${profile.prediction_streak}`}
                     </span>
                   </div>
 
@@ -416,7 +417,7 @@ export default function LeaderboardPage() {
             <div className="grid grid-cols-[3rem_1fr_5rem_4rem_4rem] gap-2 items-center text-[#8B949E]">
               <div className="text-center text-sm font-bold">…</div>
               <div className="flex items-center gap-2.5">
-                <Avatar url={userProfile.avatar_url} name={userProfile.username} />
+                <Avatar name={userProfile.username} />
                 <span className="text-sm font-semibold text-[#F0A500] truncate">
                   {userProfile.username}
                 </span>
@@ -425,7 +426,7 @@ export default function LeaderboardPage() {
                 {displayPts(userProfile).toLocaleString()}
               </div>
               <div className="text-center text-xs">
-                {userProfile.streak > 0 ? `🔥 ${userProfile.streak}` : `${userProfile.streak}`}
+                {userProfile.prediction_streak > 0 ? `🔥 ${userProfile.prediction_streak}` : `${userProfile.prediction_streak}`}
               </div>
               <div className="text-center text-xs text-[#58A6FF]">{userProfile.beat_ai_count}</div>
             </div>
