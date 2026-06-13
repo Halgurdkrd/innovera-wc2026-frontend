@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import type { Match } from '@/types'
 import type { Language } from './Navbar'
@@ -33,7 +34,14 @@ export default function MatchCard({ match, language }: MatchCardProps) {
   const confidence = confidenceLabel(match.ai_confidence ?? 0, language)
   const live = statusBadge(match.status, language)
   const matchId = match.match_id ?? match.id ?? ''
-  const timeStr = fmtMatchTime(match.match_date ?? match.match_time)
+
+  // Compute the local time string client-side only.
+  // toLocaleTimeString() uses the browser's timezone; running it during SSR
+  // would use the server's UTC timezone and cause a hydration mismatch.
+  const [timeStr, setTimeStr] = useState('--:--')
+  useEffect(() => {
+    setTimeStr(fmtMatchTime(match.match_date ?? match.match_time))
+  }, [match.match_date, match.match_time])
   const hasProbs = (match.home_win_probability ?? 0) > 0 || (match.away_win_probability ?? 0) > 0
   const n = (v: string | number) => localizeNum(v, language)
 
