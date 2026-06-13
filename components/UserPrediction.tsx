@@ -88,7 +88,11 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
       .eq('user_id', user.id)
       .eq('match_id', matchId)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('[UserPrediction] load failed:', error.message, error.code)
+          return
+        }
         if (!data) return
         const parsedOutcome = data.predicted_winner as Outcome
         const parts = (data.predicted_score as string | null)?.split('-')

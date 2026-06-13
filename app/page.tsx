@@ -60,14 +60,17 @@ export default function HomePage() {
     async function fetchData() {
       setLoading(true)
       try {
-        const today = new Date().toISOString().split('T')[0]
-        const tomorrow = new Date(Date.now() + 864e5).toISOString().split('T')[0]
+        // Use local calendar date, not UTC, so e.g. a 04:00 Baghdad match
+        // (01:00 UTC next day) correctly appears under "Today's Matches".
+        const now = new Date()
+        const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+        const dayEnd   = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString()
 
         const [matchRes, standingsRes, luckRes] = await Promise.all([
           // match_date is timestamptz — use gte/lt range not eq on plain date string
           supabasePublic.from('matches').select('*')
-            .gte('match_date', today + 'T00:00:00+00:00')
-            .lt('match_date', tomorrow + 'T00:00:00+00:00')
+            .gte('match_date', dayStart)
+            .lt('match_date', dayEnd)
             .order('match_date', { ascending: true }),    // match_time column does not exist
           supabasePublic.from('group_standings').select('*').order('group_name').order('position'),
           supabasePublic.from('luck_scores').select('*').order('luck_rating', { ascending: false }),

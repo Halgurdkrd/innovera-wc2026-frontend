@@ -63,7 +63,7 @@ async function upsertUserProfile(user: User) {
       total_points: 0,
       weekly_points: 0,
       beat_ai_count: 0,
-      streak: 0,
+      prediction_streak: 0,
     })
     if (error) console.error('[AuthContext] profile insert failed:', error.message, error.code)
   }
@@ -135,7 +135,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
+    // scope:'local' clears localStorage and fires SIGNED_OUT immediately without
+    // a server round-trip, so logout always succeeds even if the token is already
+    // expired or the network is down.
+    await supabase.auth.signOut({ scope: 'local' })
   }
 
   return (

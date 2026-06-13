@@ -3,8 +3,15 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-// Auth client — session-aware, used for user-specific queries
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Auth client — session-aware, used for user-specific queries.
+// Options are explicit so a Supabase library upgrade can't silently change them.
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+})
 
 // Public client — always sends the anon key, never the user JWT.
 // Use this for tables whose RLS only grants the `anon` role, so logged-in
