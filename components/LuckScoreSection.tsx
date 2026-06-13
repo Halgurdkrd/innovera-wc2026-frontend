@@ -24,6 +24,11 @@ const labels = {
   },
 }
 
+const KU_DIGITS = '٠١٢٣٤٥٦٧٨٩'
+function toKuDigits(s: string): string {
+  return s.replace(/\d/g, d => KU_DIGITS[parseInt(d)])
+}
+
 function luckDesc(score: LuckScore, language: Language): string {
   const goals = score.actual_goals ?? 0
   const xg = score.xg_total ?? 0
@@ -33,10 +38,10 @@ function luckDesc(score: LuckScore, language: Language): string {
 
   if (language === 'KU') {
     if (isLucky)
-      return `${goals} گۆڵی تۆمار کرد لە ${xg.toFixed(1)} چاوەڕوانکراو — تەواوکاری باش`
+      return toKuDigits(`${goals} گۆڵی تۆمار کرد لە ${xg.toFixed(1)} چاوەڕوانکراو — تەواوکاری باش`)
     if (isUnlucky)
-      return `دەرفەتی بەرامبەر بە ${xg.toFixed(1)} گۆڵ دروست کرد بەڵام تەنها ${goals}ی تۆمار کرد`
-    return `${goals} گۆڵی تۆمار کرد لە ${xg.toFixed(1)} چاوەڕوانکراو — ئەنجامی شایستە`
+      return toKuDigits(`دەرفەتی بەرامبەر بە ${xg.toFixed(1)} گۆڵ دروست کرد بەڵام تەنها ${goals}ی تۆمار کرد`)
+    return toKuDigits(`${goals} گۆڵی تۆمار کرد لە ${xg.toFixed(1)} چاوەڕوانکراو — ئەنجامی شایستە`)
   }
   if (isLucky)
     return `Scored ${goals} goals from just ${xg.toFixed(1)} expected — clinical finishing`
@@ -60,7 +65,7 @@ function ScoreCard({ score, rank, isLucky, language }: { score: LuckScore; rank:
       <img src={teamFlagUrl(score.team_name)} alt={score.team_name} className="h-6 w-auto rounded-sm flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-[#E6EDF3] truncate">{score.team_name}</p>
-        <p className="text-[11px] text-[#8B949E] leading-snug">{luckDesc(score, language)}</p>
+        <p className="text-[11px] text-[#8B949E] leading-snug" dir={language === 'KU' ? 'rtl' : undefined}>{luckDesc(score, language)}</p>
       </div>
       <span
         className="text-sm font-bold flex-shrink-0"
