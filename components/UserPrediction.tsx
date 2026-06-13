@@ -30,23 +30,24 @@ const labels = {
     awayWin: 'Away Win',
     score: 'Predicted Score',
     lock: 'Lock My Prediction',
-    update: 'Update Prediction',
-    locked: 'Prediction Locked ✓',
+    locked: '🔒 Prediction Locked',
     saving: 'Saving…',
     pastKickoff: 'Predictions closed',
-    savedBadge: 'Prediction Saved ✓',
     loginHint: 'Login to save your prediction',
     loginBtn: 'Login',
     placeholder: '--',
     vs: '-',
     scoreRequired: 'Enter your predicted score to lock',
     confirmTitle: 'Confirm Your Prediction',
-    confirmNote: 'Once locked, this cannot be changed before kick-off.',
+    confirmNote: 'Once locked, this cannot be changed.',
     confirmYes: 'Yes, Lock It',
     confirmCancel: 'Cancel',
     confirmScore: 'Score',
     confirmWin: 'Win',
-    saveFailed: 'Save failed — please try again',
+    saveFailed: 'Save failed',
+    lockedPrefix: 'Your prediction: ',
+    lockedScore: 'Score',
+    win: 'Win',
   },
   KU: {
     title: 'پێشبینیەکەت',
@@ -55,23 +56,24 @@ const labels = {
     awayWin: 'میوان دەبەرێت',
     score: 'ئەنجامی پێشبینیکراو',
     lock: 'پێشبینیەکەم قووڵ بکە',
-    update: 'نوێکردنەوەی پێشبینی',
-    locked: 'پێشبینی قووڵکراو ✓',
+    locked: '🔒 پێشبینی قووڵکراو',
     saving: 'پاراستن…',
     pastKickoff: 'پێشبینی داخرابوو',
-    savedBadge: 'پێشبینی پارێزراو ✓',
     loginHint: 'بچە ژوورەوە بۆ پاراستنی پێشبینیەکەت',
     loginBtn: 'چوونەژوورەوە',
     placeholder: '--',
     vs: '-',
     scoreRequired: 'خاڵی پێشبینیت بنووسە بۆ قفڵکردن',
     confirmTitle: 'پێشبینیەکەت دڵنیا بکەرەوە',
-    confirmNote: 'دوای قووڵکردن، ناتوانرێتەوە بگوورێت پێش دەستپێکردنی یارییەکە.',
+    confirmNote: 'دوای قووڵکردن، ناتوانرێتەوە بگوورێت.',
     confirmYes: 'بەڵێ، قووڵی بکە',
     confirmCancel: 'پاشگەزبوونەوە',
     confirmScore: 'خاڵ',
     confirmWin: 'دەبەرێت',
-    saveFailed: 'پاراستن سەرنەکەوت — دووبارە هەوڵ بدەرەوە',
+    saveFailed: 'پاراستن سەرنەکەوت',
+    lockedPrefix: 'پێشبینیەکەت: ',
+    lockedScore: 'خاڵ',
+    win: 'دەبەرێت',
   },
 }
 
@@ -96,7 +98,7 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
   const pastKickoff = kickoffDate ? kickoffDate < new Date() : false
 
   // Load existing prediction on mount.
-  // Pre-fills the form; only locks permanently if kickoff has already passed.
+  // Always locks the form if a saved prediction exists — predictions are permanent.
   useEffect(() => {
     if (authLoading || !user || !matchId) return
     console.log('[UserPrediction] loading prediction for match', matchId, 'user', user.id)
@@ -121,10 +123,7 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
         setHomeScore(hs)
         setAwayScore(as_)
         setHasSavedPrediction(true)
-        // Lock the form permanently only if kickoff has already passed
-        const kd = parseMatchDate(match.match_date ?? match.match_time)
-        if (kd && kd < new Date()) setLocked(true)
-        // Notify parent so PreMatchCard reflects this prediction
+        setLocked(true)
         if (parsedOutcome) {
           onLock?.({
             outcome: parsedOutcome,
@@ -187,8 +186,9 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
       )
       if (error) {
         console.error('[UserPrediction] upsert failed:', error.message, '| code:', error.code)
+        console.error('[UserPrediction] FULL ERROR:', JSON.stringify(error))
         setLocked(false)
-        setSaveError(t.saveFailed)
+        setSaveError(`${t.saveFailed}: ${error.message || error.code || 'unknown'}`)
         return
       }
 
@@ -205,13 +205,14 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
         setHasSavedPrediction(true)
       } else {
         console.error('[UserPrediction] save verification failed!', verifyErr)
+        console.error('[UserPrediction] FULL VERIFY ERROR:', JSON.stringify(verifyErr))
         setLocked(false)
-        setSaveError(t.saveFailed)
+        setSaveError(`${t.saveFailed}: ${verifyErr?.message || verifyErr?.code || 'verification failed'}`)
       }
     } catch (err) {
       console.error('[UserPrediction] unexpected error:', err)
       setLocked(false)
-      setSaveError(t.saveFailed)
+      setSaveError(`${t.saveFailed}: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setSaving(false)
     }
@@ -230,23 +231,24 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
     return `${base} border-[#30363D] text-[#8B949E] hover:border-[#F0A500]/50 hover:text-[#E6EDF3]`
   }
 
+  // Human-readable summary of the locked prediction
+  const outcomeLabel =
+    outcome === 'home'
+      ? `${match.home_team} ${t.win}`
+      : outcome === 'away'
+      ? `${match.away_team} ${t.win}`
+      : t.draw
+
   return (
     <div id="match-prediction-card" className="bg-[#161B22] border border-[#30363D] rounded-xl p-5 space-y-5">
       {/* Title */}
       <div className="flex items-center justify-between">
         <h3 className="text-base font-bold text-[#E6EDF3]">{t.title}</h3>
-        <div className="flex items-center gap-2">
-          {hasSavedPrediction && !locked && !pastKickoff && (
-            <span className="text-xs text-[#2EA043] font-medium bg-[#2EA043]/10 border border-[#2EA043]/30 px-2.5 py-0.5 rounded-full">
-              {t.savedBadge}
-            </span>
-          )}
-          {pastKickoff && !locked && (
-            <span className="text-xs text-[#F85149] font-medium bg-[#F85149]/10 border border-[#F85149]/30 px-2.5 py-0.5 rounded-full">
-              {t.pastKickoff}
-            </span>
-          )}
-        </div>
+        {pastKickoff && !hasSavedPrediction && (
+          <span className="text-xs text-[#F85149] font-medium bg-[#F85149]/10 border border-[#F85149]/30 px-2.5 py-0.5 rounded-full">
+            {t.pastKickoff}
+          </span>
+        )}
       </div>
 
       {/* Login hint (non-blocking) */}
@@ -333,25 +335,43 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
         <p className="text-xs text-[#F0A500] text-center">{t.scoreRequired}</p>
       )}
 
-      {/* Save error */}
-      {saveError && (
-        <p className="text-xs text-[#F85149] text-center">{saveError}</p>
+      {/* Locked summary — shown once the prediction is permanently saved */}
+      {locked && hasSavedPrediction && (
+        <div className="bg-[#2EA043]/5 border border-[#2EA043]/25 rounded-lg px-3 py-2 text-xs text-[#8B949E]">
+          <span className="font-semibold text-[#2EA043]">{t.lockedPrefix}</span>
+          <span className="text-[#E6EDF3]">{outcomeLabel}</span>
+          {scoresEntered && (
+            <span> · {t.lockedScore}: <span className="text-[#E6EDF3] font-semibold">{n(homeScore)} – {n(awayScore)}</span></span>
+          )}
+        </div>
       )}
 
-      {/* Lock / Update button */}
-      <button
-        onClick={handleLockClick}
-        disabled={!canLock || saving}
-        className={`w-full py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
-          locked
-            ? 'bg-[#2EA043]/20 border border-[#2EA043]/40 text-[#2EA043] cursor-default'
-            : canLock
-            ? 'bg-[#F0A500] text-[#0D1117] hover:bg-[#D4920A] shadow-lg shadow-[#F0A500]/20'
-            : 'bg-[#30363D]/50 text-[#8B949E] cursor-not-allowed'
-        }`}
-      >
-        {saving ? t.saving : locked ? t.locked : hasSavedPrediction ? t.update : t.lock}
-      </button>
+      {/* Save error */}
+      {saveError && (
+        <p className="text-xs text-[#F85149] text-center break-all">{saveError}</p>
+      )}
+
+      {/* Lock button — hidden once locked with a saved prediction */}
+      {!hasSavedPrediction && (
+        <button
+          onClick={handleLockClick}
+          disabled={!canLock || saving}
+          className={`w-full py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
+            canLock
+              ? 'bg-[#F0A500] text-[#0D1117] hover:bg-[#D4920A] shadow-lg shadow-[#F0A500]/20'
+              : 'bg-[#30363D]/50 text-[#8B949E] cursor-not-allowed'
+          }`}
+        >
+          {saving ? t.saving : t.lock}
+        </button>
+      )}
+
+      {/* Permanent locked state banner — replaces the button after save */}
+      {hasSavedPrediction && (
+        <div className="w-full py-3 rounded-xl font-bold text-sm text-center bg-[#2EA043]/20 border border-[#2EA043]/40 text-[#2EA043] select-none">
+          {t.locked}
+        </div>
+      )}
 
       {/* Confirmation modal */}
       {showConfirm && (
