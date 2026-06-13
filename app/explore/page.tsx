@@ -313,7 +313,7 @@ function ExplorePageContent() {
 
   const t = labels[language]
 
-  const ENABLE_LUCK_SCORES = false
+  const ENABLE_LUCK_SCORES = true
   const ENABLE_BRACKET     = false
 
   // ── Fetch Supabase data ───────────────────────────────────────────────────

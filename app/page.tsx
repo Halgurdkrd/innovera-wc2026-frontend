@@ -60,17 +60,17 @@ export default function HomePage() {
     async function fetchData() {
       setLoading(true)
       try {
-        const today = new Date().toISOString().split('T')[0]           // '2026-06-11'
+        const today = new Date().toISOString().split('T')[0]
         const tomorrow = new Date(Date.now() + 864e5).toISOString().split('T')[0]
-        const yesterday = new Date(Date.now() - 864e5).toISOString().split('T')[0]
 
-        const [matchRes, standingsRes] = await Promise.all([
+        const [matchRes, standingsRes, luckRes] = await Promise.all([
           // match_date is timestamptz — use gte/lt range not eq on plain date string
           supabasePublic.from('matches').select('*')
             .gte('match_date', today + 'T00:00:00+00:00')
             .lt('match_date', tomorrow + 'T00:00:00+00:00')
             .order('match_date', { ascending: true }),    // match_time column does not exist
           supabasePublic.from('group_standings').select('*').order('group_name').order('position'),
+          supabasePublic.from('luck_scores').select('*').order('match_date', { ascending: false }),
         ])
 
         if (matchRes.data) {
@@ -84,9 +84,7 @@ export default function HomePage() {
           setMatches(normalized)
         }
         if (standingsRes.data) setStandings(standingsRes.data as GroupStanding[])
-
-        // luck_scores disabled until table is in schema — set to empty
-        void yesterday  // referenced to avoid lint warning
+        if (luckRes.data) setLuckScores(luckRes.data as LuckScore[])
       } catch (err) {
         console.error('[home] fetch error:', err)
       } finally {
