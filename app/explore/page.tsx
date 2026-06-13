@@ -290,18 +290,18 @@ function ExplorePageContent() {
   const simulation = useMemo(() => buildTournamentSim(rawLiveSim, standings), [rawLiveSim, standings])
   const preSim    = useMemo(() => buildTournamentSim(rawPreSim, standings), [rawPreSim, standings])
 
-  // qualify% delta: live minus pre-tournament, only for groups with real matches played
+  // qualify% delta: live minus pre-tournament, only for teams that have actually played
   const qualifyDiff = useMemo<Record<string, number>>(() => {
     if (!simulation || !preSim) return {}
-    const playedGroups = new Set(standings.filter((r) => r.played > 0).map((r) => r.group_name))
+    const playedTeams = new Set(standings.filter((r) => r.played > 0).map((r) => r.team_name))
     const preMap: Record<string, number> = {}
     for (const g of (preSim.groups ?? [])) {
       for (const t of (g.teams ?? [])) preMap[t.team] = t.qualify_prob
     }
     const diff: Record<string, number> = {}
     for (const g of (simulation.groups ?? [])) {
-      if (!playedGroups.has(g.group)) continue  // skip groups with no real results yet
       for (const t of (g.teams ?? [])) {
+        if (!playedTeams.has(t.team)) continue  // skip teams that haven't played yet
         if (preMap[t.team] != null) diff[t.team] = t.qualify_prob - preMap[t.team]
       }
     }
