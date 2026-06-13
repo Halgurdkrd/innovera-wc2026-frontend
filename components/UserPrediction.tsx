@@ -113,6 +113,15 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, matchId])
 
+  // Derive winner from score — scores are the source of truth
+  useEffect(() => {
+    if (locked || homeScore === '' || awayScore === '') return
+    const h = parseInt(homeScore, 10)
+    const a = parseInt(awayScore, 10)
+    if (isNaN(h) || isNaN(a)) return
+    setOutcome(h === a ? 'draw' : h > a ? 'home' : 'away')
+  }, [homeScore, awayScore, locked])
+
   const scoresEntered = homeScore !== '' && awayScore !== ''
   const canLock = !locked && !pastKickoff && outcome !== null && scoresEntered
 
