@@ -6,6 +6,7 @@ import type { Language } from './Navbar'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { parseMatchDate } from '@/lib/dates'
+import { localizeNum } from '@/lib/numbers'
 
 export interface LockedPrediction {
   outcome: 'home' | 'draw' | 'away'
@@ -38,8 +39,14 @@ const labels = {
     loginBtn: 'Login',
     placeholder: '--',
     vs: '-',
-    saveError: 'Saved locally — login to sync',
     scoreRequired: 'Enter your predicted score to lock',
+    confirmTitle: 'Confirm Your Prediction',
+    confirmNote: 'Once locked, this cannot be changed before kick-off.',
+    confirmYes: 'Yes, Lock It',
+    confirmCancel: 'Cancel',
+    confirmScore: 'Score',
+    confirmWin: 'Win',
+    saveFailed: 'Save failed — please try again',
   },
   KU: {
     title: 'پێشبینیەکەت',
@@ -57,8 +64,14 @@ const labels = {
     loginBtn: 'چوونەژوورەوە',
     placeholder: '--',
     vs: '-',
-    saveError: 'لە ئامێرەکەت پارێزرا — بچە ژوورەوە بۆ هاوکێشانەوە',
     scoreRequired: 'خاڵی پێشبینیت بنووسە بۆ قفڵکردن',
+    confirmTitle: 'پێشبینیەکەت دڵنیا بکەرەوە',
+    confirmNote: 'دوای قووڵکردن، ناتوانرێتەوە بگوورێت پێش دەستپێکردنی یارییەکە.',
+    confirmYes: 'بەڵێ، قووڵی بکە',
+    confirmCancel: 'پاشگەزبوونەوە',
+    confirmScore: 'خاڵ',
+    confirmWin: 'دەبەرێت',
+    saveFailed: 'پاراستن سەرنەکەوت — دووبارە هەوڵ بدەرەوە',
   },
 }
 
@@ -72,6 +85,10 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
   const [locked, setLocked] = useState(false)
   const [saving, setSaving] = useState(false)
   const [hasSavedPrediction, setHasSavedPrediction] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [saveError, setSaveError] = useState('')
+
+  const n = (v: string | number) => localizeNum(v, language)
 
   const matchId = match.match_id ?? match.id
 
@@ -82,6 +99,7 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
   // Pre-fills the form; only locks permanently if kickoff has already passed.
   useEffect(() => {
     if (!user || !matchId) return
+    console.log('[UserPrediction] loading prediction for match', matchId, 'user', user.id)
     supabase
       .from('user_predictions')
       .select('predicted_winner,predicted_score')
@@ -93,6 +111,7 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
           console.error('[UserPrediction] load failed:', error.message, error.code)
           return
         }
+        console.log('[UserPrediction] existing prediction:', data)
         if (!data) return
         const parsedOutcome = data.predicted_winner as Outcome
         const parts = (data.predicted_score as string | null)?.split('-')
@@ -129,8 +148,19 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
   const scoresEntered = homeScore !== '' && awayScore !== ''
   const canLock = !locked && !pastKickoff && outcome !== null && scoresEntered
 
-  const handleLock = async () => {
+  // Button click: show confirmation dialog instead of saving immediately
+  const handleLockClick = () => {
     if (!canLock) return
+    setSaveError('')
+    setShowConfirm(true)
+  }
+
+  // Called after user confirms — does the actual Supabase upsert + verification
+  const handleLock = async () => {
+    setShowConfirm(false)
+    if (!canLock) return
+
+    // Optimistically lock the form for UX while saving
     setLocked(true)
     onLock?.({
       outcome: outcome as 'home' | 'draw' | 'away',
@@ -139,7 +169,6 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
     })
 
     if (!user) return
-
     if (!matchId) {
       console.error('[UserPrediction] match has no match_id — cannot persist')
       return
@@ -157,12 +186,32 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
         { onConflict: 'user_id,match_id' }
       )
       if (error) {
-        console.error('[UserPrediction] upsert failed:', error.message, '| code:', error.code, '| details:', error.details)
-      } else {
+        console.error('[UserPrediction] upsert failed:', error.message, '| code:', error.code)
+        setLocked(false)
+        setSaveError(t.saveFailed)
+        return
+      }
+
+      // Verify the row actually landed
+      const { data: verify, error: verifyErr } = await supabase
+        .from('user_predictions')
+        .select('predicted_winner,predicted_score')
+        .eq('user_id', user.id)
+        .eq('match_id', matchId)
+        .maybeSingle()
+
+      if (verify) {
+        console.log('[UserPrediction] verified save:', verify)
         setHasSavedPrediction(true)
+      } else {
+        console.error('[UserPrediction] save verification failed!', verifyErr)
+        setLocked(false)
+        setSaveError(t.saveFailed)
       }
     } catch (err) {
       console.error('[UserPrediction] unexpected error:', err)
+      setLocked(false)
+      setSaveError(t.saveFailed)
     } finally {
       setSaving(false)
     }
@@ -284,9 +333,14 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
         <p className="text-xs text-[#F0A500] text-center">{t.scoreRequired}</p>
       )}
 
+      {/* Save error */}
+      {saveError && (
+        <p className="text-xs text-[#F85149] text-center">{saveError}</p>
+      )}
+
       {/* Lock / Update button */}
       <button
-        onClick={handleLock}
+        onClick={handleLockClick}
         disabled={!canLock || saving}
         className={`w-full py-3 rounded-xl font-bold text-sm transition-all duration-200 ${
           locked
@@ -298,6 +352,57 @@ export default function UserPrediction({ match, language, onLock }: UserPredicti
       >
         {saving ? t.saving : locked ? t.locked : hasSavedPrediction ? t.update : t.lock}
       </button>
+
+      {/* Confirmation modal */}
+      {showConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowConfirm(false)}
+        >
+          <div
+            className="bg-[#161B22] border border-[#30363D] rounded-2xl p-6 max-w-sm w-full space-y-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center space-y-3">
+              <span className="text-3xl">🔒</span>
+              <h3 className="text-base font-bold text-[#E6EDF3]">{t.confirmTitle}</h3>
+
+              {/* Prediction summary */}
+              <div className="bg-[#0D1117] border border-[#30363D] rounded-xl p-3 space-y-1 text-sm">
+                <p className="font-semibold text-[#F0A500]">
+                  {outcome === 'home'
+                    ? `${match.home_team} ${t.confirmWin}`
+                    : outcome === 'away'
+                    ? `${match.away_team} ${t.confirmWin}`
+                    : t.draw}
+                </p>
+                {scoresEntered && (
+                  <p className="text-[#8B949E]">
+                    {t.confirmScore}: {n(homeScore)} – {n(awayScore)}
+                  </p>
+                )}
+              </div>
+
+              <p className="text-xs text-[#8B949E]">{t.confirmNote}</p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl border border-[#30363D] text-sm font-semibold text-[#8B949E] hover:text-[#E6EDF3] hover:border-[#8B949E] transition-colors"
+              >
+                {t.confirmCancel}
+              </button>
+              <button
+                onClick={handleLock}
+                className="flex-1 py-2.5 rounded-xl bg-[#F0A500] text-sm font-bold text-[#0D1117] hover:bg-[#D4920A] transition-colors shadow-lg shadow-[#F0A500]/20"
+              >
+                {t.confirmYes}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
