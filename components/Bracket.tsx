@@ -1,8 +1,8 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import type { BracketSlot } from '@/types'
 import type { Language } from './Navbar'
-import { fmtMatchDate } from '@/lib/dates'
 
 interface BracketProps {
   slots: BracketSlot[]
@@ -14,6 +14,16 @@ const ROUNDS_KU = ['دۆری ٣٢', 'دۆری ١٦', 'چارەک فینال', '�
 
 function SlotCard({ slot, language }: { slot: BracketSlot; language: Language }) {
   const isDone = slot.winner !== undefined
+  const [displayDate, setDisplayDate] = useState('')
+  useEffect(() => {
+    if (!slot.match_date) return
+    let s = slot.match_date.replace(' ', 'T')
+    if (!s.endsWith('Z') && !s.includes('+')) s += 'Z'
+    const d = new Date(s)
+    if (!isNaN(d.getTime())) {
+      setDisplayDate(d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }))
+    }
+  }, [slot.match_date])
 
   return (
     <div
@@ -58,10 +68,10 @@ function SlotCard({ slot, language }: { slot: BracketSlot; language: Language })
         )}
       </div>
       {/* Date */}
-      {slot.match_date && (
+      {slot.match_date && displayDate && (
         <div className="px-2.5 py-1 bg-[#161B22] border-t border-[#30363D]">
           <span className="text-[9px] text-[#8B949E]">
-            {fmtMatchDate(slot.match_date)}
+            {displayDate}
           </span>
         </div>
       )}

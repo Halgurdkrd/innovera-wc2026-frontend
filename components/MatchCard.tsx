@@ -5,7 +5,6 @@ import Link from 'next/link'
 import type { Match } from '@/types'
 import type { Language } from './Navbar'
 import { teamFlagUrl } from '@/lib/flags'
-import { fmtMatchTime } from '@/lib/dates'
 import { localizeNum } from '@/lib/numbers'
 
 interface MatchCardProps {
@@ -35,12 +34,15 @@ export default function MatchCard({ match, language }: MatchCardProps) {
   const live = statusBadge(match.status, language)
   const matchId = match.match_id ?? match.id ?? ''
 
-  // Compute the local time string client-side only.
-  // toLocaleTimeString() uses the browser's timezone; running it during SSR
-  // would use the server's UTC timezone and cause a hydration mismatch.
-  const [timeStr, setTimeStr] = useState('--:--')
+  const [displayTime, setDisplayTime] = useState('')
   useEffect(() => {
-    setTimeStr(fmtMatchTime(match.match_date ?? match.match_time))
+    const raw = match.match_date || match.match_time || ''
+    let s = raw.replace(' ', 'T')
+    if (!s.endsWith('Z') && !s.includes('+')) s += 'Z'
+    const d = new Date(s)
+    if (!isNaN(d.getTime())) {
+      setDisplayTime(d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+    }
   }, [match.match_date, match.match_time])
   const hasProbs = (match.home_win_probability ?? 0) > 0 || (match.away_win_probability ?? 0) > 0
   const n = (v: string | number) => localizeNum(v, language)
@@ -52,7 +54,7 @@ export default function MatchCard({ match, language }: MatchCardProps) {
         {live ? (
           <span className="text-xs font-bold" style={{ color: live.color }}>{live.label}</span>
         ) : (
-          <span className="text-xs text-[#8B949E] font-medium">{timeStr}</span>
+          <span className="text-xs text-[#8B949E] font-medium">{displayTime || '...'}</span>
         )}
         <div className="flex items-center gap-1.5">
           {match.lineup_updated && (

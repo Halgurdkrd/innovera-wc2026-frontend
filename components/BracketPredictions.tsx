@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import type {
   TournamentSimulation,
   TournamentBracketMatch,
@@ -12,7 +12,6 @@ import type { Language } from './Navbar'
 import WinnerProbsList from './WinnerProbsList'
 import { Sk, SkProbRow } from './SkeletonCard'
 import { API_BASE } from '@/lib/api'
-import { fmtMatchDate } from '@/lib/dates'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -291,6 +290,16 @@ function MatchModal({ match, t, onClose }: {
   const isPlayed = !!match.actual_winner
   const probA = match.win_prob_a != null ? Math.round(match.win_prob_a * 100) : 50
   const probB = match.win_prob_b != null ? Math.round(match.win_prob_b * 100) : 50
+  const [displayDate, setDisplayDate] = useState('')
+  useEffect(() => {
+    if (!match.match_date) return
+    let s = match.match_date.replace(' ', 'T')
+    if (!s.endsWith('Z') && !s.includes('+')) s += 'Z'
+    const d = new Date(s)
+    if (!isNaN(d.getTime())) {
+      setDisplayDate(d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }))
+    }
+  }, [match.match_date])
 
   const teams = [
     { name: match.team_a, flag: match.team_a_flag, prob: probA },
@@ -371,9 +380,9 @@ function MatchModal({ match, t, onClose }: {
           </div>
         )}
 
-        {match.match_date && (
+        {displayDate && (
           <p className="text-[10px] text-[#30363D]">
-            {fmtMatchDate(match.match_date)}
+            {displayDate}
           </p>
         )}
 

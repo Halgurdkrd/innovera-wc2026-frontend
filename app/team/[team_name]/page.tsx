@@ -139,9 +139,18 @@ function FixtureCard({ match, teamName, lang }: { match: Match; teamName: string
   const opponent = isHome ? match.away_team : match.home_team
   const opponentFlag = FLAG_MAP[opponent] ?? '🏳️'
   const datetime = match.match_date ?? match.match_time
-  const utcDatetime = datetime ? (datetime.endsWith('Z') || datetime.includes('+') ? datetime : datetime + 'Z') : null
-  const dateStr = utcDatetime ? new Date(utcDatetime).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : ''
-  const timeStr = utcDatetime ? new Date(utcDatetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+  const [displayDate, setDisplayDate] = useState('')
+  const [displayTime, setDisplayTime] = useState('')
+  useEffect(() => {
+    if (!datetime) return
+    let s = datetime.replace(' ', 'T')
+    if (!s.endsWith('Z') && !s.includes('+')) s += 'Z'
+    const d = new Date(s)
+    if (!isNaN(d.getTime())) {
+      setDisplayDate(d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }))
+      setDisplayTime(d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+    }
+  }, [datetime])
   const matchId = match.match_id ?? match.id
 
   return (
@@ -156,7 +165,7 @@ function FixtureCard({ match, teamName, lang }: { match: Match; teamName: string
             <p className="text-sm font-semibold text-[#E6EDF3] truncate">
               {isHome ? `${t.vs} ${opponent}` : `${t.vs} ${opponent}`}
             </p>
-            <p className="text-xs text-[#8B949E]">{dateStr} · {timeStr}</p>
+            <p className="text-xs text-[#8B949E]">{displayDate} · {displayTime || '...'}</p>
             {match.venue && <p className="text-xs text-[#8B949E] truncate">{match.venue}</p>}
           </div>
         </div>

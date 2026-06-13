@@ -194,6 +194,17 @@ function PredCard({ pred, lang }: { pred: UserPrediction; lang: 'EN' | 'KU' }) {
 
   const borderColor = isCorrect ? 'border-l-[#2EA043]' : isWrong ? 'border-l-[#F85149]' : 'border-l-[#F0A500]'
 
+  const [displayDate, setDisplayDate] = useState('')
+  useEffect(() => {
+    if (!m?.match_date) return
+    let s = m.match_date.replace(' ', 'T')
+    if (!s.endsWith('Z') && !s.includes('+')) s += 'Z'
+    const d = new Date(s)
+    if (!isNaN(d.getTime())) {
+      setDisplayDate(d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }))
+    }
+  }, [m?.match_date])
+
   return (
     <div className={`bg-[#161B22] border border-[#30363D] border-l-2 ${borderColor} rounded-xl p-4 space-y-3`}>
       {/* Teams */}
@@ -232,9 +243,9 @@ function PredCard({ pred, lang }: { pred: UserPrediction; lang: 'EN' | 'KU' }) {
       </div>
 
       {/* Date */}
-      {m?.match_date && (
+      {displayDate && (
         <p className="text-[10px] text-[#30363D]">
-          {fmtMatchDate(m.match_date)}
+          {displayDate}
         </p>
       )}
     </div>
