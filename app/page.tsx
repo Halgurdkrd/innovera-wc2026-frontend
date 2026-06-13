@@ -70,7 +70,7 @@ export default function HomePage() {
             .lt('match_date', tomorrow + 'T00:00:00+00:00')
             .order('match_date', { ascending: true }),    // match_time column does not exist
           supabasePublic.from('group_standings').select('*').order('group_name').order('position'),
-          supabasePublic.from('luck_scores').select('*').order('match_date', { ascending: false }),
+          supabasePublic.from('luck_scores').select('*').order('luck_rating', { ascending: false }),
         ])
 
         if (matchRes.data) {
