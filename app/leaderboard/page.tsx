@@ -255,12 +255,12 @@ export default function LeaderboardPage() {
           ))}
         </div>
 
-        {/* Preview-mode notice */}
+        {/* Test-mode notice */}
         <div className="bg-[#58A6FF]/10 border border-[#58A6FF]/30 rounded-xl px-4 py-3">
           <p className="text-sm text-[#58A6FF]">
             {language === 'KU'
-              ? '🧪 خشتەی پلەبەندی لە دۆخی تاقیکردنەوەدایە. ژمارەکردنی خاڵی ڕەسمی لە ١٧ی حوزەیران دەست پێدەکات پاش ئەوەی هەموو تیمەکان یاری یەکەمیان تەواو دەکەن.'
-              : '🧪 Leaderboard is in preview mode. Official point calculations begin June 17 after all teams complete their first match, ensuring fair competition.'}
+              ? '🧪 دۆخی تاقیکردنەوە — خاڵەکان بۆ تاقیکردنەوە تۆمار دەکرێن. پێشبڕکێی فەرمی لە ١٧ی حوزەیران دەست پێدەکات.'
+              : '🧪 Test Mode — Points are being tracked for testing. Official competition begins June 17 with a full reset for fair play.'}
           </p>
         </div>
 
