@@ -28,12 +28,14 @@ export interface Match {
 
 export interface LuckScore {
   id: string
+  match_id: string
   team_name: string
   team_flag?: string
-  luck_score: number
-  match_date: string
-  result: 'win' | 'draw' | 'loss'
-  expected_result: string
+  luck_rating: number
+  luck_label?: string
+  luck_delta?: number
+  actual_goals?: number
+  xg_total?: number
 }
 
 export interface GroupStanding {

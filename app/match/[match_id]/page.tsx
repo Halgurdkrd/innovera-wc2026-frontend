@@ -302,9 +302,9 @@ export default function MatchDetailPage() {
             // fire-and-forget — a 400 from luck_scores never blocks the prediction section
             void (async () => {
               try {
+                const mid = m.match_id ?? m.id
                 const { data, error } = await supabasePublic.from('luck_scores').select('*')
-                  .in('team_name', [m.home_team, m.away_team])
-                  .eq('match_date', matchDateStr)
+                  .eq('match_id', mid)
                 if (!error && data) {
                   const rows = data as LuckScore[]
                   setHomeLuck(rows.find(r => r.team_name === m.home_team) ?? null)
@@ -816,8 +816,8 @@ export default function MatchDetailPage() {
                   : (match.home_score ?? 0) === (match.away_score ?? 0)
                   : undefined
               }
-              homeLuckScore={homeLuck?.luck_score}
-              awayLuckScore={awayLuck?.luck_score}
+              homeLuckScore={homeLuck?.luck_rating}
+              awayLuckScore={awayLuck?.luck_rating}
               isLoggedIn={!!user}
               language={language}
             />
@@ -841,8 +841,8 @@ export default function MatchDetailPage() {
                         {match.home_team}
                       </p>
                       <LuckScoreBar
-                        score={homeLuck.luck_score}
-                        label={luckLabel(homeLuck.luck_score)}
+                        score={homeLuck.luck_rating}
+                        label={luckLabel(homeLuck.luck_rating)}
                         language={language}
                       />
                     </div>
@@ -854,8 +854,8 @@ export default function MatchDetailPage() {
                         {match.away_team}
                       </p>
                       <LuckScoreBar
-                        score={awayLuck.luck_score}
-                        label={luckLabel(awayLuck.luck_score)}
+                        score={awayLuck.luck_rating}
+                        label={luckLabel(awayLuck.luck_rating)}
                         language={language}
                       />
                     </div>

@@ -38,13 +38,13 @@ function ScoreCard({ score, rank, isLucky }: { score: LuckScore; rank: number; i
       <span className="text-xl flex-shrink-0">{score.team_flag || '🏳️'}</span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-[#E6EDF3] truncate">{score.team_name}</p>
-        <p className="text-xs text-[#8B949E] capitalize">{score.result}</p>
+        <p className="text-xs text-[#8B949E] capitalize">{score.luck_label ?? ''}</p>
       </div>
       <span
         className="text-sm font-bold flex-shrink-0"
         style={{ color }}
       >
-        {sign}{score.luck_score.toFixed(1)}
+        {sign}{(score.luck_rating ?? 0).toFixed(1)}
       </span>
     </div>
   )
@@ -53,9 +53,9 @@ function ScoreCard({ score, rank, isLucky }: { score: LuckScore; rank: number; i
 export default function LuckScoreSection({ scores, language }: LuckScoreSectionProps) {
   const t = labels[language]
 
-  const sorted = [...scores].sort((a, b) => b.luck_score - a.luck_score)
+  const sorted = [...scores].sort((a, b) => (b.luck_rating ?? 0) - (a.luck_rating ?? 0))
   const luckiest = sorted.slice(0, 3)
-  const unluckiest = [...scores].sort((a, b) => a.luck_score - b.luck_score).slice(0, 3)
+  const unluckiest = [...scores].sort((a, b) => (a.luck_rating ?? 0) - (b.luck_rating ?? 0)).slice(0, 3)
 
   return (
     <section className="space-y-4">

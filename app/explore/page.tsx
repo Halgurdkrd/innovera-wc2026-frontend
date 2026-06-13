@@ -404,7 +404,7 @@ function ExplorePageContent() {
     const luckMap: Record<string, number[]> = {}
     for (const ls of luckScores) {
       if (!luckMap[ls.team_name]) luckMap[ls.team_name] = []
-      luckMap[ls.team_name].push(ls.luck_score)
+      luckMap[ls.team_name].push(ls.luck_rating ?? 0)
     }
     const luckAvgMap: Record<string, number> = {}
     for (const [team, scores] of Object.entries(luckMap)) {
