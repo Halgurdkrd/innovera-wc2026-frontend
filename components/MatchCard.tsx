@@ -5,6 +5,7 @@ import type { Match } from '@/types'
 import type { Language } from './Navbar'
 import { teamFlagUrl } from '@/lib/flags'
 import { fmtMatchTime } from '@/lib/dates'
+import { localizeNum } from '@/lib/numbers'
 
 interface MatchCardProps {
   match: Match
@@ -34,6 +35,7 @@ export default function MatchCard({ match, language }: MatchCardProps) {
   const matchId = match.match_id ?? match.id ?? ''
   const timeStr = fmtMatchTime(match.match_date ?? match.match_time)
   const hasProbs = (match.home_win_probability ?? 0) > 0 || (match.away_win_probability ?? 0) > 0
+  const n = (v: string | number) => localizeNum(v, language)
 
   return (
     <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-5 flex flex-col gap-4 hover:border-[#F0A500]/40 transition-colors group">
@@ -69,9 +71,9 @@ export default function MatchCard({ match, language }: MatchCardProps) {
           <img src={teamFlagUrl(match.home_team)} alt={match.home_team} className="h-8 w-auto rounded-sm object-cover" loading="lazy" />
           <Link href={`/team/${encodeURIComponent(match.home_team)}`} className="text-sm font-semibold text-[#E6EDF3] hover:text-[#F0A500] leading-tight transition-colors" onClick={e => e.stopPropagation()}>{match.home_team}</Link>
           {match.status === 'finished' && match.home_score !== undefined ? (
-            <span className="text-xl font-extrabold text-[#E6EDF3]">{match.home_score}</span>
+            <span className="text-xl font-extrabold text-[#E6EDF3]">{n(match.home_score)}</span>
           ) : hasProbs ? (
-            <span className="text-xs font-bold text-[#F0A500]">{Math.round(match.home_win_probability ?? 0)}%</span>
+            <span className="text-xs font-bold text-[#F0A500]">{n(Math.round(match.home_win_probability ?? 0))}%</span>
           ) : null}
         </div>
 
@@ -79,7 +81,7 @@ export default function MatchCard({ match, language }: MatchCardProps) {
         <div className="flex flex-col items-center gap-1">
           {match.status === 'live' ? (
             <span className="text-lg font-extrabold text-[#F85149] animate-pulse">
-              {match.home_score ?? 0} — {match.away_score ?? 0}
+              {n(match.home_score ?? 0)} — {n(match.away_score ?? 0)}
             </span>
           ) : (
             <span className="text-lg font-bold text-[#30363D]">VS</span>
@@ -96,9 +98,9 @@ export default function MatchCard({ match, language }: MatchCardProps) {
           <img src={teamFlagUrl(match.away_team)} alt={match.away_team} className="h-8 w-auto rounded-sm object-cover" loading="lazy" />
           <Link href={`/team/${encodeURIComponent(match.away_team)}`} className="text-sm font-semibold text-[#E6EDF3] hover:text-[#F0A500] leading-tight transition-colors" onClick={e => e.stopPropagation()}>{match.away_team}</Link>
           {match.status === 'finished' && match.away_score !== undefined ? (
-            <span className="text-xl font-extrabold text-[#E6EDF3]">{match.away_score}</span>
+            <span className="text-xl font-extrabold text-[#E6EDF3]">{n(match.away_score)}</span>
           ) : hasProbs ? (
-            <span className="text-xs font-bold text-[#F0A500]">{Math.round(match.away_win_probability ?? 0)}%</span>
+            <span className="text-xs font-bold text-[#F0A500]">{n(Math.round(match.away_win_probability ?? 0))}%</span>
           ) : null}
         </div>
       </div>
@@ -121,9 +123,9 @@ export default function MatchCard({ match, language }: MatchCardProps) {
             />
           </div>
           <div className="flex justify-between text-[10px] text-[#8B949E]">
-            <span className="text-[#2EA043] font-semibold">{Math.round(match.home_win_probability ?? 0)}%</span>
-            <span className="flex-shrink-0 mx-1">{language === 'KU' ? 'یەکسان' : 'Draw'} {Math.round(match.draw_probability ?? 0)}%</span>
-            <span className="text-[#F85149] font-semibold">{Math.round(match.away_win_probability ?? 0)}%</span>
+            <span className="text-[#2EA043] font-semibold">{n(Math.round(match.home_win_probability ?? 0))}%</span>
+            <span className="flex-shrink-0 mx-1">{language === 'KU' ? 'یەکسان' : 'Draw'} {n(Math.round(match.draw_probability ?? 0))}%</span>
+            <span className="text-[#F85149] font-semibold">{n(Math.round(match.away_win_probability ?? 0))}%</span>
           </div>
         </div>
       )}

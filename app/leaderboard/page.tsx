@@ -6,6 +6,7 @@ import { useLanguage } from '@/hooks/useLanguage'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE } from '@/lib/api'
+import { localizeNum } from '@/lib/numbers'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -113,6 +114,7 @@ export default function LeaderboardPage() {
 
   const { user, openAuthModal } = useAuth()
   const t = labels[language]
+  const n = (v: string | number) => localizeNum(v, language)
 
   // Fetch top 50 + current user's profile
   const ENABLE_LEADERBOARD = true
@@ -287,10 +289,10 @@ export default function LeaderboardPage() {
               <p className="text-base font-bold text-[#E6EDF3] truncate">{userProfile.username}</p>
               <div className="flex items-center gap-3 mt-0.5">
                 <span className="text-sm font-bold text-[#F0A500]">
-                  {userInTop50 ? `#${userRank}` : t.outside50(userRank || 51)}
+                  {userInTop50 ? `#${n(userRank)}` : t.outside50(userRank || 51)}
                 </span>
                 <span className="text-xs text-[#8B949E]">
-                  {displayPts(userProfile)} {t.points}
+                  {n(displayPts(userProfile))} {t.points}
                 </span>
               </div>
             </div>
@@ -359,7 +361,7 @@ export default function LeaderboardPage() {
                           isCurrentUser ? 'text-[#F0A500]' : 'text-[#8B949E]'
                         }`}
                       >
-                        {rank}
+                        {n(rank)}
                       </span>
                     )}
                   </div>
@@ -388,21 +390,21 @@ export default function LeaderboardPage() {
                         isCurrentUser ? 'text-[#F0A500]' : 'text-[#E6EDF3]'
                       }`}
                     >
-                      {displayPts(profile).toLocaleString()}
+                      {n(displayPts(profile).toLocaleString())}
                     </span>
                   </div>
 
                   {/* Streak */}
                   <div className="text-center">
                     <span className="text-xs text-[#8B949E] font-medium">
-                      {profile.prediction_streak > 0 ? `🔥 ${profile.prediction_streak}` : `${profile.prediction_streak}`}
+                      {profile.prediction_streak > 0 ? `🔥 ${n(profile.prediction_streak)}` : n(profile.prediction_streak)}
                     </span>
                   </div>
 
                   {/* Beat AI */}
                   <div className="text-center">
                     <span className="text-xs text-[#58A6FF] font-medium">
-                      {profile.beat_ai_count}
+                      {n(profile.beat_ai_count)}
                     </span>
                   </div>
                 </div>
@@ -423,12 +425,12 @@ export default function LeaderboardPage() {
                 </span>
               </div>
               <div className="text-center text-sm font-extrabold text-[#F0A500] tabular-nums">
-                {displayPts(userProfile).toLocaleString()}
+                {n(displayPts(userProfile).toLocaleString())}
               </div>
               <div className="text-center text-xs">
-                {userProfile.prediction_streak > 0 ? `🔥 ${userProfile.prediction_streak}` : `${userProfile.prediction_streak}`}
+                {userProfile.prediction_streak > 0 ? `🔥 ${n(userProfile.prediction_streak)}` : n(userProfile.prediction_streak)}
               </div>
-              <div className="text-center text-xs text-[#58A6FF]">{userProfile.beat_ai_count}</div>
+              <div className="text-center text-xs text-[#58A6FF]">{n(userProfile.beat_ai_count)}</div>
             </div>
           </div>
         )}

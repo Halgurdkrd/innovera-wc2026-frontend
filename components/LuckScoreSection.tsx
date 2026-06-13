@@ -3,6 +3,7 @@
 import type { LuckScore } from '@/types'
 import type { Language } from './Navbar'
 import { teamFlagUrl } from '@/lib/flags'
+import { localizeNum } from '@/lib/numbers'
 
 interface LuckScoreSectionProps {
   scores: LuckScore[]
@@ -24,11 +25,6 @@ const labels = {
   },
 }
 
-const KU_DIGITS = '٠١٢٣٤٥٦٧٨٩'
-function toKuDigits(s: string): string {
-  return s.replace(/\d/g, d => KU_DIGITS[parseInt(d)])
-}
-
 function luckDesc(score: LuckScore, language: Language): string {
   const goals = score.actual_goals ?? 0
   const xg = score.xg_total ?? 0
@@ -38,10 +34,10 @@ function luckDesc(score: LuckScore, language: Language): string {
 
   if (language === 'KU') {
     if (isLucky)
-      return toKuDigits(`${goals} گۆڵی تۆمار کرد لە ${xg.toFixed(1)} چاوەڕوانکراو — تەواوکاری باش`)
+      return localizeNum(`${goals} گۆڵی تۆمار کرد لە ${xg.toFixed(1)} چاوەڕوانکراو — تەواوکاری باش`, 'KU')
     if (isUnlucky)
-      return toKuDigits(`دەرفەتی بەرامبەر بە ${xg.toFixed(1)} گۆڵ دروست کرد بەڵام تەنها ${goals}ی تۆمار کرد`)
-    return toKuDigits(`${goals} گۆڵی تۆمار کرد لە ${xg.toFixed(1)} چاوەڕوانکراو — ئەنجامی شایستە`)
+      return localizeNum(`دەرفەتی بەرامبەر بە ${xg.toFixed(1)} گۆڵ دروست کرد بەڵام تەنها ${goals}ی تۆمار کرد`, 'KU')
+    return localizeNum(`${goals} گۆڵی تۆمار کرد لە ${xg.toFixed(1)} چاوەڕوانکراو — ئەنجامی شایستە`, 'KU')
   }
   if (isLucky)
     return `Scored ${goals} goals from just ${xg.toFixed(1)} expected — clinical finishing`
@@ -53,6 +49,7 @@ function luckDesc(score: LuckScore, language: Language): string {
 function ScoreCard({ score, rank, isLucky, language }: { score: LuckScore; rank: number; isLucky: boolean; language: Language }) {
   const color = isLucky ? '#2EA043' : '#F85149'
   const sign = isLucky ? '+' : ''
+  const n = (v: string | number) => localizeNum(v, language)
 
   return (
     <div className="flex items-center gap-3 bg-[#0D1117] border border-[#30363D] rounded-lg p-3 hover:border-[#F0A500]/30 transition-colors">
@@ -60,7 +57,7 @@ function ScoreCard({ score, rank, isLucky, language }: { score: LuckScore; rank:
         className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold flex-shrink-0"
         style={{ backgroundColor: color + '20', color }}
       >
-        {rank}
+        {n(rank)}
       </span>
       <img src={teamFlagUrl(score.team_name)} alt={score.team_name} className="h-6 w-auto rounded-sm flex-shrink-0" />
       <div className="flex-1 min-w-0">
@@ -71,7 +68,7 @@ function ScoreCard({ score, rank, isLucky, language }: { score: LuckScore; rank:
         className="text-sm font-bold flex-shrink-0"
         style={{ color }}
       >
-        {sign}{(score.luck_rating ?? 0).toFixed(1)}
+        {sign}{n((score.luck_rating ?? 0).toFixed(1))}
       </span>
     </div>
   )

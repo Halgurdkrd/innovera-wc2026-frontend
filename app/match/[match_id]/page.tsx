@@ -21,6 +21,7 @@ import type { Match, Prediction, LuckScore } from '@/types'
 import { API_BASE } from '@/lib/api'
 import { teamFlagUrl, teamFlagEmoji } from '@/lib/flags'
 import { parseMatchDate, fmtMatchDateTime, fmtMatchDate } from '@/lib/dates'
+import { localizeNum } from '@/lib/numbers'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -135,32 +136,33 @@ function ProbBar({ homeProb, drawProb, awayProb, homeName, awayName, lang }: {
         <div className="bg-[#F85149] rounded-r-full transition-all duration-1000" style={{ width: `${awayProb}%` }} />
       </div>
       <div className="flex justify-between text-xs">
-        <span className="text-[#2EA043] font-semibold">{homeName} {Math.round(homeProb)}%</span>
-        <span className="text-[#8B949E]">{t.draw} {Math.round(drawProb)}%</span>
-        <span className="text-[#F85149] font-semibold">{Math.round(awayProb)}% {awayName}</span>
+        <span className="text-[#2EA043] font-semibold">{homeName} {localizeNum(Math.round(homeProb), lang)}%</span>
+        <span className="text-[#8B949E]">{t.draw} {localizeNum(Math.round(drawProb), lang)}%</span>
+        <span className="text-[#F85149] font-semibold">{localizeNum(Math.round(awayProb), lang)}% {awayName}</span>
       </div>
     </div>
   )
 }
 
-function ScorelineRow({ home, away, homeFlag, awayFlag, prob, rank }: {
+function ScorelineRow({ home, away, homeFlag, awayFlag, prob, rank, lang }: {
   home: number; away: number; homeFlag?: string; awayFlag?: string
-  prob: number; rank: number
+  prob: number; rank: number; lang: 'EN' | 'KU'
 }) {
   const colors = ['#F0A500', '#8B949E', '#CD7F32']
   const color = colors[rank - 1] ?? '#30363D'
+  const n = (v: string | number) => localizeNum(v, lang)
   return (
     <div className="flex items-center gap-3 bg-[#0D1117] border rounded-xl px-4 py-3" style={{ borderColor: color + '50' }}>
       <span className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold flex-shrink-0"
         style={{ color, backgroundColor: color + '20' }}>
-        {rank}
+        {n(rank)}
       </span>
       <span className="text-base flex-shrink-0">{homeFlag || '🏳️'}</span>
       <span className="text-xl font-extrabold flex-1" style={{ color }}>
-        {home} – {away}
+        {n(home)} – {n(away)}
       </span>
       <span className="text-base flex-shrink-0">{awayFlag || '🏳️'}</span>
-      <span className="text-sm font-bold tabular-nums" style={{ color }}>{(prob * 100).toFixed(0)}%</span>
+      <span className="text-sm font-bold tabular-nums" style={{ color }}>{n((prob * 100).toFixed(0))}%</span>
     </div>
   )
 }
@@ -217,6 +219,7 @@ export default function MatchDetailPage() {
   const routeParams = useParams()
   const match_id = routeParams.match_id as string
   const t = L[language]
+  const n = (v: string | number) => localizeNum(v, language)
 
   // Diagnostic — fires on every render; visible in F12 Console immediately
   if (typeof window !== 'undefined') {
@@ -532,9 +535,9 @@ export default function MatchDetailPage() {
               <span className="text-5xl sm:text-6xl">{match.home_team_flag || '🏳️'}</span>
               <span className="text-base sm:text-xl font-bold text-[#E6EDF3]">{match.home_team}</span>
               {(isFinished || isLive) ? (
-                <span className="text-4xl font-extrabold text-[#E6EDF3]">{match.home_score ?? 0}</span>
+                <span className="text-4xl font-extrabold text-[#E6EDF3]">{n(match.home_score ?? 0)}</span>
               ) : hasProbs ? (
-                <span className="text-lg font-bold text-[#F0A500]">{Math.round(match.home_win_probability!)}%</span>
+                <span className="text-lg font-bold text-[#F0A500]">{n(Math.round(match.home_win_probability!))}%</span>
               ) : null}
             </div>
 
@@ -542,11 +545,11 @@ export default function MatchDetailPage() {
             <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
               {isLive ? (
                 <span className="text-3xl font-extrabold text-[#F85149] animate-pulse">
-                  {match.home_score ?? 0} – {match.away_score ?? 0}
+                  {n(match.home_score ?? 0)} – {n(match.away_score ?? 0)}
                 </span>
               ) : isFinished ? (
                 <span className="text-3xl font-extrabold text-[#E6EDF3]">
-                  {match.home_score ?? 0} – {match.away_score ?? 0}
+                  {n(match.home_score ?? 0)} – {n(match.away_score ?? 0)}
                 </span>
               ) : (
                 <span className="text-2xl font-bold text-[#30363D]">VS</span>
@@ -558,9 +561,9 @@ export default function MatchDetailPage() {
               <span className="text-5xl sm:text-6xl">{match.away_team_flag || '🏳️'}</span>
               <span className="text-base sm:text-xl font-bold text-[#E6EDF3]">{match.away_team}</span>
               {(isFinished || isLive) ? (
-                <span className="text-4xl font-extrabold text-[#E6EDF3]">{match.away_score ?? 0}</span>
+                <span className="text-4xl font-extrabold text-[#E6EDF3]">{n(match.away_score ?? 0)}</span>
               ) : hasProbs ? (
-                <span className="text-lg font-bold text-[#F0A500]">{Math.round(match.away_win_probability!)}%</span>
+                <span className="text-lg font-bold text-[#F0A500]">{n(Math.round(match.away_win_probability!))}%</span>
               ) : null}
             </div>
           </div>
@@ -640,6 +643,7 @@ export default function MatchDetailPage() {
                       homeFlag={match.home_team_flag}
                       awayFlag={match.away_team_flag}
                       prob={s.probability}
+                      lang={language}
                     />
                   ))}
                 </div>
@@ -693,7 +697,7 @@ export default function MatchDetailPage() {
                     </div>
                     <div className="flex flex-col items-center flex-shrink-0">
                       <span className="text-2xl font-extrabold text-[#F0A500]">
-                        {prediction.key_player.impact_score.toFixed(1)}
+                        {n(prediction.key_player.impact_score.toFixed(1))}
                       </span>
                       <span className="text-[10px] text-[#8B949E]">{t.impact}</span>
                     </div>
@@ -756,7 +760,7 @@ export default function MatchDetailPage() {
               }
               topScorelines={
                 prediction?.scorelines?.slice(0, 2)
-                  .map(s => `${s.home_score}-${s.away_score} (${Math.round(s.probability * 100)}%)`)
+                  .map(s => `${n(s.home_score)}-${n(s.away_score)} (${n(Math.round(s.probability * 100))}%)`)
                   .join(' · ')
               }
               userPrediction={

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { Language } from './Navbar'
+import { localizeNum } from '@/lib/numbers'
 
 interface LuckScoreBarProps {
   score: number    // –10 … +10
@@ -77,7 +78,7 @@ export default function LuckScoreBar({ score, label, language }: LuckScoreBarPro
       <div className="flex justify-between text-[10px] text-[#8B949E]">
         <span>–10 {language === 'KU' ? 'بەدبەخت' : 'Unlucky'}</span>
         <span className="text-base font-extrabold" style={{ color }}>
-          {clampedScore > 0 ? '+' : ''}{clampedScore.toFixed(1)}
+          {clampedScore > 0 ? '+' : ''}{localizeNum(clampedScore.toFixed(1), language)}
         </span>
         <span>+10 {language === 'KU' ? 'خۆشبەخت' : 'Lucky'}</span>
       </div>

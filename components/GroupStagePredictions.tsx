@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { TournamentGroup, TournamentGroupTeam, GroupStanding } from '@/types'
 import type { Language } from './Navbar'
 import { SkGroupCard } from './SkeletonCard'
+import { localizeNum } from '@/lib/numbers'
 
 // ── Fallback: all 48 WC2026 teams — always visible, even when API is down ──────
 // qualify_prob 0.5 = equal chance pre-tournament (top 2 of 4 advance)
@@ -122,17 +123,17 @@ const labels = {
   },
 }
 
-function QualDelta({ delta }: { delta: number }) {
+function QualDelta({ delta, language }: { delta: number; language: Language }) {
   const absPct = Math.round(Math.abs(delta * 100))
   if (absPct < 1) return null
   return (
     <span className={`text-[9px] font-bold ml-0.5 ${delta > 0 ? 'text-[#2EA043]' : 'text-[#F85149]'}`}>
-      {delta > 0 ? '↑' : '↓'}{absPct}%
+      {delta > 0 ? '↑' : '↓'}{localizeNum(absPct, language)}%
     </span>
   )
 }
 
-function QualProb({ prob, delta }: { prob: number; delta?: number }) {
+function QualProb({ prob, delta, language }: { prob: number; delta?: number; language: Language }) {
   const pct = Math.round(prob * 100)
   const cls =
     pct >= 70 ? 'text-[#2EA043] bg-[#2EA043]/10 border-[#2EA043]/30'
@@ -141,9 +142,9 @@ function QualProb({ prob, delta }: { prob: number; delta?: number }) {
   return (
     <span className="inline-flex items-center">
       <span className={`text-[10px] font-bold border rounded px-1.5 py-0.5 tabular-nums ${cls}`}>
-        {pct}%
+        {localizeNum(pct, language)}%
       </span>
-      {delta != null && <QualDelta delta={delta} />}
+      {delta != null && <QualDelta delta={delta} language={language} />}
     </span>
   )
 }
@@ -155,12 +156,15 @@ function AiGroupCard({
   aiTeams,
   qualifyDiff,
   t,
+  language,
 }: {
   groupName: string
   aiTeams: TournamentGroupTeam[]
   qualifyDiff?: Record<string, number>
   t: typeof labels['EN']
+  language: Language
 }) {
+  const n = (v: string | number) => localizeNum(v, language)
   // Sort by expected_rank (Supabase average) when available, fall back to predicted_pts
   const sorted = [...aiTeams].sort((a, b) => {
     if (a.expected_rank != null && b.expected_rank != null) return a.expected_rank - b.expected_rank
@@ -197,7 +201,7 @@ function AiGroupCard({
                   } ${team.eliminated ? 'opacity-40' : ''}`}
                 >
                   <td className={`px-3 py-2.5 font-bold ${isTop2 ? 'text-[#F0A500]' : 'text-[#8B949E]'}`}>
-                    {idx + 1}
+                    {n(idx + 1)}
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2">
@@ -211,14 +215,14 @@ function AiGroupCard({
                     </div>
                   </td>
                   <td className={`px-3 py-2.5 text-center font-extrabold ${isTop2 ? 'text-[#E6EDF3]' : 'text-[#8B949E]'}`}>
-                    {Number(team.predicted_pts).toFixed(1)}
+                    {n(Number(team.predicted_pts).toFixed(1))}
                   </td>
                   <td className="px-3 py-2.5 text-center text-[#8B949E]">
-                    {team.predicted_gd > 0 ? '+' : ''}{Number(team.predicted_gd).toFixed(1)}
+                    {team.predicted_gd > 0 ? '+' : ''}{n(Number(team.predicted_gd).toFixed(1))}
                   </td>
-                  <td className="px-3 py-2.5 text-center text-[#8B949E]">{Number(team.predicted_gf).toFixed(1)}</td>
+                  <td className="px-3 py-2.5 text-center text-[#8B949E]">{n(Number(team.predicted_gf).toFixed(1))}</td>
                   <td className="px-3 py-2.5 text-center">
-                    <QualProb prob={team.qualify_prob} delta={qualifyDiff?.[team.team]} />
+                    <QualProb prob={team.qualify_prob} delta={qualifyDiff?.[team.team]} language={language} />
                   </td>
                 </tr>
               )
@@ -299,6 +303,7 @@ export default function GroupStagePredictions({ groups, stageAppearances, standi
           aiTeams={aiByGroup[groupName] ?? []}
           qualifyDiff={qualifyDiff}
           t={t}
+          language={language}
         />
       ))}
     </div>

@@ -4,6 +4,7 @@ import type { GroupStanding } from '@/types'
 import type { Language } from './Navbar'
 import Link from 'next/link'
 import { SkGroupCard } from './SkeletonCard'
+import { localizeNum } from '@/lib/numbers'
 
 interface GroupStandingsPreviewProps {
   standings: GroupStanding[]
@@ -50,6 +51,7 @@ function GroupTable({ groupName, rows, t, language }: {
   t: typeof labels['EN']
   language: Language
 }) {
+  const n = (v: string | number) => localizeNum(v, language)
   return (
     <div className="bg-[#161B22] border border-[#30363D] rounded-xl overflow-hidden">
       <div className="px-4 py-3 border-b border-[#30363D] bg-[#0D1117]/50">
@@ -81,24 +83,24 @@ function GroupTable({ groupName, rows, t, language }: {
                   idx < 2 ? 'border-l-2 border-l-[#2EA043]' : ''
                 }`}
               >
-                <td className="px-2 py-2.5 text-[#8B949E]">{row.position}</td>
+                <td className="px-2 py-2.5 text-[#8B949E]">{n(row.position)}</td>
                 <td className="px-2 py-2.5">
                   <div className="flex items-center gap-1.5">
                     <span>{row.team_flag || '🏳️'}</span>
                     <Link href={`/team/${encodeURIComponent(row.team_name)}`} className="text-[#E6EDF3] font-medium truncate max-w-[70px] hover:text-[#F0A500] transition-colors">{row.team_name}</Link>
                   </div>
                 </td>
-                <td className="px-2 py-2.5 text-center text-[#8B949E]">{row.played}</td>
-                <td className="px-2 py-2.5 text-center text-[#2EA043]">{row.won}</td>
-                <td className="px-2 py-2.5 text-center text-[#8B949E]">{row.drawn}</td>
-                <td className="px-2 py-2.5 text-center text-[#F85149]">{row.lost}</td>
-                <td className="px-2 py-2.5 text-center text-[#8B949E]">{row.goals_for ?? (row.played === 0 && row.avg_gf != null ? Number(row.avg_gf).toFixed(1) : '-')}</td>
-                <td className="px-2 py-2.5 text-center text-[#8B949E]">{row.goals_against ?? (row.played === 0 && row.avg_ga != null ? Number(row.avg_ga).toFixed(1) : '-')}</td>
-                <td className="px-2 py-2.5 text-center text-[#8B949E]">{row.goal_difference ?? (row.played === 0 && row.avg_gd != null ? Number(row.avg_gd).toFixed(1) : '-')}</td>
+                <td className="px-2 py-2.5 text-center text-[#8B949E]">{n(row.played)}</td>
+                <td className="px-2 py-2.5 text-center text-[#2EA043]">{n(row.won)}</td>
+                <td className="px-2 py-2.5 text-center text-[#8B949E]">{n(row.drawn)}</td>
+                <td className="px-2 py-2.5 text-center text-[#F85149]">{n(row.lost)}</td>
+                <td className="px-2 py-2.5 text-center text-[#8B949E]">{row.goals_for != null ? n(row.goals_for) : (row.played === 0 && row.avg_gf != null ? n(Number(row.avg_gf).toFixed(1)) : '-')}</td>
+                <td className="px-2 py-2.5 text-center text-[#8B949E]">{row.goals_against != null ? n(row.goals_against) : (row.played === 0 && row.avg_ga != null ? n(Number(row.avg_ga).toFixed(1)) : '-')}</td>
+                <td className="px-2 py-2.5 text-center text-[#8B949E]">{row.goal_difference != null ? n(row.goal_difference) : (row.played === 0 && row.avg_gd != null ? n(Number(row.avg_gd).toFixed(1)) : '-')}</td>
                 <td className="px-2 py-2.5 text-center font-bold text-[#E6EDF3]">
                   {row.played === 0 && row.avg_points != null
-                    ? Number(row.avg_points).toFixed(1)
-                    : row.points}
+                    ? n(Number(row.avg_points).toFixed(1))
+                    : n(row.points)}
                 </td>
               </tr>
             ))}

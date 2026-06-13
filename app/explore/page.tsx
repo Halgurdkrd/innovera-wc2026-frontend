@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import { useLanguage } from '@/hooks/useLanguage'
+import { localizeNum } from '@/lib/numbers'
 import TeamCard from '@/components/TeamCard'
 import GroupStagePredictions from '@/components/GroupStagePredictions'
 import GroupStandingsPreview from '@/components/GroupStandingsPreview'
@@ -532,7 +533,7 @@ function ExplorePageContent() {
             </div>
 
             {!loading && (
-              <p className="text-xs text-[#8B949E]">{t.teamsCount(filteredTeams.length)}</p>
+              <p className="text-xs text-[#8B949E]">{localizeNum(t.teamsCount(filteredTeams.length), language)}</p>
             )}
 
             {loading ? (
@@ -607,10 +608,10 @@ function ExplorePageContent() {
                         >
                           <span className="text-sm">{flag}</span>
                           <span className="text-xs font-semibold text-[#E6EDF3]">{team}</span>
-                          <span className="text-xs font-bold text-[#F0A500] tabular-nums">{livePct}%</span>
+                          <span className="text-xs font-bold text-[#F0A500] tabular-nums">{localizeNum(livePct, language)}%</span>
                           {Math.abs(delta) * 100 >= 0.1 && (
                             <span className={`text-[10px] font-bold tabular-nums ${delta > 0 ? 'text-[#2EA043]' : 'text-[#F85149]'}`}>
-                              {delta > 0 ? '↑' : '↓'}{absDeltaPct}%
+                              {delta > 0 ? '↑' : '↓'}{localizeNum(absDeltaPct, language)}%
                             </span>
                           )}
                         </div>
