@@ -207,13 +207,21 @@ function PredCard({ pred, lang }: { pred: UserPrediction; lang: 'EN' | 'KU' }) {
 
   return (
     <div className={`bg-[#161B22] border border-[#30363D] border-l-2 ${borderColor} rounded-xl p-4 space-y-3`}>
-      {/* Teams */}
+      {/* Teams + score */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <img src={teamFlagUrl(m?.home_team ?? '')} alt={m?.home_team ?? ''} className="h-5 w-auto rounded-sm flex-shrink-0" />
           <span className="text-xs font-semibold text-[#E6EDF3] truncate">{m?.home_team ?? '—'}</span>
         </div>
-        <span className="text-xs text-[#8B949E] flex-shrink-0 mx-2">vs</span>
+        <div className="flex flex-col items-center flex-shrink-0 mx-1">
+          {m?.status === 'finished' && m?.home_score != null ? (
+            <span className="text-sm font-extrabold text-[#E6EDF3] tabular-nums">
+              {m.home_score} – {m.away_score}
+            </span>
+          ) : (
+            <span className="text-xs text-[#8B949E]">vs</span>
+          )}
+        </div>
         <div className="flex items-center gap-2 min-w-0 flex-row-reverse">
           <img src={teamFlagUrl(m?.away_team ?? '')} alt={m?.away_team ?? ''} className="h-5 w-auto rounded-sm flex-shrink-0" />
           <span className="text-xs font-semibold text-[#E6EDF3] truncate">{m?.away_team ?? '—'}</span>
@@ -331,19 +339,21 @@ export default function MyPredictionsPage() {
 
         const preds = (predsRes.data ?? []) as UserPrediction[]
 
-        // Fetch match details for each prediction — non-fatal so badge still shows on failure
+        // Fetch match details for each prediction
         const matchIds = preds.map(p => p.match_id).filter(Boolean)
+        console.log('[my-predictions] matchIds to fetch:', matchIds)
         if (matchIds.length > 0) {
-          try {
-            const { data: matchRows } = await supabasePublic
-              .from('matches')
-              .select('match_id,home_team,away_team,match_date,home_score,away_score,status,group_name,home_win_probability,draw_probability,away_win_probability')
-              .in('match_id', matchIds)
+          const { data: matchRows, error: matchErr } = await supabase
+            .from('matches')
+            .select('match_id,home_team,away_team,match_date,home_score,away_score,status,group_name,home_win_probability,draw_probability,away_win_probability')
+            .in('match_id', matchIds)
+          if (matchErr) {
+            console.error('[my-predictions] match fetch error:', matchErr.message, matchErr.code)
+          } else {
+            console.log('[my-predictions] matchRows fetched:', matchRows?.length, matchRows?.[0])
             const matchMap: Record<string, Match> = {}
-            for (const m of matchRows ?? []) matchMap[m.match_id] = m as unknown as Match
+            for (const m of matchRows ?? []) matchMap[(m as Record<string,unknown>).match_id as string] = m as unknown as Match
             for (const p of preds) { if (matchMap[p.match_id]) p.match = matchMap[p.match_id] }
-          } catch (matchErr) {
-            console.error('[my-predictions] match detail fetch failed (non-fatal):', matchErr)
           }
         }
 
@@ -591,7 +601,7 @@ export default function MyPredictionsPage() {
                       <div key={pred.id} className="space-y-2">
                         {/* Prediction row with 📥 toggle button */}
                         <div className="relative">
-                          <Link href={`/match/${pred.match_id}`} className="block">
+                          <Link href={`/match/${pred.match_id}`} className="block rounded-xl hover:ring-1 hover:ring-[#F0A500]/30 transition-all">
                             <PredCard pred={pred} lang={language} />
                           </Link>
                           <button
