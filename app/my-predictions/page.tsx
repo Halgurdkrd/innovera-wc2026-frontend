@@ -210,12 +210,12 @@ function PredCard({ pred, lang }: { pred: UserPrediction; lang: 'EN' | 'KU' }) {
       {/* Teams */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-lg flex-shrink-0">{m?.home_team_flag ?? '🏳️'}</span>
+          <img src={teamFlagUrl(m?.home_team ?? '')} alt={m?.home_team ?? ''} className="h-5 w-auto rounded-sm flex-shrink-0" />
           <span className="text-xs font-semibold text-[#E6EDF3] truncate">{m?.home_team ?? '—'}</span>
         </div>
         <span className="text-xs text-[#8B949E] flex-shrink-0 mx-2">vs</span>
         <div className="flex items-center gap-2 min-w-0 flex-row-reverse">
-          <span className="text-lg flex-shrink-0">{m?.away_team_flag ?? '🏳️'}</span>
+          <img src={teamFlagUrl(m?.away_team ?? '')} alt={m?.away_team ?? ''} className="h-5 w-auto rounded-sm flex-shrink-0" />
           <span className="text-xs font-semibold text-[#E6EDF3] truncate">{m?.away_team ?? '—'}</span>
         </div>
       </div>
@@ -337,7 +337,7 @@ export default function MyPredictionsPage() {
           try {
             const { data: matchRows } = await supabasePublic
               .from('matches')
-              .select('match_id,home_team,away_team,match_date,home_score,away_score,status,group_name,home_team_flag,away_team_flag')
+              .select('match_id,home_team,away_team,match_date,home_score,away_score,status,group_name,home_win_probability,draw_probability,away_win_probability')
               .in('match_id', matchIds)
             const matchMap: Record<string, Match> = {}
             for (const m of matchRows ?? []) matchMap[m.match_id] = m as unknown as Match
@@ -591,11 +591,13 @@ export default function MyPredictionsPage() {
                       <div key={pred.id} className="space-y-2">
                         {/* Prediction row with 📥 toggle button */}
                         <div className="relative">
-                          <PredCard pred={pred} lang={language} />
+                          <Link href={`/match/${pred.match_id}`} className="block">
+                            <PredCard pred={pred} lang={language} />
+                          </Link>
                           <button
-                            onClick={() => setExpandedCardId(expandedCardId === pred.id ? null : pred.id)}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedCardId(expandedCardId === pred.id ? null : pred.id) }}
                             title={expandedCardId === pred.id ? 'Close card' : 'Download prediction card'}
-                            className="absolute top-2 right-2 text-[10px] font-bold text-[#0D1117] bg-[#F0A500] hover:bg-[#D4920A] px-1.5 py-0.5 rounded-full transition-colors leading-none"
+                            className="absolute top-2 right-2 text-[10px] font-bold text-[#0D1117] bg-[#F0A500] hover:bg-[#D4920A] px-1.5 py-0.5 rounded-full transition-colors leading-none z-10"
                           >
                             {expandedCardId === pred.id ? '✕' : '📥'}
                           </button>

@@ -286,7 +286,7 @@ export default function LeaderboardPage() {
             <Avatar name={userProfile.username} size="md" />
             <div className="flex-1 min-w-0">
               <p className="text-xs text-[#8B949E]">{t.myRank}</p>
-              <p className="text-base font-bold text-[#E6EDF3] truncate">{userProfile.username}</p>
+              <p className="text-base font-bold text-[#E6EDF3] break-words">{userProfile.username}</p>
               <div className="flex items-center gap-3 mt-0.5">
                 <span className="text-sm font-bold text-[#F0A500]">
                   {userInTop50 ? `#${n(userRank)}` : t.outside50(userRank || 51)}
@@ -329,12 +329,12 @@ export default function LeaderboardPage() {
         ) : (
           <div className="bg-[#161B22] border border-[#30363D] rounded-xl overflow-hidden">
             {/* Column headers */}
-            <div className="grid grid-cols-[3rem_1fr_5rem_4rem_4rem] gap-2 px-4 py-2.5 border-b border-[#30363D] text-[10px] font-bold text-[#8B949E] uppercase tracking-wider">
+            <div className="grid grid-cols-[2.5rem_1fr_4.5rem] sm:grid-cols-[3rem_1fr_5rem_4rem_4rem] gap-2 px-4 py-2.5 border-b border-[#30363D] text-[10px] font-bold text-[#8B949E] uppercase tracking-wider">
               <div className="text-center">{t.rank}</div>
               <div>{t.player}</div>
               <div className="text-center">{t.points}</div>
-              <div className="text-center">{t.streak}</div>
-              <div className="text-center">{t.beatAI}</div>
+              <div className="hidden sm:block text-center">{t.streak}</div>
+              <div className="hidden sm:block text-center">{t.beatAI}</div>
             </div>
 
             {sortedProfiles.map((profile, index) => {
@@ -345,7 +345,7 @@ export default function LeaderboardPage() {
               return (
                 <div
                   key={profile.user_id}
-                  className={`grid grid-cols-[3rem_1fr_5rem_4rem_4rem] gap-2 px-4 py-3 items-center border-b border-[#30363D]/50 transition-colors ${
+                  className={`grid grid-cols-[2.5rem_1fr_4.5rem] sm:grid-cols-[3rem_1fr_5rem_4rem_4rem] gap-2 px-4 py-3 items-center border-b border-[#30363D]/50 transition-colors ${
                     isCurrentUser
                       ? 'bg-[#F0A500]/8 border-l-2 border-l-[#F0A500]'
                       : 'hover:bg-[#0D1117]/40'
@@ -371,7 +371,7 @@ export default function LeaderboardPage() {
                     <Avatar name={profile.username} />
                     <div className="min-w-0">
                       <p
-                        className={`text-sm font-semibold truncate ${
+                        className={`text-sm font-semibold break-words ${
                           isCurrentUser ? 'text-[#F0A500]' : 'text-[#E6EDF3]'
                         }`}
                       >
@@ -395,14 +395,14 @@ export default function LeaderboardPage() {
                   </div>
 
                   {/* Streak */}
-                  <div className="text-center">
+                  <div className="hidden sm:block text-center">
                     <span className="text-xs text-[#8B949E] font-medium">
                       {profile.prediction_streak > 0 ? `🔥 ${n(profile.prediction_streak)}` : n(profile.prediction_streak)}
                     </span>
                   </div>
 
                   {/* Beat AI */}
-                  <div className="text-center">
+                  <div className="hidden sm:block text-center">
                     <span className="text-xs text-[#58A6FF] font-medium">
                       {n(profile.beat_ai_count)}
                     </span>
@@ -416,21 +416,21 @@ export default function LeaderboardPage() {
         {/* User outside top 50 */}
         {user && userProfile && !userInTop50 && !loading && (
           <div className="bg-[#161B22] border border-[#30363D] rounded-xl px-4 py-3">
-            <div className="grid grid-cols-[3rem_1fr_5rem_4rem_4rem] gap-2 items-center text-[#8B949E]">
+            <div className="grid grid-cols-[2.5rem_1fr_4.5rem] sm:grid-cols-[3rem_1fr_5rem_4rem_4rem] gap-2 items-center text-[#8B949E]">
               <div className="text-center text-sm font-bold">…</div>
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 min-w-0">
                 <Avatar name={userProfile.username} />
-                <span className="text-sm font-semibold text-[#F0A500] truncate">
+                <span className="text-sm font-semibold text-[#F0A500] break-words min-w-0">
                   {userProfile.username}
                 </span>
               </div>
               <div className="text-center text-sm font-extrabold text-[#F0A500] tabular-nums">
                 {n(displayPts(userProfile).toLocaleString())}
               </div>
-              <div className="text-center text-xs">
+              <div className="hidden sm:block text-center text-xs">
                 {userProfile.prediction_streak > 0 ? `🔥 ${n(userProfile.prediction_streak)}` : n(userProfile.prediction_streak)}
               </div>
-              <div className="text-center text-xs text-[#58A6FF]">{n(userProfile.beat_ai_count)}</div>
+              <div className="hidden sm:block text-center text-xs text-[#58A6FF]">{n(userProfile.beat_ai_count)}</div>
             </div>
           </div>
         )}
