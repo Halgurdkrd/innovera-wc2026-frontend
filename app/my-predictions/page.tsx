@@ -193,6 +193,8 @@ function PredCard({ pred, lang }: { pred: UserPrediction; lang: 'EN' | 'KU' }) {
   const pts = pred.points_earned ?? 0
 
   const borderColor = isCorrect ? 'border-l-[#2EA043]' : isWrong ? 'border-l-[#F85149]' : 'border-l-[#F0A500]'
+  const isExact = hasResult && pred.predicted_score != null && m?.home_score != null &&
+    pred.predicted_score === `${m.home_score}-${m.away_score}`
 
   const [displayDate, setDisplayDate] = useState('')
   useEffect(() => {
@@ -230,7 +232,7 @@ function PredCard({ pred, lang }: { pred: UserPrediction; lang: 'EN' | 'KU' }) {
 
       {/* Picks + status */}
       <div className="flex items-center justify-between text-xs gap-2">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[#8B949E]">My pick:</span>
           <span className={`px-2 py-0.5 rounded-full font-semibold ${
             isCorrect ? 'bg-[#2EA043]/20 text-[#2EA043]'
@@ -238,7 +240,13 @@ function PredCard({ pred, lang }: { pred: UserPrediction; lang: 'EN' | 'KU' }) {
             : 'bg-[#F0A500]/15 text-[#F0A500]'
           }`}>
             <OutcomeLabel outcome={pred.predicted_winner} lang={lang} homeTeam={m?.home_team} awayTeam={m?.away_team} />
+            {pred.predicted_score && (
+              <span className="font-normal opacity-80"> ({pred.predicted_score})</span>
+            )}
           </span>
+          {isExact && (
+            <span className="text-[#2EA043] font-bold text-[10px]">🎯 Exact!</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {pred.beat_ai && (
