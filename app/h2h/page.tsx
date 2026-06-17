@@ -123,6 +123,7 @@ const L = {
     eliminatedMsg: '❌ Eliminated',
     pickWindowOpen: 'Pick window open — you can change your team',
     pickWindowClosed: '⏳ Pick window opens',
+    pickWindowEnded: '🔒 Pick window closed for this round',
     noPick: 'No pick yet',
     noPickSub: 'Go to Pick tab to choose your team',
     pickNow: 'Pick Now',
@@ -166,6 +167,7 @@ const L = {
     eliminatedMsg: '❌ دەرکراو',
     pickWindowOpen: 'پەنجەرەی هەڵبژاردن کراوەیە — دەتوانی تیمەکەت بگۆڕی',
     pickWindowClosed: '⏳ پەنجەرەی هەڵبژاردن دەکرێتەوە',
+    pickWindowEnded: '🔒 پەنجەرەی هەڵبژاردن داخراوە بۆ ئەم خولە',
     noPick: 'هێشتا هەڵبژاردن نەکراوە',
     noPickSub: 'بڕۆ بۆ تابی هەڵبژاردن بۆ هەڵبژاردنی تیمەکەت',
     pickNow: 'ئێستا هەڵبژێرە',
@@ -512,12 +514,22 @@ export default function H2HPage() {
             </div>
           )}
 
-          {!pickWindowOpen && currentRound && (
-            <div className="bg-slate-800 rounded-xl p-4 text-center mb-4 text-gray-400 text-sm">
-              {tx.pickWindowClosed}{' '}
-              {new Date(currentRound.pick_opens as string).toLocaleDateString()}
-            </div>
-          )}
+          {!pickWindowOpen && currentRound && (() => {
+            // Distinguish a window that hasn't opened yet (future) from one that
+            // already closed (past) — the old copy always said "opens", which is
+            // wrong once pick_closes has passed.
+            const opens = currentRound.pick_opens ? new Date(currentRound.pick_opens as string) : null
+            const closes = currentRound.pick_closes ? new Date(currentRound.pick_closes as string) : null
+            const now = new Date()
+            const isFuture = opens ? now < opens : false
+            return (
+              <div className="bg-slate-800 rounded-xl p-4 text-center mb-4 text-gray-400 text-sm">
+                {isFuture
+                  ? <>{tx.pickWindowClosed} {opens!.toLocaleDateString()}</>
+                  : <>{tx.pickWindowEnded}{closes ? ` (${closes.toLocaleDateString()})` : ''}</>}
+              </div>
+            )
+          })()}
 
           {pickWindowOpen && (
             <>
