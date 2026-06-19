@@ -109,12 +109,12 @@ const translations = {
   you_label:            { EN: 'You',                 KU: 'تۆ' },
 
   // ── Footer ───────────────────────────────────────────────────────────────────
-  footer_brand:     { EN: 'Innovera Predictor',  KU: 'ئینۆڤێرا پێشبینیکەر' },
+  footer_brand:     { EN: 'Ennovera Predictor',  KU: 'ئینۆڤێرا پێشبینیکەر' },
   footer_copyright: { EN: '© 2026 Ennovera · AI predictions for entertainment purposes.', KU: 'هەموو حوقوقەکان پارێزراون © ٢٠٢٦ Ennovera' },
   footer_about:     { EN: 'About',               KU: 'دەربارە' },
 
   // ── Auth modal ───────────────────────────────────────────────────────────────
-  auth_title:       { EN: 'Sign in to Innovera Predictor',         KU: 'چوونەژوورەوە بۆ ئینۆڤێرا پێشبینیکەر' },
+  auth_title:       { EN: 'Sign in to Ennovera Predictor',         KU: 'چوونەژوورەوە بۆ ئینۆڤێرا پێشبینیکەر' },
   auth_subtitle:    { EN: 'Save predictions · Climb the leaderboard · Compete with AI', KU: 'پێشبینیەکانت بپارێزە · لە پلەبەندی بەرزبە · دژ بە AI بپێوێ' },
   auth_google:      { EN: 'Continue with Google',    KU: 'بەردەوامبوون بە Google' },
   auth_facebook:    { EN: 'Continue with Facebook',  KU: 'بەردەوامبوون بە Facebook' },
@@ -125,7 +125,7 @@ const translations = {
 
   // ── About ────────────────────────────────────────────────────────────────────
   about_back:     { EN: '← Home',   KU: '← سەرەکی' },
-  about_title:    { EN: 'About Innovera Predictor', KU: 'دەربارەی ئینۆڤێرا پێشبینیکەر' },
+  about_title:    { EN: 'About Ennovera Predictor', KU: 'دەربارەی ئینۆڤێرا پێشبینیکەر' },
   about_tagline:  { EN: 'AI-powered FIFA World Cup 2026 predictions', KU: 'پێشبینی جامی جیهانی FIFA ٢٠٢٦ بە هوشی دەستکرد' },
 } as const
 

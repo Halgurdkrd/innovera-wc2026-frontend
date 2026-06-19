@@ -179,7 +179,7 @@ export default function HomePage() {
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-[#E6EDF3] tracking-tight leading-tight max-w-4xl mx-auto">
             {language === 'EN' ? (
               <>
-                <span className="text-[#F0A500]">Innovera</span> World Cup{' '}
+                <span className="text-[#F0A500]">Ennovera</span> World Cup{' '}
                 <span className="text-[#F0A500]">2026</span> AI Predictor
               </>
             ) : (
@@ -338,7 +338,7 @@ export default function HomePage() {
                 <span className="text-xs font-bold text-[#0D1117]">I</span>
               </div>
               <span className="text-sm font-semibold text-[#E6EDF3]">
-                {language === 'KU' ? 'ئینۆڤێرا پێشبینیکەر' : 'Innovera Predictor'}
+                {language === 'KU' ? 'ئینۆڤێرا پێشبینیکەر' : 'Ennovera Predictor'}
               </span>
             </div>
             <div className="flex items-center gap-4 text-xs text-[#8B949E]">

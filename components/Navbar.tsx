@@ -62,7 +62,7 @@ export default function Navbar({ language, onLanguageChange }: NavbarProps) {
               <span className="text-base font-extrabold tracking-tight text-[#E6EDF3] group-hover:text-[#F0A500] transition-colors">
                 {language === 'KU'
                   ? <span className="text-[#F0A500]">ئینۆڤێرا پێشبینیکەر</span>
-                  : <>Innovera <span className="text-[#F0A500]">Predictor</span></>
+                  : <>Ennovera <span className="text-[#F0A500]">Predictor</span></>
                 }
               </span>
               <span className="hidden sm:block text-[10px] text-[#8B949E] font-medium tracking-wide">

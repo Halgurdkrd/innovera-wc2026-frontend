@@ -12,12 +12,12 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   metadataBase: new URL('https://aifootballp.com'),
   title: {
-    default: "Innovera World Cup AI Predictor",
-    template: "%s | Innovera Predictor",
+    default: "Ennovera World Cup AI Predictor",
+    template: "%s | Ennovera Predictor",
   },
   description:
-    "AI-powered FIFA World Cup 2026 predictions, luck scores, momentum analytics, and group standings — powered by Innovera.",
-  applicationName: "Innovera World Cup AI Predictor",
+    "AI-powered FIFA World Cup 2026 predictions, luck scores, momentum analytics, and group standings — powered by Ennovera.",
+  applicationName: "Ennovera World Cup AI Predictor",
   keywords: [
     "World Cup 2026",
     "FIFA 2026",
@@ -25,16 +25,16 @@ export const metadata: Metadata = {
     "football predictions",
     "luck score",
     "SHAP analysis",
-    "Innovera",
+    "Ennovera",
   ],
-  authors: [{ name: "Innovera" }],
-  creator: "Innovera",
-  publisher: "Innovera",
+  authors: [{ name: "Ennovera" }],
+  creator: "Ennovera",
+  publisher: "Ennovera",
   openGraph: {
     type: "website",
     locale: "en_US",
-    siteName: "Innovera World Cup AI Predictor",
-    title: "Innovera World Cup AI Predictor",
+    siteName: "Ennovera World Cup AI Predictor",
+    title: "Ennovera World Cup AI Predictor",
     description:
       "AI-powered FIFA World Cup 2026 predictions, luck scores, and team analytics.",
     images: [
@@ -42,13 +42,13 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Innovera World Cup AI Predictor",
+        alt: "Ennovera World Cup AI Predictor",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Innovera World Cup AI Predictor",
+    title: "Ennovera World Cup AI Predictor",
     description:
       "AI-powered FIFA World Cup 2026 predictions, luck scores, and team analytics.",
     images: ["/og-image.png"],

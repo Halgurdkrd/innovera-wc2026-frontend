@@ -167,7 +167,7 @@ export default function PickWinner({ winnerProbs = {}, language }: Props) {
       ? `${FLAGS[existingPick] ?? '🏳️'} ${existingPick} هەڵدەبژێرم بۆ برینی جامی جیهانی ٢٠٢٦ • Ennovera`
       : `${FLAGS[existingPick] ?? '🏳️'} I'm backing ${existingPick} to win the 2026 World Cup • Ennovera`
     if (navigator.share) {
-      await navigator.share({ title: 'Innovera — My World Cup Pick', text: msg }).catch(() => {})
+      await navigator.share({ title: 'Ennovera — My World Cup Pick', text: msg }).catch(() => {})
     } else {
       await navigator.clipboard.writeText(msg).catch(() => {})
     }

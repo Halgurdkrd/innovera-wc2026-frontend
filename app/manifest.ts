@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Innovera World Cup AI Predictor',
-    short_name: 'Innovera Predictor',
+    name: 'Ennovera World Cup AI Predictor',
+    short_name: 'Ennovera Predictor',
     description:
       'AI-powered FIFA World Cup 2026 predictions, luck scores, momentum analytics, and group standings.',
     start_url: '/',

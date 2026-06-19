@@ -52,7 +52,7 @@ function Header() {
     <div style={{ background: '#0a0f1e', padding: '14px 20px', borderBottom: `2px solid ${T.gold}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <span style={{ fontSize: '18px' }}>⚽</span>
-        <span style={{ color: T.gold, fontWeight: '800', fontSize: '13px', letterSpacing: '1px' }}>INNOVERA</span>
+        <span style={{ color: T.gold, fontWeight: '800', fontSize: '13px', letterSpacing: '1px' }}>ENNOVERA</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         <span style={{ color: T.muted, fontSize: '11px' }}>WC 2026</span>

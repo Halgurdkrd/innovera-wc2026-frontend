@@ -190,7 +190,7 @@ export default function LeaderboardPage() {
         const data = await res.json()
         const shareUrl = data.url ?? data.download_url
         if (shareUrl && navigator.share) {
-          await navigator.share({ title: 'My Innovera Rank', url: shareUrl, text })
+          await navigator.share({ title: 'My Ennovera Rank', url: shareUrl, text })
           setShareState('idle')
           return
         }
@@ -202,7 +202,7 @@ export default function LeaderboardPage() {
     // Clipboard fallback
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'My Innovera Rank', text })
+        await navigator.share({ title: 'My Ennovera Rank', text })
       } else {
         await navigator.clipboard.writeText(text)
         setShareState('copied')

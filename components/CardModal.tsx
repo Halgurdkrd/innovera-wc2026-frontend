@@ -38,7 +38,7 @@ export default function CardModal({ imageUrl, onClose, language }: CardModalProp
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Innovera World Cup Prediction',
+          title: 'Ennovera World Cup Prediction',
           url: imageUrl,
         })
         return

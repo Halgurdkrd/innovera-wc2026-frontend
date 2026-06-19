@@ -426,7 +426,7 @@ export default function MyPredictionsPage() {
   const handleShare = async () => {
     const msg = t.shareMsg(displayName, totalPoints, badge.nameEN)
     if (navigator.share) {
-      await navigator.share({ title: 'Innovera Predictor', text: msg, url: 'https://aifootballp.com' })
+      await navigator.share({ title: 'Ennovera Predictor', text: msg, url: 'https://aifootballp.com' })
     } else {
       await navigator.clipboard.writeText(msg)
     }
@@ -462,8 +462,8 @@ export default function MyPredictionsPage() {
         const file = new File([blob], 'innovera-badge.png', { type: 'image/png' })
         try {
           await navigator.share({
-            title: 'My Innovera WC2026 Badge',
-            text: `${displayName} — ${badge.nameEN} on Innovera WC2026 Predictor!`,
+            title: 'My Ennovera WC2026 Badge',
+            text: `${displayName} — ${badge.nameEN} on Ennovera WC2026 Predictor!`,
             files: [file],
           })
           return
@@ -525,7 +525,7 @@ export default function MyPredictionsPage() {
             >
               {/* Branding header — included in PNG */}
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-bold text-[#F0A500] tracking-widest uppercase">🏆 Innovera WC2026</span>
+                <span className="text-[10px] font-bold text-[#F0A500] tracking-widest uppercase">🏆 Ennovera WC2026</span>
                 <span className="text-[10px] text-[#8B949E]">Ennovera</span>
               </div>
 

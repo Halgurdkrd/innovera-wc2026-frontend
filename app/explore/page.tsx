@@ -84,7 +84,7 @@ type Conf = typeof CONFEDERATIONS[number]
 
 const labels = {
   EN: {
-    title: 'Explore — Innovera Predictor',
+    title: 'Explore — Ennovera Predictor',
     subtitle: '48 teams · 12 groups · 3 host nations · FIFA World Cup 2026',
     searchPlaceholder: 'Search team or confederation…',
     noResults: 'No teams match your search',

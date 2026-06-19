@@ -171,7 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 const modalLabels = {
   EN: {
-    title: 'Sign in to Innovera Predictor',
+    title: 'Sign in to Ennovera Predictor',
     subtitle: 'Save predictions · Climb the leaderboard · Compete with AI',
     google: 'Continue with Google',
     facebook: 'Continue with Facebook',

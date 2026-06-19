@@ -47,7 +47,7 @@ const SUGGESTIONS: Record<Lang, string[]> = {
 }
 
 const WELCOME: Record<Lang, string> = {
-  EN: "👋 Hi! I'm Innovera's AI assistant for the 2026 World Cup. Ask me anything about teams, predictions, or the tournament!",
+  EN: "👋 Hi! I'm Ennovera's AI assistant for the 2026 World Cup. Ask me anything about teams, predictions, or the tournament!",
   KU: '👋 سڵاو! من یارمەتیدەری زیرەکی دەستکردی ئینۆڤێرام بۆ جامی جیهانی ٢٠٢٦. هەر شتێک لەبارەی تیمەکان، پێشبینییەکان بپرسە!',
 }
 
@@ -56,7 +56,7 @@ const COPY: Record<Lang, {
   sleepErr: string; netErr: string; emptyErr: string
 }> = {
   EN: {
-    title: 'Innovera AI Assistant',
+    title: 'Ennovera AI Assistant',
     online: 'Online',
     placeholder: 'Ask about the World Cup…',
     sleepErr: '⏳ The AI is waking up — please try again in a moment.',
