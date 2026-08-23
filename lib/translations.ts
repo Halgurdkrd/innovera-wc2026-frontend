@@ -15,13 +15,13 @@ const translations = {
   // ── Hero ────────────────────────────────────────────────────────────────────
   hero_badge:    { EN: 'Powered by AI', KU: 'بە هوشی دەستکرد' },
   hero_subtitle: {
-    EN: 'Real-time AI predictions, luck scores, and group standings for every FIFA World Cup 2026 match',
-    KU: 'پێشبینی هوشی دەستکرد، خەمەی خۆشبەختی، و پلەبەندی گروپ بۆ هەموو یارییەکانی جامی جیهان',
+    EN: 'Real-time AI predictions for every Premier League 2026-27 match',
+    KU: 'پێشبینی هوشی دەستکرد بۆ هەموو یارییەکانی پرێمیەر لیگ ٢٠٢٦-٢٧',
   },
   hero_cta:   { EN: 'Explore Predictions', KU: 'پێشبینیەکان بپشکنە' },
   stat_matches: { EN: 'Matches',      KU: 'یاری' },
-  stat_teams:   { EN: 'Teams',        KU: 'تیم' },
-  stat_hosts:   { EN: 'Host Nations', KU: 'وڵات مێهوان' },
+  stat_teams:   { EN: 'Clubs',        KU: 'باشگە' },
+  stat_hosts:   { EN: 'Gameweeks',    KU: 'هەفتەکان' },
 
   // ── Matches ─────────────────────────────────────────────────────────────────
   matches_title:   { EN: "Today's Matches",                   KU: 'یارییەکانی ئەمڕۆ' },
@@ -80,19 +80,16 @@ const translations = {
   luck_deserved: { EN: 'Most Deserved Win',         KU: 'پێویستترین بردنەوە' },
 
   // ── Explore ──────────────────────────────────────────────────────────────────
-  explore_title:      { EN: 'Explore',         KU: 'گەڕان' },
-  explore_subtitle:   { EN: '48 teams · 12 groups · 3 host nations · FIFA World Cup 2026', KU: '٤٨ تیم · ١٢ گروپ · ٣ وڵات مێهوان · جامی جیهانی FIFA ٢٠٢٦' },
-  explore_teams:      { EN: 'Teams',           KU: 'تیمەکان' },
-  explore_groups:     { EN: 'Group Stage',     KU: 'قۆناغی گروپ' },
-  explore_bracket:    { EN: 'Bracket',         KU: 'کۆتایی' },
-  search_placeholder: { EN: 'Search team or confederation…', KU: 'گەڕان بۆ تیم یان کۆنفێدراسیۆن…' },
+  explore_title:      { EN: 'Fixtures & Results', KU: 'یارییەکان و ئەنجامەکان' },
+  explore_subtitle:   { EN: '380 matches · 20 clubs · Premier League 2026-27', KU: '٣٨٠ یاری · ٢٠ باشگە · پرێمیەر لیگ ٢٠٢٦-٢٧' },
+  search_placeholder: { EN: 'Search team…', KU: 'گەڕان بۆ تیم…' },
   filter_all:         { EN: 'All',             KU: 'هەموو' },
   no_results:         { EN: 'No teams match your search', KU: 'هیچ تیمێک نەدۆزرایەوە' },
   loading_teams:      { EN: 'Loading teams…', KU: 'تیمەکان باردەکرێن…' },
 
   // ── Leaderboard ──────────────────────────────────────────────────────────────
   leaderboard_title:    { EN: 'Leaderboard',        KU: 'پلەبەندی' },
-  leaderboard_subtitle: { EN: 'Top predictors competing against AI · FIFA World Cup 2026', KU: 'باشترین پێشبینیکەران دژ بە AI · جامی جیهانی FIFA ٢٠٢٦' },
+  leaderboard_subtitle: { EN: 'Top predictors competing against AI · Premier League 2026-27', KU: 'باشترین پێشبینیکەران دژ بە AI · پرێمیەر لیگ ٢٠٢٦-٢٧' },
   tab_weekly:           { EN: 'This Week',           KU: 'ئەم هەفتەیە' },
   tab_total:            { EN: 'Tournament Total',    KU: 'کۆی تورنووان' },
   rank_col:             { EN: 'Rank',                KU: 'پلە' },
@@ -109,12 +106,12 @@ const translations = {
   you_label:            { EN: 'You',                 KU: 'تۆ' },
 
   // ── Footer ───────────────────────────────────────────────────────────────────
-  footer_brand:     { EN: 'Ennovera Predictor',  KU: 'ئینۆڤێرا پێشبینیکەر' },
+  footer_brand:     { EN: 'Ennovera AI',  KU: 'ئینۆڤێرا AI' },
   footer_copyright: { EN: '© 2026 Ennovera · AI predictions for entertainment purposes.', KU: 'هەموو حوقوقەکان پارێزراون © ٢٠٢٦ Ennovera' },
   footer_about:     { EN: 'About',               KU: 'دەربارە' },
 
   // ── Auth modal ───────────────────────────────────────────────────────────────
-  auth_title:       { EN: 'Sign in to Ennovera Predictor',         KU: 'چوونەژوورەوە بۆ ئینۆڤێرا پێشبینیکەر' },
+  auth_title:       { EN: 'Sign in to Ennovera AI',         KU: 'چوونەژوورەوە بۆ ئینۆڤێرا AI' },
   auth_subtitle:    { EN: 'Save predictions · Climb the leaderboard · Compete with AI', KU: 'پێشبینیەکانت بپارێزە · لە پلەبەندی بەرزبە · دژ بە AI بپێوێ' },
   auth_google:      { EN: 'Continue with Google',    KU: 'بەردەوامبوون بە Google' },
   auth_facebook:    { EN: 'Continue with Facebook',  KU: 'بەردەوامبوون بە Facebook' },
@@ -125,8 +122,8 @@ const translations = {
 
   // ── About ────────────────────────────────────────────────────────────────────
   about_back:     { EN: '← Home',   KU: '← سەرەکی' },
-  about_title:    { EN: 'About Ennovera Predictor', KU: 'دەربارەی ئینۆڤێرا پێشبینیکەر' },
-  about_tagline:  { EN: 'AI-powered FIFA World Cup 2026 predictions', KU: 'پێشبینی جامی جیهانی FIFA ٢٠٢٦ بە هوشی دەستکرد' },
+  about_title:    { EN: 'About Ennovera AI', KU: 'دەربارەی ئینۆڤێرا AI' },
+  about_tagline:  { EN: 'AI-powered Premier League 2026-27 predictions', KU: 'پێشبینی پرێمیەر لیگ ٢٠٢٦-٢٧ بە هوشی دەستکرد' },
 } as const
 
 export type TranslationKey = keyof typeof translations

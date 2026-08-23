@@ -29,6 +29,14 @@ const statusBadge = (status: Match['status'], lang: Language) => {
   return null
 }
 
+function TeamBadge({ name }: { name: string }) {
+  const src = teamFlagUrl(name)
+  if (src.startsWith('http')) {
+    return <img src={src} alt={name} className="h-8 w-auto rounded-sm object-cover" loading="lazy" />
+  }
+  return <span className="h-8 w-8 flex items-center justify-center text-xl leading-none">{src}</span>
+}
+
 export default function MatchCard({ match, language }: MatchCardProps) {
   const confidence = confidenceLabel(match.ai_confidence ?? 0, language)
   const live = statusBadge(match.status, language)
@@ -78,7 +86,7 @@ export default function MatchCard({ match, language }: MatchCardProps) {
       <div className="flex items-center justify-between gap-3">
         {/* Home team */}
         <div className="flex flex-col items-center gap-1.5 flex-1 text-center">
-          <img src={teamFlagUrl(match.home_team)} alt={match.home_team} className="h-8 w-auto rounded-sm object-cover" loading="lazy" />
+          <TeamBadge name={match.home_team} />
           <Link href={`/team/${encodeURIComponent(match.home_team)}`} className="text-sm font-semibold text-[#E6EDF3] hover:text-[#F0A500] leading-tight transition-colors" onClick={e => e.stopPropagation()}>{match.home_team}</Link>
           {match.status === 'finished' && match.home_score !== undefined ? (
             <span className="text-xl font-extrabold text-[#E6EDF3]">{n(match.home_score)}</span>
@@ -105,7 +113,7 @@ export default function MatchCard({ match, language }: MatchCardProps) {
 
         {/* Away team */}
         <div className="flex flex-col items-center gap-1.5 flex-1 text-center">
-          <img src={teamFlagUrl(match.away_team)} alt={match.away_team} className="h-8 w-auto rounded-sm object-cover" loading="lazy" />
+          <TeamBadge name={match.away_team} />
           <Link href={`/team/${encodeURIComponent(match.away_team)}`} className="text-sm font-semibold text-[#E6EDF3] hover:text-[#F0A500] leading-tight transition-colors" onClick={e => e.stopPropagation()}>{match.away_team}</Link>
           {match.status === 'finished' && match.away_score !== undefined ? (
             <span className="text-xl font-extrabold text-[#E6EDF3]">{n(match.away_score)}</span>

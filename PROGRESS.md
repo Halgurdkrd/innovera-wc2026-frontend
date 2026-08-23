@@ -286,5 +286,144 @@ All hardcoded group/team data was using guessed/placeholder teams, not the offic
 - Frontend pushed to GitHub (`main`) ✅
 - Backend already pushed to GitHub + HF Space (`master`/`main`) ✅
 
-## Next: S22
-<!-- S22 instructions will be pasted here -->
+## S23 — Switch frontend: WC2026 → Premier League 2026-27 🚧 IN PROGRESS
+
+### Task
+Migrate the live frontend from showing FIFA World Cup 2026 data to Premier League 2026-27 data.
+Full instructions given by user (verbatim intent): add `competition` filter to every matches query,
+rebrand all "FIFA World Cup 2026" / "Ennovera Predictor" strings → "Premier League 2026-27" / "Ennovera AI",
+replace "Group Stage" → "Gameweek X" display, remove group tables + bracket/knockout UI, home page shows
+today's/tomorrow's PL matches + current gameweek header, keep auth/predictions/leaderboard/H2H/My Predictions
+working, then `git commit -am "switch: WC2026 → Premier League 2026-27"` and `git push origin main`.
+
+### User decisions (confirmed via AskUserQuestion, 2026-08-24)
+1. **Competition column**: Already added by user to Supabase — VERIFIED via direct REST query:
+   - `matches.competition` column exists. Values seen: `"WC2026"` (old rows) and `"PL2026-27"` (new rows).
+   - PL2026-27 row count: **380 matches** total in table.
+   - PL rows have `tournament_stage: "Gameweek 1"` (confirmed pattern), `group_name: null`.
+   - Sample PL teams confirmed in DB: Arsenal, Coventry City, Hull City, Manchester United, Ipswich Town,
+     Sunderland, Nottingham Forest, Leeds United, Everton, Crystal Palace, Brentford, Tottenham,
+     Manchester City, Bournemouth, Brighton and Hove Albion, Aston Villa, Newcastle United, Liverpool,
+     Fulham, Chelsea (real 2026-27 PL fixtures, not placeholders).
+2. **Missing PL backend** (Top 4 / Relegation probabilities, league table endpoint): backend/VPS API
+   (`/simulate/tournament`) does NOT have PL-shaped endpoints yet (still WC-shaped: `group_tables`,
+   `stage_appearances`, `bracket`, `winner_probs` for 48 teams). Decision: **hide/remove these sections
+   entirely for this pass** rather than show wrong/misleading WC-shaped data under PL labels. Champion
+   Probability, group qualification %, and the bracket tab should be removed/hidden, not adapted.
+3. **Rollout**: user said **implement and push automatically** (skip the "stop before push" option) —
+   i.e. after making changes, commit AND `git push origin main` without pausing for review.
+
+### Codebase survey (via Explore agent, before edits — see below for what needs to change)
+
+**Matches queries needing `.eq('competition', 'PL2026-27')` added:**
+- `app/page.tsx:76-79` — home page today/tomorrow matches fetch (`supabasePublic.from('matches')...`)
+- `app/match/[match_id]/page.tsx:277-278` — single match fetch (`.eq('match_id', match_id)`); the probe
+  query at 265-266 is just a health-check, can leave as-is or filter too (low priority)
+- `app/team/[team_name]/page.tsx:246-251` — team's matches (`.or('home_team.eq.X,away_team.eq.X')`);
+  also has a `group_standings` query here — group_standings is WC-only concept, needs rethink (see below)
+- `app/my-predictions/page.tsx:354-357` — matches by `.in('match_id', matchIds)` — matchIds come from
+  user's own predictions so already scoped, but add filter for safety/consistency
+
+**Branding strings to update** ("FIFA World Cup 2026" → "Premier League 2026-27", "Ennovera Predictor" →
+"Ennovera AI", "WC2026" → "PL2026-27" where used as a tag/label, NOT as a literal DB value):
+- `app/layout.tsx:16,19,22,39,53` — metadata title template, description, keywords
+- `app/manifest.ts:6,8` — PWA manifest short_name/description
+- `app/page.tsx:22-23` (labels obj), `182-183` (hero `<h1>` "Ennovera World Cup 2026 AI Predictor"), `341` (footer)
+- `app/about/page.tsx:10,16,73`
+- `app/explore/page.tsx:87-88`
+- `app/h2h/page.tsx:102-103` ("WC2026 H2H Challenge")
+- `app/leaderboard/page.tsx:31,183`
+- `app/my-predictions/page.tsx:70,98,429,465-466,528`
+- `app/scorers/page.tsx:33`
+- `context/AuthContext.tsx:174` ("Sign in to Ennovera Predictor")
+- `components/Navbar.tsx:69` ("FIFA World Cup 2026" nav subtitle)
+- `components/PredictionCard.tsx:68,271,415` ("#WC2026" share tags → "#PL2026")
+- `components/GroupStagePredictions.tsx:9` (comment only)
+- `lib/translations.ts:18,84,95,112,117,128-129` (central EN/KU i18n dict — important, drives multiple pages)
+- NOT touching: `PROGRESS.md`, `scripts/*.py`, `scripts/seed.sql`, `scripts/matches_seed.sql` (seed/backend
+  scripts, not runtime frontend; out of scope for "frontend" rebrand task)
+
+**tournament_stage / group_name**: `tournament_stage` field exists on `Match` type but was previously
+unused in rendering (dead field) — now it's the "Gameweek N" display source, needs to be wired into
+match cards / home page header where currently no stage label is shown, or where "Group Stage" text
+literal exists. `group_name` is `null` for PL rows — every component reading `group_name` needs to
+either hide the group badge/column when null, or those components get removed entirely per decision #2.
+
+**To remove/hide (per decision #2 — WC-shaped, no PL equivalent yet):**
+- `components/GroupStandingsPreview.tsx` — home page group standings teaser (uses `group_standings` table)
+- `components/FullStandings.tsx` — full 12-group standings tables (in `app/explore/page.tsx`)
+- `components/GroupPreviewTeaser.tsx` — hardcoded 48-team WC groups teaser (home page, pre-tournament block)
+- `components/GroupStagePredictions.tsx` — has `FALLBACK_GROUPS` hardcoded WC teams
+- `components/BracketPredictions.tsx` + `components/Bracket.tsx` — bracket/knockout UI (bracket tab in
+  `app/explore/page.tsx`, `ENABLE_BRACKET` flag already `false` at line 318 — can likely just remove the
+  tab/UI entirely rather than leave dead code)
+- `components/WinnerProbsList.tsx` — "Tournament Win Probability" list (home page) — no PL winner_probs yet
+- `app/page.tsx` pre-tournament block: `CountdownTimer`, `PickWinner` (winnerProbs), `GroupPreviewTeaser`
+  — all WC-specific (countdown to WC kickoff, pick tournament winner) — PL already started (fixtures from
+  2026-08-21), so this whole pre-tournament section is moot and should be removed
+- `app/my-predictions/page.tsx:568-583` — "Bracket Status" section, link to `/explore?tab=bracket`
+- `app/team/[team_name]/page.tsx` — group_standings query + winner_probs usage (line ~273-274) — remove/hide
+- `app/explore/page.tsx` — heaviest WC-simulation usage (`stage_appearances`, `winner_probs`, "🏆 Champion
+  Probability Changes" heading at line 595, bracket tab, standings tab) — needs the most rework; likely
+  simplify to just team grid (48-team grid also wrong — needs to become 20 PL clubs, TBD if team data
+  exists in Supabase `teams` table for PL — NOT YET VERIFIED, check before assuming)
+
+### NOT yet verified (check before/while implementing)
+- Does Supabase `teams` table have PL club rows (20 clubs), or only WC48 teams? Needed for `explore/page.tsx`
+  team grid, `team/[team_name]/page.tsx`, `TeamCard.tsx`.
+- Does `group_standings` table matter at all for PL, or is it purely WC and should be fully ignored for PL?
+- Home page hero stats strip ("48 Matches / 32 Teams / 3 Host Nations") needs new PL-accurate numbers
+  (380 matches confirmed; team count needs `teams` table check).
+- `user_predictions`/`user_brackets`/`leaderboard`/`h2h` tables — do they need a competition filter too,
+  or are they competition-agnostic (keyed by match_id which is already competition-scoped)? Likely fine
+  as-is since they reference match_id, but worth a quick check per table.
+
+### Status: ✅ COMPLETE (2026-08-24)
+
+Verified `teams` and `group_standings` tables: both contain ONLY the 48 WC2026 national teams,
+zero PL club rows. `luck_scores` also WC-only. Backend endpoints `/scorers/*`, `/simulate/tournament`,
+and `/h2h/*` are all still WC-hardcoded (H2H rounds even have 2026 WC dates, `/h2h/teams` returns the
+48 nations). Per decision #2, these were hidden rather than shown with wrong data:
+
+- **Deleted** (dead, WC-only, zero remaining references): `GroupStagePredictions.tsx`, `GroupPreviewTeaser.tsx`,
+  `GroupStandingsPreview.tsx`, `FullStandings.tsx`, `BracketPredictions.tsx`, `Bracket.tsx`,
+  `WinnerProbsList.tsx`, `PickWinner.tsx`, `CountdownTimer.tsx`, `LuckScoreSection.tsx`.
+- **`app/page.tsx`** — rewritten: competition filter added, pre-tournament block/group standings/winner
+  probs/luck scores all removed, gameweek badge added (reads `tournament_stage` from fetched matches),
+  hero + stats strip rebranded (380 matches / 20 clubs / 38 gameweeks).
+- **`app/explore/page.tsx`** — rewritten from teams/group-stage/bracket tabs into a single PL Fixtures &
+  Results browser (search by team, filter by gameweek) — the only real PL data available is `matches`.
+- **`app/team/[team_name]/page.tsx`** — simplified to fixture list only (no FIFA rank/style/standings/
+  win-prob — none of that data exists for PL clubs).
+- **`app/match/[match_id]/page.tsx`** — added `.eq('competition','PL2026-27')`. SHAP/scorelines/momentum
+  sections already degrade gracefully (conditional render) since `/predictions/{id}` 404s for PL matches;
+  the core win/draw/away prob card still works since `matches` table has real per-match probabilities.
+- **`app/my-predictions/page.tsx`** — competition filter added, Bracket Status section + `user_brackets`
+  fetch removed, branding + share text updated.
+- **`app/h2h/page.tsx`**, **`app/scorers/page.tsx`** — replaced with lightweight "coming soon" placeholders
+  (backend has no PL data for either; nav links kept, pages just don't call the WC-shaped endpoints).
+- **`lib/flags.ts`** — fallback changed from `'🏳️'` (used as a broken `<img src>` for any unmapped team)
+  to `'⚽'`; `MatchCard.tsx` and `my-predictions` `PredCard` now check `.startsWith('http')` before
+  rendering `<img>` vs an emoji span, so PL clubs (no flag mapping) render cleanly instead of broken images.
+  `PredictionCard.tsx`'s `FlagDisplay` already had this guard, no fix needed there.
+- Branding pass: `app/layout.tsx`, `app/manifest.ts`, `components/Navbar.tsx`, `context/AuthContext.tsx`,
+  `lib/translations.ts`, `app/about/page.tsx`, `app/leaderboard/page.tsx`, `components/PredictionCard.tsx`
+  — "FIFA World Cup 2026" → "Premier League 2026-27", "Ennovera Predictor" → "Ennovera AI", "#WC2026" → "#PL2026".
+- Verified with `npx tsc --noEmit` (clean) and `npx next build` (compiles, all 12 routes generate).
+  Smoke-tested `/`, `/explore`, `/h2h`, `/scorers`, `/leaderboard`, `/about`, `/team/Arsenal`,
+  `/team/Arsenal/squad`, and a real match detail page on local dev server — all 200, home page confirmed
+  rendering "Premier League" text.
+
+**Known gaps / out of scope for this pass** (flagged to user, not silently fixed):
+- H2H and Scorers need backend work (new endpoints / PL team pool / gameweek round schedule) before they
+  can go live — currently "coming soon" placeholders.
+- `/team/[team_name]/squad` page was left untouched (not mentioned in original instructions); renders
+  200 for a PL club name but wasn't deeply audited for WC-specific assumptions.
+- `about/page.tsx`'s Google consent-screen note still says "Ennovera World Cup AI Predictor" — that's
+  describing the actual registered OAuth app name in Google Cloud Console, not app copy; left alone since
+  changing the text without changing the Google Console registration would be inaccurate.
+- Backend `techBody` copy on About page still says "Hugging Face Spaces" (stale even before this task —
+  the backend is actually on the Hostinger VPS) — not touched, out of scope.
+
+## Next: S24
+<!-- S24 instructions will be pasted here -->

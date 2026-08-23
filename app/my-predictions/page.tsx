@@ -30,14 +30,6 @@ interface UserPrediction {
   match?: Match
 }
 
-interface UserBracket {
-  id: string
-  user_id: string
-  picks: Record<string, unknown>
-  score: number
-  is_active: boolean
-}
-
 type BadgeKey = 'TACTICAL_GENIUS' | 'UPSET_HUNTER' | 'DRAW_SPECIALIST' |
                 'FAVORITE_BACKER' | 'RISK_TAKER' | 'BEGINNER'
 
@@ -51,15 +43,9 @@ const L = {
     accuracy: 'Prediction Accuracy',
     beatAI: 'Times Beat AI',
     identity: 'Your Football Identity',
-    bracketTitle: 'Bracket',
-    bracketSubmitted: 'Bracket Submitted ✓',
-    bracketChampion: 'Predicted champion',
-    bracketPoints: 'Bracket points so far',
-    bracketCta: 'Submit Your Bracket',
-    bracketHint: 'Pick your tournament winner and bracket for bonus points',
     historyTitle: 'My Prediction History',
     emptyTitle: 'No predictions yet',
-    emptyBody: 'The tournament starts June 11 — come back to make your first prediction!',
+    emptyBody: 'Come back to make your first Premier League prediction!',
     viewMatches: 'View Upcoming Matches',
     pending: 'Pending',
     correct: 'Correct',
@@ -67,7 +53,7 @@ const L = {
     home: 'Home Win', draw: 'Draw', away: 'Away Win',
     share: 'Share My Stats',
     shareMsg: (name: string, pts: number, badge: string) =>
-      `${name} has ${pts} pts on @InnoVeraAI WC2026 predictions! Football identity: ${badge} ⚽ Ennovera`,
+      `${name} has ${pts} pts on @InnoVeraAI Premier League predictions! Football identity: ${badge} ⚽ Ennovera`,
     loadMore: 'Load more',
     error: 'Could not load predictions. Please refresh.',
     retry: 'Retry',
@@ -79,15 +65,9 @@ const L = {
     accuracy: 'دروستی پێشبینییەکان',
     beatAI: '‏AI چەند جار بردتەوە لە',
     identity: 'ناسنامەی تۆپی پێت',
-    bracketTitle: 'براکێت',
-    bracketSubmitted: 'براکێت نێردرا ✓',
-    bracketChampion: 'چەمپیۆنی پێشبینیکراو',
-    bracketPoints: 'خاڵی براکێت تا ئێستا',
-    bracketCta: 'براکێتەکەت بنێرە',
-    bracketHint: 'یاریگەری تیمی بەرز و براکێتەکەت هەڵبژێرە بۆ خاڵی زیادە',
     historyTitle: 'مێژووی پێشبینییەکانم',
     emptyTitle: 'هێشتا پێشبینی نییە',
-    emptyBody: 'تورنامێنت لە ١١ی حوزەیران دەستپێدەکات — بگەڕێوە بۆ یەکەم پێشبینییەکانت!',
+    emptyBody: 'بگەڕێوە بۆ یەکەم پێشبینیی پرێمیەر لیگت!',
     viewMatches: 'یارییە داهاتووەکان ببینە',
     pending: 'چاوەڕوان',
     correct: 'دروست',
@@ -95,7 +75,7 @@ const L = {
     home: 'ماڵ دەبەرێت', draw: 'یەکسان', away: 'میوان دەبەرێت',
     share: 'ئامارەکانم هاوبەش بکە',
     shareMsg: (name: string, pts: number, badge: string) =>
-      `${name} ${pts} خاڵی لە پێشبینییەکانی @InnoVeraAI WC2026! نەریتی فوتبۆڵ: ${badge} ⚽ Ennovera`,
+      `${name} ${pts} خاڵی لە پێشبینییەکانی @InnoVeraAI پرێمیەر لیگ! نەریتی فوتبۆڵ: ${badge} ⚽ Ennovera`,
     loadMore: 'زیاتر بخوێنەوە',
     error: 'پێشبینییەکان نەگرانەوە. تکایە نوێ بکەوە.',
     retry: 'دووبارە هەوڵبدە',
@@ -152,6 +132,14 @@ function computeBadge(preds: UserPrediction[]): BadgeKey {
   if (draws >= 3 && drawRatio >= 0.3) return 'DRAW_SPECIALIST'
   if (drawRatio >= 0.5) return 'RISK_TAKER'
   return 'FAVORITE_BACKER'
+}
+
+function PredFlag({ name }: { name: string }) {
+  const src = teamFlagUrl(name)
+  if (src.startsWith('http')) {
+    return <img src={src} alt={name} className="h-5 w-auto rounded-sm flex-shrink-0" />
+  }
+  return <span className="h-5 w-5 flex items-center justify-center text-sm leading-none flex-shrink-0">{src}</span>
 }
 
 // ── Outcome label ─────────────────────────────────────────────────────────────
@@ -212,7 +200,7 @@ function PredCard({ pred, lang }: { pred: UserPrediction; lang: 'EN' | 'KU' }) {
       {/* Teams + score */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <img src={teamFlagUrl(m?.home_team ?? '')} alt={m?.home_team ?? ''} className="h-5 w-auto rounded-sm flex-shrink-0" />
+          <PredFlag name={m?.home_team ?? ''} />
           <span className="text-xs font-semibold text-[#E6EDF3] truncate">{m?.home_team ?? '—'}</span>
         </div>
         <div className="flex flex-col items-center flex-shrink-0 mx-1">
@@ -225,7 +213,7 @@ function PredCard({ pred, lang }: { pred: UserPrediction; lang: 'EN' | 'KU' }) {
           )}
         </div>
         <div className="flex items-center gap-2 min-w-0 flex-row-reverse">
-          <img src={teamFlagUrl(m?.away_team ?? '')} alt={m?.away_team ?? ''} className="h-5 w-auto rounded-sm flex-shrink-0" />
+          <PredFlag name={m?.away_team ?? ''} />
           <span className="text-xs font-semibold text-[#E6EDF3] truncate">{m?.away_team ?? '—'}</span>
         </div>
       </div>
@@ -305,7 +293,6 @@ export default function MyPredictionsPage() {
   const t = L[language]
 
   const [predictions, setPredictions] = useState<UserPrediction[]>([])
-  const [bracket, setBracket] = useState<UserBracket | null>(null)
   const [dataLoading, setDataLoading] = useState(true)
   const [error, setError] = useState(false)
   const [page, setPage] = useState(1)
@@ -328,20 +315,10 @@ export default function MyPredictionsPage() {
       setDataLoading(true)
       setError(false)
       try {
-        const [predsRes, bracketRes] = await Promise.all([
-          supabase
-            .from('user_predictions')
-            .select('*')
-            .eq('user_id', user!.id),  // created_at column does not exist — no order()
-          supabase
-            .from('user_brackets')
-            .select('*')
-            .eq('user_id', user!.id)
-            .eq('is_active', true)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-        ])
+        const predsRes = await supabase
+          .from('user_predictions')
+          .select('*')
+          .eq('user_id', user!.id)  // created_at column does not exist — no order()
 
         if (predsRes.error) console.error('[my-predictions] user_predictions error:', predsRes.error.message, predsRes.error.code)
 
@@ -354,6 +331,7 @@ export default function MyPredictionsPage() {
           const { data: matchRows, error: matchErr } = await supabase
             .from('matches')
             .select('match_id,home_team,away_team,match_date,home_score,away_score,status,group_name,home_win_probability,draw_probability,away_win_probability')
+            .eq('competition', 'PL2026-27')
             .in('match_id', matchIds)
           if (matchErr) {
             console.error('[my-predictions] match fetch error:', matchErr.message, matchErr.code)
@@ -366,7 +344,6 @@ export default function MyPredictionsPage() {
         }
 
         setPredictions(preds)
-        setBracket(bracketRes.data as UserBracket | null)
       } catch (err) {
         console.error('[my-predictions] fetch error:', err)
         setError(true)
@@ -426,7 +403,7 @@ export default function MyPredictionsPage() {
   const handleShare = async () => {
     const msg = t.shareMsg(displayName, totalPoints, badge.nameEN)
     if (navigator.share) {
-      await navigator.share({ title: 'Ennovera Predictor', text: msg, url: 'https://aifootballp.com' })
+      await navigator.share({ title: 'Ennovera AI', text: msg, url: 'https://aifootballp.com' })
     } else {
       await navigator.clipboard.writeText(msg)
     }
@@ -442,7 +419,7 @@ export default function MyPredictionsPage() {
       logging: false,
     })
     const link = document.createElement('a')
-    link.download = 'innovera-wc2026-badge.png'
+    link.download = 'innovera-pl2026-badge.png'
     link.href = canvas.toDataURL('image/png')
     link.click()
   }
@@ -462,8 +439,8 @@ export default function MyPredictionsPage() {
         const file = new File([blob], 'innovera-badge.png', { type: 'image/png' })
         try {
           await navigator.share({
-            title: 'My Ennovera WC2026 Badge',
-            text: `${displayName} — ${badge.nameEN} on Ennovera WC2026 Predictor!`,
+            title: 'My Ennovera PL Badge',
+            text: `${displayName} — ${badge.nameEN} on Ennovera AI Premier League Predictor!`,
             files: [file],
           })
           return
@@ -471,7 +448,7 @@ export default function MyPredictionsPage() {
       }
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
-      link.download = 'innovera-wc2026-badge.png'
+      link.download = 'innovera-pl2026-badge.png'
       link.href = url
       link.click()
       URL.revokeObjectURL(url)
@@ -525,7 +502,7 @@ export default function MyPredictionsPage() {
             >
               {/* Branding header — included in PNG */}
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-bold text-[#F0A500] tracking-widest uppercase">🏆 Ennovera WC2026</span>
+                <span className="text-[10px] font-bold text-[#F0A500] tracking-widest uppercase">🏆 Ennovera AI · PL 26-27</span>
                 <span className="text-[10px] text-[#8B949E]">Ennovera</span>
               </div>
 
@@ -545,7 +522,7 @@ export default function MyPredictionsPage() {
                   {totalPoints} {language === 'KU' ? 'خاڵ' : 'pts'}
                   {accuracy != null && ` · ${accuracy}% ${language === 'KU' ? 'تەواوی' : 'accuracy'}`}
                 </p>
-                <p className="text-[9px] text-[#30363D] tracking-widest font-medium select-none">FIFA WORLD CUP 2026</p>
+                <p className="text-[9px] text-[#30363D] tracking-widest font-medium select-none">PREMIER LEAGUE 2026-27</p>
               </div>
             </div>
 
@@ -563,27 +540,6 @@ export default function MyPredictionsPage() {
               >
                 📤 {language === 'KU' ? 'هاوبەشکردن' : 'Share Badge'}
               </button>
-            </div>
-
-            {/* ── S4: Bracket Status ───────────────────────────────────── */}
-            <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-5">
-              <p className="text-xs font-bold text-[#8B949E] uppercase tracking-wider mb-3">{t.bracketTitle}</p>
-              {bracket ? (
-                <div className="space-y-1">
-                  <p className="text-sm font-bold text-[#2EA043]">{t.bracketSubmitted}</p>
-                  <p className="text-xs text-[#8B949E]">{t.bracketPoints}: <span className="text-[#F0A500] font-bold">{bracket.score}</span></p>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between gap-4">
-                  <p className="text-xs text-[#8B949E]">{t.bracketHint}</p>
-                  <Link
-                    href="/explore?tab=bracket"
-                    className="flex-shrink-0 text-xs font-bold text-[#0D1117] bg-[#F0A500] hover:bg-[#D4920A] px-3 py-2 rounded-lg transition-colors"
-                  >
-                    {t.bracketCta}
-                  </Link>
-                </div>
-              )}
             </div>
 
             {/* ── S5: Prediction History ───────────────────────────────── */}

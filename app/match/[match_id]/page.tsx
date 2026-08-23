@@ -274,7 +274,7 @@ export default function MatchDetailPage() {
       try {
         // Match data still comes from Supabase
         const matchRes = await withTimeout(
-          supabasePublic.from('matches').select('*').eq('match_id', match_id).maybeSingle(),
+          supabasePublic.from('matches').select('*').eq('match_id', match_id).eq('competition', 'PL2026-27').maybeSingle(),
           10000, 'matches query'
         )
         console.log('[match-detail] match result → data:', matchRes.data, '| error:', matchRes.error?.message ?? 'none')

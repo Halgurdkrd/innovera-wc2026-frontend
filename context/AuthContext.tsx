@@ -171,7 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 const modalLabels = {
   EN: {
-    title: 'Sign in to Ennovera Predictor',
+    title: 'Sign in to Ennovera AI',
     subtitle: 'Save predictions · Climb the leaderboard · Compete with AI',
     google: 'Continue with Google',
     facebook: 'Continue with Facebook',
@@ -181,7 +181,7 @@ const modalLabels = {
     close: 'Close',
   },
   KU: {
-    title: 'چوونەژوورەوە بۆ ئینۆڤێرا پێشبینیکەر',
+    title: 'چوونەژوورەوە بۆ ئینۆڤێرا AI',
     subtitle: 'پێشبینیەکانت بپارێزە · لە پلەبەندی بەرزبە · دژ بە AI بپێوێ',
     google: 'بەردەوامبوون بە Google',
     facebook: 'بەردەوامبوون بە Facebook',

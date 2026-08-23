@@ -44,9 +44,9 @@ export const TEAM_EMOJI: Record<string, string> = {
 
 export function teamFlagUrl(name: string): string {
   const iso2 = TEAM_ISO2[name]
-  return iso2 ? `https://flagcdn.com/w80/${iso2}.png` : '🏳️'
+  return iso2 ? `https://flagcdn.com/w80/${iso2}.png` : '⚽'
 }
 
 export function teamFlagEmoji(name: string): string {
-  return TEAM_EMOJI[name] ?? '🏳️'
+  return TEAM_EMOJI[name] ?? '⚽'
 }

@@ -55,7 +55,7 @@ function Header() {
         <span style={{ color: T.gold, fontWeight: '800', fontSize: '13px', letterSpacing: '1px' }}>ENNOVERA</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <span style={{ color: T.muted, fontSize: '11px' }}>WC 2026</span>
+        <span style={{ color: T.muted, fontSize: '11px' }}>PL 26-27</span>
         <span style={{ fontSize: '15px' }}>🏆</span>
       </div>
     </div>
@@ -65,7 +65,7 @@ function Header() {
 function Footer() {
   return (
     <div style={{ padding: '10px 20px', borderTop: `1px solid ${T.border}`, display: 'flex', justifyContent: 'center', gap: '16px' }}>
-      <span style={{ color: T.muted, fontSize: '10px' }}>#WC2026</span>
+      <span style={{ color: T.muted, fontSize: '10px' }}>#PL2026</span>
       <span style={{ color: T.gold, fontSize: '10px', fontWeight: 'bold' }}>Ennovera</span>
     </div>
   )
@@ -268,7 +268,7 @@ export function PreMatchCard(props: PreMatchCardProps) {
       <div ref={btnRef}>
         <ActionButtons
           onDownload={() => exec(el => captureAndDownload(el, `innovera-${slug}-prediction.png`))}
-          onShare={() => exec(el => captureAndShare(el, `My WC2026 prediction: ${props.homeTeam} vs ${props.awayTeam}`))}
+          onShare={() => exec(el => captureAndShare(el, `My Premier League prediction: ${props.homeTeam} vs ${props.awayTeam}`))}
           enabled={!!props.isLocked}
           isKU={isKU}
         />
@@ -412,7 +412,7 @@ export function PostMatchCard(props: PostMatchCardProps) {
       <div ref={btnRef}>
         <ActionButtons
           onDownload={() => exec(el => captureAndDownload(el, `innovera-${slug}-result.png`))}
-          onShare={() => exec(el => captureAndShare(el, `${props.homeTeam} ${props.homeScore}–${props.awayScore} ${props.awayTeam} | WC2026`))}
+          onShare={() => exec(el => captureAndShare(el, `${props.homeTeam} ${props.homeScore}–${props.awayScore} ${props.awayTeam} | Premier League`))}
           enabled={true}
           isKU={isKU}
         />

@@ -12,18 +12,17 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   metadataBase: new URL('https://aifootballp.com'),
   title: {
-    default: "Ennovera World Cup AI Predictor",
-    template: "%s | Ennovera Predictor",
+    default: "Ennovera AI | Premier League 2026-27",
+    template: "%s | Ennovera AI",
   },
   description:
-    "AI-powered FIFA World Cup 2026 predictions, luck scores, momentum analytics, and group standings — powered by Ennovera.",
-  applicationName: "Ennovera World Cup AI Predictor",
+    "AI-powered Premier League 2026-27 predictions and match analytics — powered by Ennovera.",
+  applicationName: "Ennovera AI",
   keywords: [
-    "World Cup 2026",
-    "FIFA 2026",
+    "Premier League",
+    "EPL 2026-27",
     "AI predictions",
     "football predictions",
-    "luck score",
     "SHAP analysis",
     "Ennovera",
   ],
@@ -33,24 +32,24 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    siteName: "Ennovera World Cup AI Predictor",
-    title: "Ennovera World Cup AI Predictor",
+    siteName: "Ennovera AI",
+    title: "Ennovera AI | Premier League 2026-27",
     description:
-      "AI-powered FIFA World Cup 2026 predictions, luck scores, and team analytics.",
+      "AI-powered Premier League 2026-27 predictions and match analytics.",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Ennovera World Cup AI Predictor",
+        alt: "Ennovera AI",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Ennovera World Cup AI Predictor",
+    title: "Ennovera AI | Premier League 2026-27",
     description:
-      "AI-powered FIFA World Cup 2026 predictions, luck scores, and team analytics.",
+      "AI-powered Premier League 2026-27 predictions and match analytics.",
     images: ["/og-image.png"],
     creator: "@innovera_ai",
   },

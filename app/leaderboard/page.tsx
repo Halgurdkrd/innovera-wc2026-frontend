@@ -28,7 +28,7 @@ type Tab = 'weekly' | 'total'
 const labels = {
   EN: {
     title: 'Leaderboard',
-    subtitle: 'Top predictors competing against AI · FIFA World Cup 2026',
+    subtitle: 'Top predictors competing against AI · Premier League 2026-27',
     weekly: 'This Week',
     total: 'Tournament Total',
     rank: 'Rank',
@@ -50,7 +50,7 @@ const labels = {
   },
   KU: {
     title: 'پلەبەندی',
-    subtitle: 'باشترین پێشبینیکەران دژ بە AI · FIFA 2026 جامی جیهانی',
+    subtitle: 'باشترین پێشبینیکەران دژ بە AI · پرێمیەر لیگ ٢٠٢٦-٢٧',
     weekly: 'ئەم هەفتەیە',
     total: 'کۆی پاڵەوانەتییەکە',
     rank: 'پلە',
@@ -180,7 +180,7 @@ export default function LeaderboardPage() {
     })
     const rank = sortedProfiles.findIndex((p) => p.user_id === userProfile.user_id) + 1
     const pts = activeTab === 'weekly' ? userProfile.weekly_points : userProfile.total_points
-    const text = `I'm #${rank > 0 ? rank : '?'} on the Ennovera WC2026 Leaderboard with ${pts} points! 🏆 Can you beat me? Ennovera`
+    const text = `I'm #${rank > 0 ? rank : '?'} on the Ennovera AI Premier League Leaderboard with ${pts} points! 🏆 Can you beat me? Ennovera`
 
     try {
       // Try API rank-card first
@@ -262,8 +262,8 @@ export default function LeaderboardPage() {
         <div className="bg-[#58A6FF]/10 border border-[#58A6FF]/30 rounded-xl px-4 py-3">
           <p className="text-sm text-[#58A6FF]">
             {language === 'KU'
-              ? '🧪 دۆخی تاقیکردنەوە — خاڵەکان بۆ تاقیکردنەوە تۆمار دەکرێن. پێشبڕکێی فەرمی لە ١٧ی حوزەیران دەست پێدەکات.'
-              : '🧪 Test Mode — Points are being tracked for testing. Official competition begins June 17 with a full reset for fair play.'}
+              ? '🧪 دۆخی تاقیکردنەوە — خاڵەکان بۆ تاقیکردنەوە تۆمار دەکرێن.'
+              : '🧪 Test Mode — Points are being tracked for testing and may be reset for fair play.'}
           </p>
         </div>
 

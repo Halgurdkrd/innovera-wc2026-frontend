@@ -2,10 +2,10 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Ennovera World Cup AI Predictor',
-    short_name: 'Ennovera Predictor',
+    name: 'Ennovera AI | Premier League 2026-27',
+    short_name: 'Ennovera AI',
     description:
-      'AI-powered FIFA World Cup 2026 predictions, luck scores, momentum analytics, and group standings.',
+      'AI-powered Premier League 2026-27 predictions and match analytics.',
     start_url: '/',
     display: 'standalone',
     background_color: '#0D1117',

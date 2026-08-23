@@ -1,65 +1,45 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
-import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import Navbar from '@/components/Navbar'
 import { useLanguage } from '@/hooks/useLanguage'
 import MatchCard from '@/components/MatchCard'
-import LuckScoreSection from '@/components/LuckScoreSection'
-import GroupStandingsPreview from '@/components/GroupStandingsPreview'
-import WinnerProbsList from '@/components/WinnerProbsList'
-import H2HIcon from '@/components/H2HIcon'
-import CountdownTimer, { isTournamentStarted } from '@/components/CountdownTimer'
-import PickWinner from '@/components/PickWinner'
-import GroupPreviewTeaser from '@/components/GroupPreviewTeaser'
 import { supabasePublic } from '@/lib/supabase'
-import type { Match, LuckScore, GroupStanding } from '@/types'
-import { API_BASE } from '@/lib/api'
+import type { Match } from '@/types'
 import { parseMatchDate } from '@/lib/dates'
 
 const labels = {
   EN: {
-    hero_title: 'AI-Powered World Cup 2026 Predictions',
-    hero_subtitle: 'Real-time AI predictions, luck scores, and group standings for every FIFA World Cup 2026 match',
+    hero_title: 'AI-Powered Premier League Predictions',
+    hero_subtitle: 'Real-time AI predictions for every Premier League 2026-27 match',
     hero_badge: 'Powered by AI',
     matches_title: "Today's Matches",
     tomorrow_title: "Tomorrow's Matches",
     no_matches: 'No matches scheduled for today',
-    explore: 'Explore Predictions',
+    explore: 'View Predictions',
   },
   KU: {
-    hero_title: 'ئینۆڤێرا — پێشبینیکەری زیرەکی دەستکردی جامی جیهانی',
-    hero_subtitle: 'پێشبینی هوشی دەستکرد، خەمەی خۆشبەختی، و پلەبەندی گروپ بۆ هەموو یارییەکانی جامی جیهان',
+    hero_title: 'ئینۆڤێرا — پێشبینیکەری زیرەکی دەستکردی پرێمیەر لیگ',
+    hero_subtitle: 'پێشبینی هوشی دەستکرد بۆ هەموو یارییەکانی پرێمیەر لیگ ٢٠٢٦-٢٧',
     hero_badge: 'زیرەکی دەستکرد',
     matches_title: 'یارییەکانی ئەمڕۆ',
     tomorrow_title: 'یارییەکانی سبەینێ',
     no_matches: 'هیچ یاری ئەمڕۆ بەرنامەریزی نەکراوە',
-    explore: 'پێشبینیەکان بپشکنە',
+    explore: 'پێشبینیەکان ببینە',
   },
 }
+
+const COMPETITION = 'PL2026-27'
 
 export default function HomePage() {
   const { language, changeLanguage } = useLanguage()
   const [matches, setMatches] = useState<Match[]>([])
   const [tomorrowMatches, setTomorrowMatches] = useState<Match[]>([])
-  const [luckScores, setLuckScores] = useState<LuckScore[]>([])
-  const [standings, setStandings] = useState<GroupStanding[]>([])
   const [loading, setLoading] = useState(true)
-  const [winnerProbs, setWinnerProbs] = useState<Record<string, number>>({})
-  const [stageAppearances, setStageAppearances] = useState<Record<string, Record<string, number>>>({})
-  const [simLoading, setSimLoading] = useState(true)
-  const tournamentStarted = isTournamentStarted()
-
-  // Derive flag map reactively from standings — no extra state needed
-  const winnerFlagMap = useMemo(() => {
-    const m: Record<string, string> = {}
-    for (const row of standings) { if (row.team_flag) m[row.team_name] = row.team_flag }
-    return m
-  }, [standings])
+  const [gameweek, setGameweek] = useState<string | null>(null)
 
   const t = labels[language]
 
-  // ── Supabase fetch (matches, luck, standings) ─────────────────────────────
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
@@ -71,21 +51,13 @@ export default function HomePage() {
         const tomorrowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
         const twoDaysEnd    = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2)
 
-        const [matchRes, standingsRes, luckRes] = await Promise.all([
-          // Fetch today + tomorrow in one query; split by local date below
-          supabasePublic.from('matches').select('*')
-            .gte('match_date', dayStart.toISOString())
-            .lt('match_date', twoDaysEnd.toISOString())
-            .order('match_date', { ascending: true }),    // match_time column does not exist
-          supabasePublic.from('group_standings').select('*').order('group_name').order('position'),
-          supabasePublic.from('luck_scores').select('*').order('luck_rating', { ascending: false }),
-        ])
+        const matchRes = await supabasePublic.from('matches').select('*')
+          .eq('competition', COMPETITION)
+          .gte('match_date', dayStart.toISOString())
+          .lt('match_date', twoDaysEnd.toISOString())
+          .order('match_date', { ascending: true })    // match_time column does not exist
 
         if (matchRes.data) {
-          // Debug: log raw match_date values to diagnose timezone display issues
-          if (matchRes.data.length > 0) {
-            console.log('[home] sample match_date raw:', (matchRes.data[0] as Match).match_date)
-          }
           // Supabase stores probabilities as 0–1 decimals; MatchCard expects 0–100
           const normalized = (matchRes.data as Match[]).map(m => ({
             ...m,
@@ -102,9 +74,8 @@ export default function HomePage() {
             const d = parseMatchDate(m.match_date ?? m.match_time)
             return d ? d >= tomorrowStart && d < twoDaysEnd : false
           }))
+          setGameweek(normalized.find(m => m.tournament_stage)?.tournament_stage ?? null)
         }
-        if (standingsRes.data) setStandings(standingsRes.data as GroupStanding[])
-        if (luckRes.data) setLuckScores(luckRes.data as LuckScore[])
       } catch (err) {
         console.error('[home] fetch error:', err)
       } finally {
@@ -112,47 +83,6 @@ export default function HomePage() {
       }
     }
     fetchData()
-  }, [])
-
-  // ── Simulation fetch — runs immediately on mount, parallel to Supabase ────
-  // Uses sessionStorage cache so repeat visits show data in <5ms.
-  useEffect(() => {
-    const SIM_CACHE_KEY = 'innovera_sim_cache'
-    const SIM_CACHE_TTL = 30 * 60 * 1000 // 30 minutes
-
-    // Try sessionStorage first — instant display on repeat visits
-    try {
-      const raw = sessionStorage.getItem(SIM_CACHE_KEY)
-      if (raw) {
-        const { data, ts } = JSON.parse(raw) as { data: Record<string, unknown>; ts: number }
-        if (Date.now() - ts < SIM_CACHE_TTL) {
-          if (data.winner_probs) setWinnerProbs(data.winner_probs as Record<string, number>)
-          if (data.stage_appearances) setStageAppearances(data.stage_appearances as Record<string, Record<string, number>>)
-          setSimLoading(false)
-          return  // cache hit — no network needed
-        }
-      }
-    } catch { /* sessionStorage unavailable (private mode etc.) */ }
-
-    // Cache miss — fetch from VPS
-    const ctrl = new AbortController()
-    const tid = setTimeout(() => ctrl.abort(), 10000)
-
-    fetch(`${API_BASE}/simulate/tournament`, { signal: ctrl.signal })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        clearTimeout(tid)
-        if (data?.winner_probs) {
-          setWinnerProbs(data.winner_probs)
-          if (data?.stage_appearances) setStageAppearances(data.stage_appearances)
-          // Cache for 30 min so next page load is instant
-          try { sessionStorage.setItem(SIM_CACHE_KEY, JSON.stringify({ data, ts: Date.now() })) } catch { }
-        }
-      })
-      .catch(() => clearTimeout(tid))
-      .finally(() => setSimLoading(false))
-
-    return () => { ctrl.abort(); clearTimeout(tid) }
   }, [])
 
   return (
@@ -179,11 +109,11 @@ export default function HomePage() {
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-[#E6EDF3] tracking-tight leading-tight max-w-4xl mx-auto">
             {language === 'EN' ? (
               <>
-                <span className="text-[#F0A500]">Ennovera</span> World Cup{' '}
-                <span className="text-[#F0A500]">2026</span> AI Predictor
+                <span className="text-[#F0A500]">Ennovera</span> Premier League{' '}
+                <span className="text-[#F0A500]">AI</span> Predictor
               </>
             ) : (
-              <><span className="text-[#F0A500]">ئینۆڤێرا</span> — پێشبینیکەری زیرەکی دەستکردی جامی جیهانی</>
+              <><span className="text-[#F0A500]">ئینۆڤێرا</span> — پێشبینیکەری زیرەکی دەستکردی پرێمیەر لیگ</>
             )}
           </h1>
 
@@ -203,12 +133,21 @@ export default function HomePage() {
             </a>
           </div>
 
+          {/* Gameweek badge */}
+          {gameweek && (
+            <div className="mt-10 flex items-center justify-center">
+              <span className="text-sm font-bold text-[#F0A500] bg-[#F0A500]/10 border border-[#F0A500]/30 px-4 py-1.5 rounded-full">
+                {gameweek}
+              </span>
+            </div>
+          )}
+
           {/* Stats strip */}
-          <div className="mt-14 grid grid-cols-3 gap-4 max-w-lg mx-auto">
+          <div className="mt-8 grid grid-cols-3 gap-4 max-w-lg mx-auto">
             {[
-              { value: '48', label: language === 'KU' ? 'یاری' : 'Matches' },
-              { value: '32', label: language === 'KU' ? 'تیم' : 'Teams' },
-              { value: '3', label: language === 'KU' ? 'وڵات مێهوان' : 'Host Nations' },
+              { value: '380', label: language === 'KU' ? 'یاری' : 'Matches' },
+              { value: '20', label: language === 'KU' ? 'باشگە' : 'Clubs' },
+              { value: '38', label: language === 'KU' ? 'هەفتە' : 'Gameweeks' },
             ].map(({ value, label }) => (
               <div key={label} className="bg-[#161B22] border border-[#30363D] rounded-xl p-4">
                 <p className="text-2xl font-extrabold text-[#F0A500]">{value}</p>
@@ -217,39 +156,6 @@ export default function HomePage() {
             ))}
           </div>
         </section>
-
-        {/* ── H2H Challenge card ── */}
-        <Link href="/h2h">
-          <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500 rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:border-yellow-400 transition-colors">
-            <H2HIcon size={40} className="shrink-0" />
-            <div className="flex-1">
-              <div className="font-bold text-lg text-white">H2H Challenge</div>
-              <div className="text-yellow-400 text-sm">
-                {language === 'KU' ? '١٧ی ئەم مانگە دەستپێدەکات' : 'Starts June 17 — Pick your team!'}
-              </div>
-              <div className="text-gray-400 text-xs mt-0.5">
-                {language === 'KU' ? 'تیمەکەت هەڵبژێرە — یاری سەر بەسەر' : 'Pick a team each round — last one standing wins'}
-              </div>
-            </div>
-            <div className="text-yellow-400 text-2xl">→</div>
-          </div>
-        </Link>
-
-        {/* ── Pre-tournament engagement ── */}
-        {!tournamentStarted && (
-          <div className="space-y-8">
-            <CountdownTimer language={language} />
-            <PickWinner
-              winnerProbs={winnerProbs}
-              language={language}
-            />
-            <GroupPreviewTeaser
-              stageAppearances={stageAppearances}
-              language={language}
-              loading={simLoading}
-            />
-          </div>
-        )}
 
         {/* ── Today's Matches ── */}
         <section id="matches" className="space-y-6 scroll-mt-20">
@@ -309,24 +215,6 @@ export default function HomePage() {
             )}
           </section>
         )}
-
-        {/* ── Yesterday's Luck Scores ── */}
-        {loading ? (
-          <div className="h-48 bg-[#161B22] border border-[#30363D] rounded-xl animate-pulse" />
-        ) : (
-          <LuckScoreSection scores={luckScores} language={language} />
-        )}
-
-        {/* ── Group Standings Preview ── */}
-        <GroupStandingsPreview standings={standings} language={language} loading={loading} />
-
-        {/* ── Tournament Win Probability ── */}
-        <WinnerProbsList
-          winnerProbs={winnerProbs}
-          flagMap={winnerFlagMap}
-          language={language}
-          loading={simLoading}
-        />
       </main>
 
       {/* Footer */}
@@ -338,7 +226,7 @@ export default function HomePage() {
                 <span className="text-xs font-bold text-[#0D1117]">I</span>
               </div>
               <span className="text-sm font-semibold text-[#E6EDF3]">
-                {language === 'KU' ? 'ئینۆڤێرا پێشبینیکەر' : 'Ennovera Predictor'}
+                {language === 'KU' ? 'ئینۆڤێرا هوشی دەستکرد' : 'Ennovera AI'}
               </span>
             </div>
             <div className="flex items-center gap-4 text-xs text-[#8B949E]">
