@@ -6,6 +6,7 @@ import type { Match } from '@/types'
 import type { Language } from './Navbar'
 import { teamFlagUrl } from '@/lib/flags'
 import { localizeNum } from '@/lib/numbers'
+import ProbabilityBar from './ui/ProbabilityBar'
 
 interface MatchCardProps {
   match: Match
@@ -125,27 +126,13 @@ export default function MatchCard({ match, language }: MatchCardProps) {
 
       {/* Probability bars (hide for finished matches and when no real data) */}
       {match.status !== 'finished' && hasProbs && (
-        <div className="space-y-1.5">
-          <div className="flex gap-0.5 h-2 rounded-full overflow-hidden">
-            <div
-              className="bg-[#2EA043] rounded-l-full transition-all duration-700"
-              style={{ width: `${match.home_win_probability}%` }}
-            />
-            <div
-              className="bg-[#8B949E] transition-all duration-700"
-              style={{ width: `${match.draw_probability ?? 0}%` }}
-            />
-            <div
-              className="bg-[#F85149] rounded-r-full transition-all duration-700"
-              style={{ width: `${match.away_win_probability ?? 0}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-[10px] text-[#8B949E]">
-            <span className="text-[#2EA043] font-semibold">{n(Math.round(match.home_win_probability ?? 0))}%</span>
-            <span className="flex-shrink-0 mx-1">{language === 'KU' ? 'یەکسان' : 'Draw'} {n(Math.round(match.draw_probability ?? 0))}%</span>
-            <span className="text-[#F85149] font-semibold">{n(Math.round(match.away_win_probability ?? 0))}%</span>
-          </div>
-        </div>
+        <ProbabilityBar
+          homeProb={match.home_win_probability ?? 0}
+          drawProb={match.draw_probability ?? 0}
+          awayProb={match.away_win_probability ?? 0}
+          language={language}
+          size="sm"
+        />
       )}
 
       {/* Predict button → links to match detail */}
