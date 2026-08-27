@@ -1,6 +1,6 @@
 {
-  "season": 2,
-  "gameweek": "2026-27",
+  "season": "2026-27",
+  "gameweek": 2,
   "captain": {
     "player_id": 115,
     "name": "Maxim De Cuyper",

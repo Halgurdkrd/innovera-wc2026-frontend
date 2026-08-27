@@ -1,11 +1,11 @@
 {
-  "season": 2,
-  "gameweek": "2026-27",
+  "season": "2026-27",
+  "gameweek": 2,
   "deadline": "2026-08-28T17:30:00Z",
   "model_version": "ennovera-fpl-v1.0",
   "data_cutoff": "Official FPL Gameweek Deadline",
-  "generated_at": "2026-08-27T08:25:41.222511+00:00",
-  "expected_total_points": 108.8,
+  "generated_at": "2026-08-27T08:29:46.916392+00:00",
+  "expected_total_points": 120.2,
   "formation": "4-5-1",
   "starting_xi": [
     {
@@ -317,12 +317,21 @@
   },
   "recommended_transfers": [],
   "chip_recommendation": {
-    "action": "SAVE",
-    "chip_name": null,
-    "expected_incremental_gain": 0.0,
-    "reason": "Holding chip reservation value for future high-leverage gameweek."
+    "action": "USE",
+    "chip_name": "Triple Captain",
+    "expected_incremental_gain": 11.4,
+    "reason": "Captain Maxim De Cuyper high expected points (11.4 pts) exceeds reservation threshold."
   },
-  "available_chips": [],
+  "available_chips": [
+    "wildcard_1",
+    "wildcard_2",
+    "free_hit_1",
+    "free_hit_2",
+    "bench_boost_1",
+    "bench_boost_2",
+    "triple_captain_1",
+    "triple_captain_2"
+  ],
   "bank": 0.5,
   "free_transfers": 1,
   "warnings": []
