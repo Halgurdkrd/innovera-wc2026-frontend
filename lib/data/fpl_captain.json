@@ -1,0 +1,44 @@
+{
+  "season": 2,
+  "gameweek": "2026-27",
+  "captain": {
+    "player_id": 115,
+    "name": "Maxim De Cuyper",
+    "club": "Brighton and Hove Albion",
+    "position": "DEF",
+    "price": 4.6,
+    "expected_points": 11.4,
+    "haul_probability": 0.65,
+    "captain_score": 13.07
+  },
+  "vice_captain": {
+    "player_id": 123,
+    "name": "Jack Hinshelwood",
+    "club": "Brighton and Hove Albion",
+    "position": "MID",
+    "price": 6.0,
+    "expected_points": 10.8,
+    "haul_probability": 0.65
+  },
+  "alternatives": [
+    {
+      "name": "Jack Hinshelwood",
+      "club": "Brighton and Hove Albion",
+      "expected_points": 10.8,
+      "haul_probability": 0.65
+    },
+    {
+      "name": "Nobel Mendy",
+      "club": "Hull City",
+      "expected_points": 10.1,
+      "haul_probability": 0.65
+    },
+    {
+      "name": "Mamadou Sangar\u00e9",
+      "club": "Brentford",
+      "expected_points": 9.4,
+      "haul_probability": 0.65
+    }
+  ],
+  "selection_rationale": "High expected minutes and haul probability penalty-adjusted selection."
+}

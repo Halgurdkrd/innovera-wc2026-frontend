@@ -1,0 +1,23 @@
+{
+  "season": "2026-27",
+  "completed_gameweeks": 1,
+  "total_points": 68,
+  "average_points": 68.0,
+  "captain_points": 14,
+  "transfer_costs": 0,
+  "chip_points": 0,
+  "bench_points_missed": 8,
+  "history": [
+    {
+      "gameweek": 1,
+      "score": 68,
+      "raw_xi_pts": 62,
+      "captain_name": "Erling Haaland",
+      "captain_pts": 14,
+      "transfers_made": 0,
+      "hit_cost": 0,
+      "chip_used": "NONE",
+      "bench_pts": 8
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "season": "2026-27",
+  "budget_starting": 100.0,
+  "squad_size": 15,
+  "position_limits": {
+    "GK": 2,
+    "DEF": 5,
+    "MID": 5,
+    "FWD": 3
+  },
+  "max_players_per_club": 3,
+  "starting_xi_size": 11,
+  "formation_min_rules": {
+    "GK": 1,
+    "DEF": 3,
+    "MID": 2,
+    "FWD": 1
+  },
+  "captain_multiplier": 2,
+  "triple_captain_multiplier": 3,
+  "free_transfers_per_gw": 1,
+  "max_banked_transfers": 5,
+  "transfer_hit_cost": 4,
+  "chips_available": [
+    "Wildcard 1 (GW1-GW19)",
+    "Wildcard 2 (GW20-GW38)",
+    "Free Hit 1 (GW1-GW19)",
+    "Free Hit 2 (GW20-GW38)",
+    "Bench Boost 1 (GW1-GW19)",
+    "Bench Boost 2 (GW20-GW38)",
+    "Triple Captain 1 (GW1-GW19)",
+    "Triple Captain 2 (GW20-GW38)"
+  ]
+}
