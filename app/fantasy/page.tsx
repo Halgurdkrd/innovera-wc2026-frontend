@@ -505,59 +505,78 @@ export default function FantasyPage() {
               <div className="space-y-6">
                 <div>
                   <h2 className="text-base font-bold text-[#E6EDF3]">{t.perfHeading}</h2>
-                  <p className="text-xs text-[#8B949E] mt-0.5">{t.perfNotice}</p>
+                  <p className="text-xs text-[#8B949E] mt-0.5">
+                    Official prospective performance tracking begins in Gameweek 2. Completed Prospective GWs: {performance.completed_gameweeks}
+                  </p>
                 </div>
 
                 {/* Scorecards */}
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                   <div className="bg-[#161B22] border border-[#30363D] p-3 rounded-xl text-center">
                     <div className="text-[10px] text-[#8B949E] uppercase font-bold">{t.totPts}</div>
-                    <div className="text-xl font-black text-[#3FB950] mt-1">{performance.total_points}</div>
+                    <div className="text-xl font-black text-[#3FB950] mt-1">
+                      {performance.completed_gameweeks > 0 ? performance.total_points : '—'}
+                    </div>
                   </div>
                   <div className="bg-[#161B22] border border-[#30363D] p-3 rounded-xl text-center">
                     <div className="text-[10px] text-[#8B949E] uppercase font-bold">{t.avgPts}</div>
-                    <div className="text-xl font-black text-[#58A6FF] mt-1">{performance.average_points.toFixed(1)}</div>
+                    <div className="text-xl font-black text-[#58A6FF] mt-1">
+                      {performance.completed_gameweeks > 0 ? performance.average_points.toFixed(1) : '—'}
+                    </div>
                   </div>
                   <div className="bg-[#161B22] border border-[#30363D] p-3 rounded-xl text-center">
                     <div className="text-[10px] text-[#8B949E] uppercase font-bold">{t.captPts}</div>
-                    <div className="text-xl font-black text-[#F0A500] mt-1">{performance.captain_points}</div>
+                    <div className="text-xl font-black text-[#F0A500] mt-1">
+                      {performance.completed_gameweeks > 0 ? performance.captain_points : '—'}
+                    </div>
                   </div>
                   <div className="bg-[#161B22] border border-[#30363D] p-3 rounded-xl text-center">
                     <div className="text-[10px] text-[#8B949E] uppercase font-bold">{t.transCost}</div>
-                    <div className="text-xl font-black text-[#F85149] mt-1">-{performance.transfer_costs}</div>
+                    <div className="text-xl font-black text-[#F85149] mt-1">
+                      -{performance.transfer_costs}
+                    </div>
                   </div>
                   <div className="bg-[#161B22] border border-[#30363D] p-3 rounded-xl text-center">
                     <div className="text-[10px] text-[#8B949E] uppercase font-bold">{t.benchMissed}</div>
-                    <div className="text-xl font-black text-[#8B949E] mt-1">{performance.bench_points_missed}</div>
+                    <div className="text-xl font-black text-[#8B949E] mt-1">
+                      {performance.completed_gameweeks > 0 ? performance.bench_points_missed : '—'}
+                    </div>
                   </div>
                 </div>
 
-                {/* Weekly Table */}
-                <div className="bg-[#161B22] border border-[#30363D] rounded-xl overflow-hidden shadow-xl">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-[#30363D] bg-[#0D1117]/60 text-[#8B949E] uppercase font-bold">
-                        <th className="py-3 px-4 text-center">{t.colGw}</th>
-                        <th className="py-3 px-4 text-center">{t.colScore}</th>
-                        <th className="py-3 px-4">{t.colCapt}</th>
-                        <th className="py-3 px-4 text-center">{t.colTrans}</th>
-                        <th className="py-3 px-4 text-center">{t.colChip}</th>
-                        <th className="py-3 px-4 text-center">{t.colBench}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#30363D]/40 font-medium">
-                      {performance.history.map((h) => (
-                        <tr key={h.gameweek} className="hover:bg-white/[0.02]">
-                          <td className="py-3 px-4 text-center font-bold text-[#58A6FF]">GW {h.gameweek}</td>
-                          <td className="py-3 px-4 text-center font-extrabold text-sm text-[#3FB950]">{h.score} pts</td>
-                          <td className="py-3 px-4 font-bold text-[#E6EDF3]">{h.captain_name} ({h.captain_pts} pts)</td>
-                          <td className="py-3 px-4 text-center text-[#8B949E]">{h.transfers_made} (cost -{h.hit_cost})</td>
-                          <td className="py-3 px-4 text-center text-[#8B949E]">{h.chip_used}</td>
-                          <td className="py-3 px-4 text-center text-[#8B949E]">{h.bench_pts} pts</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {/* Active Gameweek Status */}
+                <div className="bg-gradient-to-r from-[#161B22] to-[#1a222e] border border-[#58A6FF]/30 rounded-xl p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#58A6FF] uppercase tracking-wider">
+                      Gameweek 2 • Prospective Decision Locked
+                    </span>
+                    <span className="text-[10px] font-extrabold bg-[#238636]/20 text-[#3FB950] border border-[#238636]/40 px-2.5 py-0.5 rounded-full">
+                      FROZEN_PENDING
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <span className="text-[#8B949E]">Projected Points:</span>
+                      <div className="font-extrabold text-sm text-[#E6EDF3]">120.2 xP</div>
+                    </div>
+                    <div>
+                      <span className="text-[#8B949E]">Captain:</span>
+                      <div className="font-extrabold text-sm text-[#F0A500]">Maxim De Cuyper (Triple Captain)</div>
+                    </div>
+                    <div>
+                      <span className="text-[#8B949E]">Actual Realization:</span>
+                      <div className="font-extrabold text-sm text-[#8B949E] italic">Pending Match Completion</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Governance Exclusions Note */}
+                <div className="bg-[#0D1117] border border-[#30363D]/60 rounded-xl p-4 text-xs text-[#8B949E] space-y-1">
+                  <div className="font-bold text-[#E6EDF3]">Historical Replay Governance:</div>
+                  <p>
+                    Gameweek 1 retrospective replay has been excluded from official prospective performance ledgers. 
+                    All official performance metrics reflect immutable, pre-deadline decision freezes beginning at Gameweek 2.
+                  </p>
                 </div>
               </div>
             )}
