@@ -76,6 +76,12 @@ export default function Navbar({ language, onLanguageChange }: NavbarProps) {
             <Link href="/" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
               {tr('nav_home', language)}
             </Link>
+            <Link href="/premier-league" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
+              {language === 'KU' ? 'پرێمیەر لیگ' : 'Premier League'}
+            </Link>
+            <Link href="/fantasy" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
+              {language === 'KU' ? 'فانتازی' : 'Fantasy'}
+            </Link>
             <Link href="/explore" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
               {tr('nav_explore', language)}
             </Link>

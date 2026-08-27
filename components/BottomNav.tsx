@@ -48,9 +48,9 @@ const tabs = [
     ),
   },
   {
-    href: '/h2h',
-    labelEN: 'H2H',
-    labelKU: 'H2H',
+    href: '/premier-league',
+    labelEN: 'PL',
+    labelKU: 'پرێمیەر',
     exact: false,
     icon: (active: boolean) => (
       <svg
@@ -63,10 +63,27 @@ const tabs = [
         className="h-6 w-6"
         aria-hidden="true"
       >
-        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 00-3-3.87" />
-        <path d="M16 3.13a4 4 0 010 7.75" />
+        <path d="M12 2l8 3v6c0 5.55-3.84 10.74-8 12-4.16-1.26-8-6.45-8-12V5l8-3z" />
+      </svg>
+    ),
+  },
+  {
+    href: '/fantasy',
+    labelEN: 'Fantasy',
+    labelKU: 'فانتازی',
+    exact: false,
+    icon: (active: boolean) => (
+      <svg
+        viewBox="0 0 24 24"
+        fill={active ? '#F0A500' : 'none'}
+        stroke={active ? '#F0A500' : '#8B949E'}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-6 w-6"
+        aria-hidden="true"
+      >
+        <polygon points="12 2 15.09 8.63 22 9.24 16.9 13.97 18.18 20.6 12 17.27 5.82 20.6 7.1 13.97 2 9.24 8.91 8.63 12 2" />
       </svg>
     ),
   },
