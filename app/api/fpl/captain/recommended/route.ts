@@ -6,7 +6,8 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const qs = searchParams.toString() ? '?' + searchParams.toString() : ''
-  const upstreamUrl = (process.env.NEXT_PUBLIC_API_URL?.trim() || 'http://72.62.35.32') + '/api/v1/fpl/captain/recommended' + qs
+  const upstreamHost = (process.env.BACKEND_INTERNAL_URL || process.env.VPS_BACKEND_URL || 'http://72.62.35.32').trim().replace(/\/+$/, '')
+  const upstreamUrl = upstreamHost + '/api/v1/fpl/captain/recommended' + qs
 
   try {
     const controller = new AbortController()

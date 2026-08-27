@@ -1,12 +1,10 @@
 import { supabase } from '@/lib/supabase'
 import type { PLFixture, PLTableResponse } from './types'
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? '').trim() || ''
-
 /**
  * Retrieves Premier League fixtures for a specific gameweek.
  * Primary Canonical Source: Supabase 'matches' table (competition = 'PL2026-27')
- * Fallback: FastAPI '/api/pl/fixtures' endpoint
+ * Fallback: Next.js same-origin API route '/api/pl/fixtures'
  */
 export async function getPLFixtures(gw: number = 2): Promise<PLFixture[]> {
   try {
@@ -55,13 +53,12 @@ export async function getPLFixtures(gw: number = 2): Promise<PLFixture[]> {
       })
     }
   } catch (err) {
-    console.warn('[PL API] Supabase query failed, attempting FastAPI proxy:', err)
+    console.warn('[PL API] Supabase query failed, attempting same-origin API:', err)
   }
 
-  // Fallback to FastAPI proxy
-  const res = await fetch(`${API_BASE}/api/pl/fixtures?gw=${gw}&season=2026-27`, {
-    headers: { 'Content-Type': 'application/json' },
-  })
+  // Fallback to same-origin API
+  const url = `/api/pl/fixtures?gw=${gw}&season=2026-27`
+  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' } })
   if (!res.ok) {
     throw new Error(`Failed to fetch fixtures: ${res.statusText}`)
   }
@@ -72,9 +69,8 @@ export async function getPLFixtures(gw: number = 2): Promise<PLFixture[]> {
  * Retrieves the 2026-27 Premier League 10,000 Monte Carlo Season Projection Table.
  */
 export async function getPLTable(): Promise<PLTableResponse> {
-  const res = await fetch(`${API_BASE}/api/pl/table?season=2026-27`, {
-    headers: { 'Content-Type': 'application/json' },
-  })
+  const url = '/api/pl/table?season=2026-27'
+  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' } })
   if (!res.ok) {
     throw new Error(`Failed to fetch league projection: ${res.statusText}`)
   }

@@ -141,20 +141,48 @@ export default function FantasyPage() {
     setLoading(true)
     setError(null)
     try {
-      const [planRes, captRes, transRes, chipsRes, perfRes] = await Promise.all([
+      const results = await Promise.allSettled([
         getFPLGameweekPlan(),
         getFPLCaptain(),
         getFPLTransfers(),
         getFPLChips(),
         getFPLPerformance(),
       ])
-      setPlan(planRes)
-      setCaptainData(captRes)
-      setTransfers(transRes)
-      setChips(chipsRes)
-      setPerformance(perfRes)
+
+      const [planRes, captRes, transRes, chipsRes, perfRes] = results
+
+      if (planRes.status === 'fulfilled') {
+        setPlan(planRes.value)
+      } else {
+        console.error('[Fantasy Page] Gameweek Plan failed:', planRes.reason)
+        setError(planRes.reason?.message || 'Failed loading Gameweek Plan.')
+      }
+
+      if (captRes.status === 'fulfilled') {
+        setCaptainData(captRes.value)
+      } else {
+        console.warn('[Fantasy Page] Captain data failed:', captRes.reason)
+      }
+
+      if (transRes.status === 'fulfilled') {
+        setTransfers(transRes.value)
+      } else {
+        console.warn('[Fantasy Page] Transfers data failed:', transRes.reason)
+      }
+
+      if (chipsRes.status === 'fulfilled') {
+        setChips(chipsRes.value)
+      } else {
+        console.warn('[Fantasy Page] Chips data failed:', chipsRes.reason)
+      }
+
+      if (perfRes.status === 'fulfilled') {
+        setPerformance(perfRes.value)
+      } else {
+        console.warn('[Fantasy Page] Performance data failed:', perfRes.reason)
+      }
     } catch (err: any) {
-      console.error('[Fantasy Page] Fetch error:', err)
+      console.error('[Fantasy Page] General fetch error:', err)
       setError(err?.message || 'Failed loading Fantasy AI intelligence.')
     } finally {
       setLoading(false)
