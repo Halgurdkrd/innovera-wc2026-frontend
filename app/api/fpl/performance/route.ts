@@ -20,7 +20,9 @@ export async function GET(request: Request) {
 
     if (res.ok) {
       const data = await res.json()
-      return NextResponse.json(data)
+      if (data.official_start_gw === 2 || data.governance_mode === 'PROSPECTIVE_IMMUTABLE') {
+        return NextResponse.json(data)
+      }
     }
   } catch (err) {
     // Upstream unavailable or timed out -> serve canonical 2026-27 data
