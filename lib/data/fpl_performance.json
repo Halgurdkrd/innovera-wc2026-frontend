@@ -1,22 +1,22 @@
 {
   "season": "2026-27",
   "current_gw": 2,
-  "total_points": 68,
-  "average_points_per_gw": 68.0,
-  "captain_points": 26,
+  "total_points": 108,
+  "average_points_per_gw": 108.0,
+  "captain_points": 4,
   "transfer_hits": 0,
-  "bench_points_missed": 6,
+  "bench_points_missed": 30,
   "gameweeks": [
     {
       "gw": 1,
       "predicted_xp": 75.0,
-      "actual_points": 68,
-      "delta": -7.0,
+      "actual_points": 108,
+      "delta": 33.0,
       "captain_name": "Erling Haaland",
-      "captain_actual": 26,
+      "captain_actual": 4,
       "transfers_made": 0,
       "chip_played": "None",
-      "bench_points": 6
+      "bench_points": 30
     }
   ]
 }
