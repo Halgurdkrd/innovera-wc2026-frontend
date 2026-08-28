@@ -1,44 +1,56 @@
 {
-  "season": "2026-27",
   "gameweek": 2,
-  "captain": {
-    "player_id": 115,
-    "name": "Maxim De Cuyper",
-    "club": "Brighton and Hove Albion",
-    "position": "DEF",
-    "price": 4.6,
-    "expected_points": 11.4,
-    "haul_probability": 0.65,
-    "captain_score": 13.07
+  "season": "2026-27",
+  "recommended_captain": {
+    "player_id": 411,
+    "name": "Erling Haaland",
+    "club": "Man City",
+    "position": "FWD",
+    "price": 15.5,
+    "expected_points": 7.9,
+    "haul_probability": 0.4,
+    "captain_score": 8.85,
+    "opponent": "Crystal Palace",
+    "home_away": "A"
   },
-  "vice_captain": {
-    "player_id": 123,
-    "name": "Jack Hinshelwood",
-    "club": "Brighton and Hove Albion",
+  "recommended_vice_captain": {
+    "player_id": 154,
+    "name": "Cole Palmer",
+    "club": "Chelsea",
     "position": "MID",
-    "price": 6.0,
-    "expected_points": 10.8,
-    "haul_probability": 0.65
+    "price": 9.5,
+    "expected_points": 7.8,
+    "haul_probability": 0.39,
+    "opponent": "Brighton",
+    "home_away": "H"
   },
-  "alternatives": [
+  "top_alternatives": [
     {
-      "name": "Jack Hinshelwood",
-      "club": "Brighton and Hove Albion",
-      "expected_points": 10.8,
-      "haul_probability": 0.65
+      "player_id": 379,
+      "name": "Alexander Isak",
+      "club": "Liverpool",
+      "position": "FWD",
+      "expected_points": 7.6,
+      "haul_prob": 0.38,
+      "captain_score": 8.4
     },
     {
-      "name": "Nobel Mendy",
-      "club": "Hull City",
-      "expected_points": 10.1,
-      "haul_probability": 0.65
+      "player_id": 360,
+      "name": "Cody Gakpo",
+      "club": "Liverpool",
+      "position": "MID",
+      "expected_points": 7.0,
+      "haul_prob": 0.34,
+      "captain_score": 7.75
     },
     {
-      "name": "Mamadou Sangar\u00e9",
-      "club": "Brentford",
-      "expected_points": 9.4,
-      "haul_probability": 0.65
+      "player_id": 12,
+      "name": "Bukayo Saka",
+      "club": "Arsenal",
+      "position": "MID",
+      "expected_points": 6.85,
+      "haul_prob": 0.33,
+      "captain_score": 7.55
     }
-  ],
-  "selection_rationale": "High expected minutes and haul probability penalty-adjusted selection."
+  ]
 }

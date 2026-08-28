@@ -1,90 +1,30 @@
 [
   {
-    "chip_id": "wildcard_1",
-    "name": "Wildcard 1",
-    "available": true,
-    "used": false,
+    "chip": "Wildcard 1",
     "status": "AVAILABLE",
-    "target_gw": 19,
-    "expected_incremental_value": 8.5,
-    "reservation_value": 5.0,
-    "reason": "Eligible for deployment in Gameweeks 1\u201319."
+    "window": "GW2-GW19",
+    "recommendation": "HOLD / PRESERVE",
+    "priority": "HIGH"
   },
   {
-    "chip_id": "wildcard_2",
-    "name": "Wildcard 2",
-    "available": false,
-    "used": false,
-    "status": "LOCKED",
-    "target_gw": 38,
-    "expected_incremental_value": 8.5,
-    "reservation_value": 5.0,
-    "reason": "Window opens at GW20."
-  },
-  {
-    "chip_id": "free_hit_1",
-    "name": "Free Hit 1",
-    "available": true,
-    "used": false,
+    "chip": "Free Hit",
     "status": "AVAILABLE",
-    "target_gw": 19,
-    "expected_incremental_value": 6.0,
-    "reservation_value": 5.0,
-    "reason": "Eligible for deployment in Gameweeks 1\u201319."
+    "window": "GW2-GW38",
+    "recommendation": "HOLD / PRESERVE",
+    "priority": "VERY_HIGH"
   },
   {
-    "chip_id": "free_hit_2",
-    "name": "Free Hit 2",
-    "available": false,
-    "used": false,
-    "status": "LOCKED",
-    "target_gw": 38,
-    "expected_incremental_value": 6.0,
-    "reservation_value": 5.0,
-    "reason": "Window opens at GW20."
-  },
-  {
-    "chip_id": "bench_boost_1",
-    "name": "Bench Boost 1",
-    "available": true,
-    "used": false,
+    "chip": "Triple Captain",
     "status": "AVAILABLE",
-    "target_gw": 19,
-    "expected_incremental_value": 6.0,
-    "reservation_value": 5.0,
-    "reason": "Eligible for deployment in Gameweeks 1\u201319."
+    "window": "GW2-GW38",
+    "recommendation": "HOLD / PRESERVE",
+    "priority": "HIGH"
   },
   {
-    "chip_id": "bench_boost_2",
-    "name": "Bench Boost 2",
-    "available": false,
-    "used": false,
-    "status": "LOCKED",
-    "target_gw": 38,
-    "expected_incremental_value": 6.0,
-    "reservation_value": 5.0,
-    "reason": "Window opens at GW20."
-  },
-  {
-    "chip_id": "triple_captain_1",
-    "name": "Triple Captain 1",
-    "available": true,
-    "used": false,
+    "chip": "Bench Boost",
     "status": "AVAILABLE",
-    "target_gw": 19,
-    "expected_incremental_value": 6.0,
-    "reservation_value": 5.0,
-    "reason": "Eligible for deployment in Gameweeks 1\u201319."
-  },
-  {
-    "chip_id": "triple_captain_2",
-    "name": "Triple Captain 2",
-    "available": false,
-    "used": false,
-    "status": "LOCKED",
-    "target_gw": 38,
-    "expected_incremental_value": 6.0,
-    "reservation_value": 5.0,
-    "reason": "Window opens at GW20."
+    "window": "GW2-GW38",
+    "recommendation": "HOLD / PRESERVE",
+    "priority": "HIGH"
   }
 ]

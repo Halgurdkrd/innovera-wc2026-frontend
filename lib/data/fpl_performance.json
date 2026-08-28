@@ -1,29 +1,22 @@
 {
   "season": "2026-27",
-  "governance_mode": "PROSPECTIVE_IMMUTABLE",
-  "official_start_gw": 2,
-  "completed_gameweeks": 0,
-  "total_points": 0,
-  "average_points": 0.0,
-  "captain_points": 0,
-  "transfer_costs": 0,
-  "chip_points": 0,
-  "bench_points_missed": 0,
-  "active_gameweek": {
-    "gameweek": 2,
-    "status": "FROZEN_PENDING",
-    "deadline": "2026-08-28T17:30:00Z",
-    "captain": "Maxim De Cuyper",
-    "vice_captain": "Jack Hinshelwood",
-    "chip": "Triple Captain",
-    "projected_points": 120.2
-  },
-  "history": [],
-  "excluded_gameweeks": [
+  "current_gw": 2,
+  "total_points": 68,
+  "average_points_per_gw": 68.0,
+  "captain_points": 26,
+  "transfer_hits": 0,
+  "bench_points_missed": 6,
+  "gameweeks": [
     {
-      "gameweek": 1,
-      "status": "INVALID_RETROSPECTIVE_RECONSTRUCTION_EXCLUDED",
-      "reason": "Retrospective execution with post-GW1 bootstrap data contained target leakage. Excluded from official prospective performance ledger."
+      "gw": 1,
+      "predicted_xp": 75.0,
+      "actual_points": 68,
+      "delta": -7.0,
+      "captain_name": "Erling Haaland",
+      "captain_actual": 26,
+      "transfers_made": 0,
+      "chip_played": "None",
+      "bench_points": 6
     }
   ]
 }
