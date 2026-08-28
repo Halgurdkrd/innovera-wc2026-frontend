@@ -84,7 +84,7 @@ export interface FPLTransferRecommendation {
 }
 
 export interface FPLChipRecommendation {
-  action: 'USE' | 'SAVE' | 'USED' | 'LOCKED' | 'EXPIRED'
+  action: 'USE' | 'SAVE' | 'USED' | 'LOCKED' | 'EXPIRED' | 'HOLD'
   chip_name?: string | null
   expected_incremental_gain: number
   reason: string
@@ -171,6 +171,83 @@ export interface FPLChipStatusItem {
   reason: string
 }
 
+export interface FPLPerformancePlayer {
+  player_id: number
+  name: string
+  web_name: string
+  club: string
+  position: 'GK' | 'DEF' | 'MID' | 'FWD'
+  opponent?: string
+  home_away?: 'H' | 'A'
+  predicted_xp: number
+  actual_points: number | null
+  delta: number | null
+  minutes: number | null
+  bench_order?: number | null
+  is_captain?: boolean
+  is_vice_captain?: boolean
+}
+
+export interface FPLPerformanceCaptain {
+  player_id: number
+  name: string
+  club: string
+  position: string
+  predicted_base_xp: number
+  expected_captain_contribution: number
+  actual_base: number | null
+  captain_multiplier: number
+  actual_captain_contribution: number | null
+  delta: number | null
+}
+
+export interface FPLPerformanceGameweek {
+  gameweek: number
+  classification: 'HISTORICAL_REPLAY' | 'PROSPECTIVE'
+  status: 'COMPLETE' | 'FROZEN_PENDING'
+  model_version: string
+  model_hash: string
+  prediction_hash: string
+  deadline: string
+  formation: string
+  projected_total: number
+  actual_total: number | null
+  delta: number | null
+  xi_predicted_base: number
+  captain_expected_bonus: number
+  xi_raw_actual: number | null
+  captain_actual_extra: number | null
+  bench_actual: number | null
+  total_15_raw_actual: number | null
+  transfers_made: number
+  hit_cost: number
+  chip_used: string
+  bank: number
+  free_transfers: number
+  captain: FPLPerformanceCaptain
+  vice_captain: {
+    player_id: number
+    name: string
+    club: string
+    position: string
+    predicted_base_xp: number
+    actual: number | null
+  }
+  starting_xi: FPLPerformancePlayer[]
+  bench: FPLPerformancePlayer[]
+}
+
+export interface FPLPerformanceSummary {
+  prospective_completed_gws: number
+  prospective_projected_total: number
+  prospective_actual_total: number | null
+  prospective_delta: number | null
+  historical_replay_gws: number
+  historical_projected_total: number
+  historical_actual_total: number
+  historical_delta: number
+}
+
 export interface FPLWeeklyPerformance {
   gameweek: number
   score: number
@@ -185,12 +262,14 @@ export interface FPLWeeklyPerformance {
 
 export interface FPLPerformanceResponse {
   season: string
-  completed_gameweeks: number
-  total_points: number
-  average_points: number
-  captain_points: number
-  transfer_costs: number
-  chip_points: number
-  bench_points_missed: number
-  history: FPLWeeklyPerformance[]
+  summary: FPLPerformanceSummary
+  gameweeks: FPLPerformanceGameweek[]
+  completed_gameweeks?: number
+  total_points?: number
+  average_points?: number
+  captain_points?: number
+  transfer_costs?: number
+  chip_points?: number
+  bench_points_missed?: number
+  history?: FPLWeeklyPerformance[]
 }

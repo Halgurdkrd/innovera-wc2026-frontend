@@ -12,7 +12,7 @@ export interface PitchVisualizationProps {
 }
 
 // Authentic 20 Premier League Club Kit Palette & Styles
-const CLUB_KIT_THEMES: Record<string, { primary: string; secondary: string; stroke: string; pattern?: 'stripes' | 'sleeves' | 'solid' }> = {
+export const CLUB_KIT_THEMES: Record<string, { primary: string; secondary: string; stroke: string; pattern?: 'stripes' | 'sleeves' | 'solid' }> = {
   'Arsenal': { primary: '#EF0107', secondary: '#FFFFFF', stroke: '#9B0000', pattern: 'sleeves' },
   'Aston Villa': { primary: '#670E36', secondary: '#95BFE5', stroke: '#4A0A26', pattern: 'sleeves' },
   'Bournemouth': { primary: '#DA291C', secondary: '#000000', stroke: '#8B0000', pattern: 'stripes' },
@@ -43,7 +43,7 @@ const CLUB_KIT_THEMES: Record<string, { primary: string; secondary: string; stro
   'GK_DEFAULT': { primary: '#22C55E', secondary: '#15803D', stroke: '#166534', pattern: 'solid' }
 }
 
-function ClubJerseySvg({ club, position, isCaptain }: { club: string; position: string; isCaptain?: boolean }) {
+export function ClubJerseySvg({ club, position, isCaptain }: { club: string; position: string; isCaptain?: boolean }) {
   const isGK = position === 'GK'
   const theme = isGK ? CLUB_KIT_THEMES['GK_DEFAULT'] : (CLUB_KIT_THEMES[club] || CLUB_KIT_THEMES['Chelsea'])
 
