@@ -66,9 +66,11 @@ export interface FPLPlayer {
   starting_prob: number
   haul_prob: number
   is_starting: boolean
-  is_captain: boolean
-  is_vice_captain: boolean
+  is_captain?: boolean
+  is_vice_captain?: boolean
   bench_order?: number | null
+  opponent?: string
+  home_away?: string
 }
 
 export interface FPLTransferRecommendation {

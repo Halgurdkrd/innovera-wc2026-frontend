@@ -1,6 +1,16 @@
 {
-  "gameweek": 2,
   "season": "2026-27",
+  "gameweek": 2,
+  "captain": {
+    "player_id": 411,
+    "name": "Erling Haaland",
+    "club": "Man City",
+    "position": "FWD",
+    "price": 15.5,
+    "expected_points": 7.9,
+    "haul_probability": 0.4,
+    "captain_score": 8.85
+  },
   "recommended_captain": {
     "player_id": 411,
     "name": "Erling Haaland",
@@ -9,9 +19,16 @@
     "price": 15.5,
     "expected_points": 7.9,
     "haul_probability": 0.4,
-    "captain_score": 8.85,
-    "opponent": "Crystal Palace",
-    "home_away": "A"
+    "captain_score": 8.85
+  },
+  "vice_captain": {
+    "player_id": 154,
+    "name": "Cole Palmer",
+    "club": "Chelsea",
+    "position": "MID",
+    "price": 9.5,
+    "expected_points": 7.8,
+    "haul_probability": 0.39
   },
   "recommended_vice_captain": {
     "player_id": 154,
@@ -20,37 +37,47 @@
     "position": "MID",
     "price": 9.5,
     "expected_points": 7.8,
-    "haul_probability": 0.39,
-    "opponent": "Brighton",
-    "home_away": "H"
+    "haul_probability": 0.39
   },
-  "top_alternatives": [
+  "alternatives": [
     {
-      "player_id": 379,
       "name": "Alexander Isak",
       "club": "Liverpool",
-      "position": "FWD",
       "expected_points": 7.6,
-      "haul_prob": 0.38,
-      "captain_score": 8.4
+      "haul_probability": 0.38
     },
     {
-      "player_id": 360,
       "name": "Cody Gakpo",
       "club": "Liverpool",
-      "position": "MID",
       "expected_points": 7.0,
-      "haul_prob": 0.34,
-      "captain_score": 7.75
+      "haul_probability": 0.34
     },
     {
-      "player_id": 12,
       "name": "Bukayo Saka",
       "club": "Arsenal",
-      "position": "MID",
       "expected_points": 6.85,
-      "haul_prob": 0.33,
-      "captain_score": 7.55
+      "haul_probability": 0.33
     }
-  ]
+  ],
+  "top_alternatives": [
+    {
+      "name": "Alexander Isak",
+      "club": "Liverpool",
+      "expected_points": 7.6,
+      "haul_probability": 0.38
+    },
+    {
+      "name": "Cody Gakpo",
+      "club": "Liverpool",
+      "expected_points": 7.0,
+      "haul_probability": 0.34
+    },
+    {
+      "name": "Bukayo Saka",
+      "club": "Arsenal",
+      "expected_points": 6.85,
+      "haul_probability": 0.33
+    }
+  ],
+  "selection_rationale": "Haaland features the highest overall baseline goal threat and 10+ haul odds against Crystal Palace away."
 }

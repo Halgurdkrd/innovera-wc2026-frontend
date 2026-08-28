@@ -243,7 +243,7 @@ export default function FantasyPage() {
             <div className="p-3 bg-[#0D1117]/60 rounded-xl border border-[#30363D]/40">
               <div className="text-[11px] font-semibold text-[#8B949E] uppercase">{t.expectedPts}</div>
               <div className="text-xl font-black text-[#3FB950] mt-0.5">
-                {plan.expected_total_points.toFixed(1)} <span className="text-xs font-normal">pts</span>
+                {plan.expected_total_points.toFixed(2)} <span className="text-xs font-normal">pts</span>
               </div>
             </div>
 

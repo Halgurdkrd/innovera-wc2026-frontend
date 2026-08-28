@@ -1,30 +1,46 @@
 [
   {
-    "chip": "Wildcard 1",
+    "chip_id": "wildcard_1",
+    "name": "Wildcard (1st Half)",
+    "available": true,
+    "used": false,
     "status": "AVAILABLE",
-    "window": "GW2-GW19",
-    "recommendation": "HOLD / PRESERVE",
-    "priority": "HIGH"
+    "target_gw": 6,
+    "expected_incremental_value": 14.5,
+    "reservation_value": 18.0,
+    "reason": "Reserve for initial European fixture swing in Gameweek 6."
   },
   {
-    "chip": "Free Hit",
+    "chip_id": "free_hit",
+    "name": "Free Hit",
+    "available": true,
+    "used": false,
     "status": "AVAILABLE",
-    "window": "GW2-GW38",
-    "recommendation": "HOLD / PRESERVE",
-    "priority": "VERY_HIGH"
+    "target_gw": 29,
+    "expected_incremental_value": 16.0,
+    "reservation_value": 22.0,
+    "reason": "Reserve for major spring blank gameweek (GW29/GW33)."
   },
   {
-    "chip": "Triple Captain",
+    "chip_id": "triple_captain",
+    "name": "Triple Captain",
+    "available": true,
+    "used": false,
     "status": "AVAILABLE",
-    "window": "GW2-GW38",
-    "recommendation": "HOLD / PRESERVE",
-    "priority": "HIGH"
+    "target_gw": 34,
+    "expected_incremental_value": 12.0,
+    "reservation_value": 17.5,
+    "reason": "Reserve for certified Double Gameweek captaincy (GW34/GW37)."
   },
   {
-    "chip": "Bench Boost",
+    "chip_id": "bench_boost",
+    "name": "Bench Boost",
+    "available": true,
+    "used": false,
     "status": "AVAILABLE",
-    "window": "GW2-GW38",
-    "recommendation": "HOLD / PRESERVE",
-    "priority": "HIGH"
+    "target_gw": 37,
+    "expected_incremental_value": 15.0,
+    "reservation_value": 20.0,
+    "reason": "Reserve for major double gameweek 37 after second wildcard."
   }
 ]
