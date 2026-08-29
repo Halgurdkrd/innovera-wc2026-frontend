@@ -201,8 +201,8 @@ export function PitchVisualization({
                   </div>
                 </div>
                 <div className="flex items-center justify-between mt-2 pt-1 border-t border-[#30363D]/40 text-[10px]">
-                  <span className="text-[#8B949E]">£{player.price.toFixed(1)}m</span>
-                  <span className="font-bold text-[#3FB950]">{player.expected_points.toFixed(2)} xP</span>
+                  <span className="text-[#8B949E]">£{(player.price ?? 5.0).toFixed(1)}m</span>
+                  <span className="font-bold text-[#3FB950]">{(player.expected_points ?? (player as any).predicted_xp ?? 0).toFixed(2)} xP</span>
                 </div>
               </div>
             ))}
@@ -222,7 +222,9 @@ function PlayerPitchCard({ player, onClick }: { player: FPLPlayer; onClick?: () 
   const isCap = player.is_captain
   const isVice = player.is_vice_captain
   const rangeText = player.likely_range ? `${player.likely_range[0]}–${player.likely_range[1]} pts` : '—'
-  const haulText = player.prob_10_plus !== undefined ? `${Math.round(player.prob_10_plus * 100)}%` : `${Math.round(player.haul_prob * 100)}%`
+  const haulText = player.prob_10_plus !== undefined ? `${Math.round(player.prob_10_plus * 100)}%` : `${Math.round((player.haul_prob ?? 0.2) * 100)}%`
+  const expPoints = player.expected_points ?? (player as any).predicted_xp ?? 0
+  const actualPoints = (player as any).actual_points
 
   return (
     <div
@@ -259,8 +261,15 @@ function PlayerPitchCard({ player, onClick }: { player: FPLPlayer; onClick?: () 
         <div className="text-[8px] sm:text-[9px] text-[#8B949E] truncate">
           {player.opponent ? `${player.club.slice(0, 3).toUpperCase()} vs ${player.opponent.slice(0, 3).toUpperCase()} (${player.home_away || 'H'})` : player.club}
         </div>
-        <div className="text-[10px] sm:text-[11px] font-extrabold text-[#3FB950] mt-0.5">
-          {player.expected_points.toFixed(2)} xP
+        <div className="flex items-center justify-center gap-1.5 mt-0.5">
+          <span className="text-[10px] sm:text-[11px] font-extrabold text-[#3FB950]">
+            {expPoints.toFixed(2)} xP
+          </span>
+          {actualPoints !== undefined && actualPoints !== null && (
+            <span className="text-[9px] font-black px-1 rounded bg-[#58A6FF]/20 text-[#58A6FF]">
+              {actualPoints} pts
+            </span>
+          )}
         </div>
         <div className="flex justify-between items-center text-[8px] text-[#8B949E] px-0.5 mt-0.5 border-t border-[#30363D]/60 pt-0.5">
           <span>{rangeText}</span>
@@ -312,7 +321,7 @@ function PlayerDetailModal({
               )}
             </div>
             <p className="text-xs text-[#8B949E]">
-              {player.club} • {player.position} • £{player.price.toFixed(1)}m • {player.expected_minutes ?? 90} mins
+              {player.club} • {player.position} • £{(player.price ?? 5.0).toFixed(1)}m • {player.expected_minutes ?? 90} mins
             </p>
           </div>
         </div>
@@ -330,7 +339,7 @@ function PlayerDetailModal({
           <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
             <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Expected Points</div>
             <div className="text-2xl font-black text-[#3FB950] mt-1">
-              {player.expected_points.toFixed(2)} <span className="text-xs text-[#8B949E] font-normal">xP</span>
+              {(player.expected_points ?? (player as any).predicted_xp ?? 0).toFixed(2)} <span className="text-xs text-[#8B949E] font-normal">xP</span>
             </div>
             <div className="text-[10px] text-[#8B949E] mt-0.5">Central mean forecast</div>
           </div>
