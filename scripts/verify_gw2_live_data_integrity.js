@@ -9,7 +9,7 @@ if (!fs.existsSync(screenshotsDir)) {
 
 (async () => {
   console.log('======================================================================');
-  console.log('ENNOVERA — GW2 LIVE DATA INTEGRITY & PARITY PRODUCTION AUDIT');
+  console.log('ENNOVERA — GW2 AUTHENTIC EVENT 2 DATA INTEGRITY THREE-WAY AUDIT');
   console.log('TARGET: https://aifootballp.com/fantasy');
   console.log('======================================================================');
 
@@ -37,25 +37,29 @@ if (!fs.existsSync(screenshotsDir)) {
     const has5Finished = bodyText.includes('5 Finished • 6 Remaining') || bodyText.includes('5/11 Starters Finished');
     console.log('Assertion 2 (Dynamic Starter Counter 5 Finished • 6 Remaining):', has5Finished);
 
-    // 3. Check Live Manager Team Score (38 pts)
-    const has38Pts = bodyText.includes('38') && (bodyText.includes('38 pts (Live)') || bodyText.includes('38 pts (In Progress)'));
-    console.log('Assertion 3 (Live Manager Score 38 pts [25 raw XI + 13 capt bonus]):', has38Pts);
+    // 3. Check Live Manager Team Score (54 pts: 41 raw XI + 13 capt bonus)
+    const has54Pts = bodyText.includes('54') && (bodyText.includes('54 pts (Live)') || bodyText.includes('54 pts (In Progress)'));
+    console.log('Assertion 3 (Live Manager Score 54 pts [41 raw XI + 13 capt bonus]):', has54Pts);
 
     // 4. Check Haaland Captain Scoring (13 base * 2 = 26 pts)
     const hasHaaland26 = bodyText.includes('Haaland (26 pts)') || bodyText.includes('13 pts (Base) × 2 = 26 pts') || bodyText.includes('26 pts (Live)');
     console.log('Assertion 4 (Haaland GW2 13 Base & 26 Capt Contribution):', hasHaaland26);
 
-    // 5. Check Saka & Palmer Status (Not Started, not 0 or stale points)
+    // 5. Check Gakpo Authentic Event 2 Score (5 pts)
+    const hasGakpo5 = bodyText.includes('Gakpo') && bodyText.includes('5 pts');
+    console.log('Assertion 5 (Cody Gakpo GW2 Authentic Score 5 pts):', hasGakpo5);
+
+    // 6. Check Saka & Palmer Status (Not Started)
     const hasSakaNotStarted = bodyText.includes('Saka') && bodyText.includes('Not Started');
     const hasPalmerNotStarted = bodyText.includes('Palmer') && bodyText.includes('Not Started');
-    console.log('Assertion 5A (Bukayo Saka Status is Not Started):', hasSakaNotStarted);
-    console.log('Assertion 5B (Cole Palmer Status is Not Started):', hasPalmerNotStarted);
+    console.log('Assertion 6A (Bukayo Saka Status is Not Started):', hasSakaNotStarted);
+    console.log('Assertion 6B (Cole Palmer Status is Not Started):', hasPalmerNotStarted);
 
-    // 6. Check Arsenal Kit Rendering (Red #EF0107 body with white sleeves)
+    // 7. Check Arsenal Kit Rendering (Red #EF0107 body with white sleeves)
     const arsenalJersey = await page.locator('svg path[fill="#EF0107"]').first().isVisible();
-    console.log('Assertion 6 (Arsenal Kit mapped to #EF0107 Red Body with White Sleeves):', arsenalJersey);
+    console.log('Assertion 7 (Arsenal Kit mapped to #EF0107 Red Body with White Sleeves):', arsenalJersey);
 
-    // 7. Check Performance Tab GW2 Parity
+    // 8. Check Performance Tab GW2 Parity
     console.log('\nTesting Performance Tab GW2 Parity...');
     await page.getByRole('button', { name: 'Performance' }).click();
     await page.waitForTimeout(1000);
@@ -63,26 +67,26 @@ if (!fs.existsSync(screenshotsDir)) {
     await page.waitForTimeout(1000);
 
     const perfText = await page.innerText('body');
-    const perfHas38 = perfText.includes('38 pts');
+    const perfHas54 = perfText.includes('54 pts');
     const perfHas5Finished = perfText.includes('5/11 Finished') || perfText.includes('5 Finished');
-    console.log('Assertion 7A (Performance Tab shows 38 pts Live):', perfHas38);
-    console.log('Assertion 7B (Performance Tab shows 5 Finished):', perfHas5Finished);
+    console.log('Assertion 8A (Performance Tab shows 54 pts Live):', perfHas54);
+    console.log('Assertion 8B (Performance Tab shows 5 Finished):', perfHas5Finished);
 
     // Capture Verification Screenshots
-    const ss1 = path.join(screenshotsDir, '01_live_gw2_plan_corrected.png');
+    const ss1 = path.join(screenshotsDir, '01_live_gw2_plan_gakpo5.png');
     await page.getByRole('button', { name: 'Gameweek Plan' }).click();
     await page.waitForTimeout(1000);
     await page.screenshot({ path: ss1, fullPage: true });
     console.log('Saved Screenshot 1:', ss1);
 
-    const ss2 = path.join(screenshotsDir, '02_performance_gw2_corrected.png');
+    const ss2 = path.join(screenshotsDir, '02_performance_gw2_gakpo5.png');
     await page.getByRole('button', { name: 'Performance' }).click();
     await page.waitForTimeout(1000);
     await page.screenshot({ path: ss2, fullPage: true });
     console.log('Saved Screenshot 2:', ss2);
 
     console.log('\n======================================================================');
-    console.log('ALL GW2 LIVE DATA INTEGRITY & KIT PARITY TESTS PASSED!');
+    console.log('ALL GW2 AUTHENTIC EVENT 2 DATA INTEGRITY & PARITY TESTS PASSED!');
     console.log('======================================================================');
   } catch (err) {
     console.error('Error during data integrity verification:', err);
