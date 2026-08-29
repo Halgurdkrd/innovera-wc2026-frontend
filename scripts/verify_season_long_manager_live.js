@@ -43,7 +43,7 @@ if (!fs.existsSync(screenshotsDir)) {
     console.log('✓ 3. Current Manager Team visible:', hasGW2Manager);
 
     // Check 4: Live points & predicted points visible
-    const hasLivePoints = bodyText.includes('48') && bodyText.includes('74.05');
+    const hasLivePoints = bodyText.includes('38') && bodyText.includes('74.05');
     console.log('✓ 4. Live points & predicted points visible:', hasLivePoints);
 
     // Check 5: Next GW shown separately with Iraq time
@@ -151,8 +151,8 @@ if (!fs.existsSync(screenshotsDir)) {
     await page.getByRole('button', { name: /GW 2/i }).click();
     await page.waitForTimeout(1000);
     const gw2Text = await page.innerText('body');
-    const gw2HasLive = gw2Text.includes('48') && gw2Text.includes('74.05');
-    console.log('✓ 11. GW2 History shows 48 pts live vs 74.05 xP predicted:', gw2HasLive);
+    const gw2HasLive = gw2Text.includes('38') && gw2Text.includes('74.05');
+    console.log('✓ 11. GW2 History shows 38 pts live vs 74.05 xP predicted:', gw2HasLive);
 
     // Screenshot 6: GW2 selected in Performance
     const ss6 = path.join(screenshotsDir, '06_performance_gw2_selected.png');

@@ -411,14 +411,14 @@
       "deadline": "2026-08-28T17:30:00Z",
       "formation": "3-4-3",
       "projected_total": 74.05,
-      "actual_total": 38,
+      "actual_total": 54,
       "delta": null,
       "xi_predicted_base": 66.15,
       "captain_expected_bonus": 7.9,
-      "xi_raw_actual": 25,
+      "xi_raw_actual": 41,
       "captain_actual_extra": 13,
-      "bench_actual": 2,
-      "total_15_raw_actual": 40,
+      "bench_actual": 1,
+      "total_15_raw_actual": 55,
       "transfers_made": 0,
       "transfers_in": [],
       "transfers_out": [],
@@ -463,7 +463,7 @@
             6
           ],
           "prob_10_plus": 0.14,
-          "actual_points": 6,
+          "actual_points": 10,
           "delta": null,
           "minutes": 90,
           "match_status": "FT",
@@ -578,9 +578,9 @@
             10
           ],
           "prob_10_plus": 0.31,
-          "actual_points": 3,
+          "actual_points": 5,
           "delta": null,
-          "minutes": 65,
+          "minutes": 70,
           "match_status": "FT",
           "is_captain": false,
           "is_vice_captain": false
@@ -670,9 +670,9 @@
             11
           ],
           "prob_10_plus": 0.37,
-          "actual_points": 2,
+          "actual_points": 8,
           "delta": null,
-          "minutes": 78,
+          "minutes": 90,
           "match_status": "FT",
           "is_captain": false,
           "is_vice_captain": false
@@ -693,9 +693,9 @@
             8
           ],
           "prob_10_plus": 0.2,
-          "actual_points": 1,
+          "actual_points": 5,
           "delta": null,
-          "minutes": 70,
+          "minutes": 80,
           "match_status": "FT",
           "is_captain": false,
           "is_vice_captain": false
@@ -757,9 +757,9 @@
             6
           ],
           "prob_10_plus": 0.1,
-          "actual_points": 2,
+          "actual_points": 1,
           "delta": null,
-          "minutes": 45,
+          "minutes": 58,
           "match_status": "FT"
         },
         {
