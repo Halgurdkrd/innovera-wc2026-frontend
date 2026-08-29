@@ -13,7 +13,6 @@ export interface PitchVisualizationProps {
 
 // Authentic 20 Premier League Club Kit Palette & Styles
 export const CLUB_KIT_THEMES: Record<string, { primary: string; secondary: string; stroke: string; pattern?: 'stripes' | 'sleeves' | 'solid' }> = {
-  'Arsenal': { primary: '#EF0107', secondary: '#FFFFFF', stroke: '#9B0000', pattern: 'sleeves' },
   'Aston Villa': { primary: '#670E36', secondary: '#95BFE5', stroke: '#4A0A26', pattern: 'sleeves' },
   'Bournemouth': { primary: '#DA291C', secondary: '#000000', stroke: '#8B0000', pattern: 'stripes' },
   'Brentford': { primary: '#E30613', secondary: '#FFFFFF', stroke: '#990000', pattern: 'stripes' },
@@ -45,7 +44,7 @@ export const CLUB_KIT_THEMES: Record<string, { primary: string; secondary: strin
 
 export function ClubJerseySvg({ club, position, isCaptain }: { club: string; position: string; isCaptain?: boolean }) {
   const isGK = position === 'GK'
-  const theme = isGK ? CLUB_KIT_THEMES['GK_DEFAULT'] : (CLUB_KIT_THEMES[club] || CLUB_KIT_THEMES['Chelsea'])
+  const theme = CLUB_KIT_THEMES[club] || (isGK ? CLUB_KIT_THEMES['GK_DEFAULT'] : { primary: '#58A6FF', secondary: '#FFFFFF', stroke: '#1F6FEB', pattern: 'solid' })
 
   return (
     <svg
@@ -100,6 +99,8 @@ export function PitchVisualization({
   bench,
   language = 'EN',
 }: PitchVisualizationProps) {
+  const [selectedPlayer, setSelectedPlayer] = React.useState<FPLPlayer | null>(null)
+
   const gks = startingXI.filter((p) => p.position === 'GK')
   const defs = startingXI.filter((p) => p.position === 'DEF')
   const mids = startingXI.filter((p) => p.position === 'MID')
@@ -116,14 +117,17 @@ export function PitchVisualization({
           <span className="text-xs font-bold text-[#58A6FF] bg-[#58A6FF]/10 border border-[#58A6FF]/30 px-2 py-0.5 rounded">
             {formation}
           </span>
+          <span className="text-xs font-bold text-[#3FB950] bg-[#3FB950]/10 border border-[#3FB950]/30 px-2 py-0.5 rounded">
+            Ennovera Hybrid
+          </span>
         </div>
         <span className="text-xs text-[#8B949E]">
-          {startingXI.length} {language === 'KU' ? 'یاریزانی سەرەکی' : 'Starters'}
+          {startingXI.length} {language === 'KU' ? 'یاریزانی سەرەکی' : 'Starters'} • Click player for full probability card
         </span>
       </div>
 
       {/* Football Pitch Graphic */}
-      <div className="relative w-full rounded-2xl overflow-hidden border border-[#238636]/40 bg-gradient-to-b from-[#0e3a1f] via-[#124d29] to-[#0a2e18] shadow-2xl p-4 sm:p-6 min-h-[500px] flex flex-col justify-between">
+      <div className="relative w-full rounded-2xl overflow-hidden border border-[#238636]/40 bg-gradient-to-b from-[#0e3a1f] via-[#124d29] to-[#0a2e18] shadow-2xl p-3 sm:p-6 min-h-[560px] flex flex-col justify-between">
         {/* Pitch Turf Lines & Markings */}
         <div className="absolute inset-0 pointer-events-none opacity-20">
           <div className="absolute inset-x-4 inset-y-4 border border-white/40 rounded-xl" />
@@ -136,85 +140,97 @@ export function PitchVisualization({
         {/* Row 1: Goalkeeper */}
         <div className="relative z-10 flex justify-center items-center py-1">
           {gks.map((player) => (
-            <PlayerPitchCard key={player.player_id} player={player} />
+            <PlayerPitchCard key={player.player_id} player={player} onClick={() => setSelectedPlayer(player)} />
           ))}
         </div>
 
         {/* Row 2: Defenders */}
         <div className="relative z-10 flex justify-around items-center py-1 gap-1 sm:gap-2">
           {defs.map((player) => (
-            <PlayerPitchCard key={player.player_id} player={player} />
+            <PlayerPitchCard key={player.player_id} player={player} onClick={() => setSelectedPlayer(player)} />
           ))}
         </div>
 
         {/* Row 3: Midfielders */}
         <div className="relative z-10 flex justify-around items-center py-1 gap-1 sm:gap-2">
           {mids.map((player) => (
-            <PlayerPitchCard key={player.player_id} player={player} />
+            <PlayerPitchCard key={player.player_id} player={player} onClick={() => setSelectedPlayer(player)} />
           ))}
         </div>
 
         {/* Row 4: Forwards */}
         <div className="relative z-10 flex justify-around items-center py-1 gap-1 sm:gap-2">
           {fwds.map((player) => (
-            <PlayerPitchCard key={player.player_id} player={player} />
+            <PlayerPitchCard key={player.player_id} player={player} onClick={() => setSelectedPlayer(player)} />
           ))}
         </div>
       </div>
 
       {/* Bench Section */}
-      <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-4 space-y-3">
-        <div className="flex items-center justify-between border-b border-[#30363D]/60 pb-2">
-          <span className="text-xs font-bold text-[#E6EDF3] uppercase tracking-wider">
-            {language === 'KU' ? 'یاریزانانی یەدەگ' : 'Bench'}
-          </span>
-          <span className="text-xs text-[#8B949E]">
-            {bench.length} {language === 'KU' ? 'یەدەگ' : 'Substitutes'}
-          </span>
-        </div>
+      {bench && bench.length > 0 && (
+        <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between border-b border-[#30363D]/60 pb-2">
+            <span className="text-xs font-bold text-[#E6EDF3] uppercase tracking-wider">
+              {language === 'KU' ? 'یاریزانانی یەدەگ' : 'Bench'}
+            </span>
+            <span className="text-xs text-[#8B949E]">
+              {bench.length} {language === 'KU' ? 'یەدەگ' : 'Substitutes'}
+            </span>
+          </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {bench.map((player, idx) => (
-            <div
-              key={player.player_id}
-              className="bg-[#0D1117] border border-[#30363D] rounded-lg p-2.5 flex flex-col justify-between hover:border-[#8B949E]/40 transition-colors"
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-bold text-[#8B949E] bg-[#30363D]/50 px-1.5 py-0.5 rounded">
-                  #{player.bench_order ?? idx + 1}
-                </span>
-                <span className="text-[10px] font-semibold text-[#58A6FF]">{player.position}</span>
-              </div>
-              <div className="flex items-center gap-2 mb-1">
-                <ClubJerseySvg club={player.club} position={player.position} />
-                <div className="min-w-0">
-                  <div className="truncate font-semibold text-xs text-[#E6EDF3]" title={player.name}>
-                    {player.web_name || player.name}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {bench.map((player, idx) => (
+              <div
+                key={player.player_id}
+                onClick={() => setSelectedPlayer(player)}
+                className="bg-[#0D1117] border border-[#30363D] rounded-lg p-2.5 flex flex-col justify-between hover:border-[#58A6FF] cursor-pointer transition-all hover:scale-[1.02]"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] font-bold text-[#8B949E] bg-[#30363D]/50 px-1.5 py-0.5 rounded">
+                    #{player.bench_order ?? idx + 1}
+                  </span>
+                  <span className="text-[10px] font-semibold text-[#58A6FF]">{player.position}</span>
+                </div>
+                <div className="flex items-center gap-2 mb-1">
+                  <ClubJerseySvg club={player.club} position={player.position} />
+                  <div className="min-w-0">
+                    <div className="truncate font-semibold text-xs text-[#E6EDF3]" title={player.name}>
+                      {player.web_name || player.name}
+                    </div>
+                    <div className="text-[11px] text-[#8B949E] truncate">{player.club}</div>
                   </div>
-                  <div className="text-[11px] text-[#8B949E] truncate">{player.club}</div>
+                </div>
+                <div className="flex items-center justify-between mt-2 pt-1 border-t border-[#30363D]/40 text-[10px]">
+                  <span className="text-[#8B949E]">£{player.price.toFixed(1)}m</span>
+                  <span className="font-bold text-[#3FB950]">{player.expected_points.toFixed(2)} xP</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between mt-2 pt-1 border-t border-[#30363D]/40">
-                <span className="text-[10px] text-[#8B949E]">£{player.price.toFixed(1)}m</span>
-                <span className="text-xs font-bold text-[#3FB950]">{player.expected_points.toFixed(1)} xP</span>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Expanded Player Detail Modal */}
+      {selectedPlayer && (
+        <PlayerDetailModal player={selectedPlayer} onClose={() => setSelectedPlayer(null)} language={language} />
+      )}
     </div>
   )
 }
 
-function PlayerPitchCard({ player }: { player: FPLPlayer }) {
+function PlayerPitchCard({ player, onClick }: { player: FPLPlayer; onClick?: () => void }) {
   const isCap = player.is_captain
   const isVice = player.is_vice_captain
+  const rangeText = player.likely_range ? `${player.likely_range[0]}–${player.likely_range[1]} pts` : '—'
+  const haulText = player.prob_10_plus !== undefined ? `${Math.round(player.prob_10_plus * 100)}%` : `${Math.round(player.haul_prob * 100)}%`
 
   return (
-    <div className="flex flex-col items-center group cursor-pointer transition-transform hover:scale-105 select-none max-w-[76px] sm:max-w-[96px] w-full">
+    <div
+      onClick={onClick}
+      className="flex flex-col items-center group cursor-pointer transition-transform hover:scale-105 select-none max-w-[86px] sm:max-w-[104px] w-full"
+    >
       {/* Jersey Icon Container & C/VC Badges */}
       <div className="relative flex items-center justify-center">
-        {/* Captain / Vice Captain Badge */}
         {isCap && (
           <span
             className="absolute -top-1.5 -right-1.5 z-20 h-5 w-5 rounded-full bg-[#F0A500] text-[#0D1117] font-black text-[11px] flex items-center justify-center shadow-lg border border-black/40"
@@ -232,21 +248,144 @@ function PlayerPitchCard({ player }: { player: FPLPlayer }) {
           </span>
         )}
 
-        {/* Authentic Club Kit Silhouette */}
         <ClubJerseySvg club={player.club} position={player.position} isCaptain={isCap} />
       </div>
 
       {/* Name and Metric Plate */}
-      <div className="mt-1 w-full bg-[#0D1117]/90 backdrop-blur-sm border border-white/20 rounded px-1 py-0.5 text-center shadow">
+      <div className="mt-1 w-full bg-[#0D1117]/95 backdrop-blur-sm border border-white/20 rounded-lg p-1 text-center shadow-lg hover:border-[#58A6FF] transition-colors">
         <div className="text-[10px] sm:text-xs font-bold text-[#E6EDF3] truncate" title={player.name}>
           {player.web_name || player.name}
         </div>
         <div className="text-[8px] sm:text-[9px] text-[#8B949E] truncate">
-          {player.opponent ? `${player.club.slice(0, 3).toUpperCase()} • ${player.opponent.slice(0, 3).toUpperCase()} (${player.home_away || 'H'})` : player.club}
+          {player.opponent ? `${player.club.slice(0, 3).toUpperCase()} vs ${player.opponent.slice(0, 3).toUpperCase()} (${player.home_away || 'H'})` : player.club}
         </div>
-        <div className="text-[9px] sm:text-[10px] font-extrabold text-[#3FB950]">
-          {player.expected_points.toFixed(1)} xP
+        <div className="text-[10px] sm:text-[11px] font-extrabold text-[#3FB950] mt-0.5">
+          {player.expected_points.toFixed(2)} xP
         </div>
+        <div className="flex justify-between items-center text-[8px] text-[#8B949E] px-0.5 mt-0.5 border-t border-[#30363D]/60 pt-0.5">
+          <span>{rangeText}</span>
+          <span className="text-[#58A6FF] font-semibold">10+:{haulText}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PlayerDetailModal({
+  player,
+  onClose,
+  language = 'EN',
+}: {
+  player: FPLPlayer
+  onClose: () => void
+  language?: Language
+}) {
+  const p25 = player.likely_range ? player.likely_range[0] : Math.max(0, Math.floor(player.expected_points * 0.5))
+  const p75 = player.likely_range ? player.likely_range[1] : Math.ceil(player.expected_points * 1.5)
+  const p80 = player.upside_score ?? Math.ceil(player.expected_points * 1.7)
+  const p90 = player.high_upside_score ?? Math.ceil(player.expected_points * 2.1)
+  const p10 = player.prob_10_plus !== undefined ? Math.round(player.prob_10_plus * 100) : Math.round(player.haul_prob * 100)
+  const p15 = player.prob_15_plus !== undefined ? Math.round(player.prob_15_plus * 100) : Math.round(p10 * 0.4)
+  const p20 = player.prob_20_plus !== undefined ? Math.round(player.prob_20_plus * 100) : Math.round(p15 * 0.3)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-[#161B22] border border-[#30363D] rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-2xl relative text-[#E6EDF3]">
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-[#8B949E] hover:text-[#E6EDF3] h-8 w-8 rounded-full bg-[#0D1117] flex items-center justify-center border border-[#30363D]"
+        >
+          ✕
+        </button>
+
+        {/* Header */}
+        <div className="flex items-center gap-3 pr-8">
+          <ClubJerseySvg club={player.club} position={player.position} isCaptain={player.is_captain} />
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[#E6EDF3]">{player.name}</h2>
+              {player.is_captain && (
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-[#F0A500] text-[#0D1117]">
+                  CAPTAIN
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-[#8B949E]">
+              {player.club} • {player.position} • £{player.price.toFixed(1)}m • {player.expected_minutes ?? 90} mins
+            </p>
+          </div>
+        </div>
+
+        {/* Fixture Banner */}
+        <div className="bg-[#0D1117] p-2.5 rounded-lg border border-[#30363D] flex justify-between items-center text-xs">
+          <span className="text-[#8B949E]">Next Match:</span>
+          <span className="font-semibold text-[#58A6FF]">
+            {player.opponent ? `${player.club} vs ${player.opponent} (${player.home_away === 'H' ? 'Home' : 'Away'})` : 'GW3 Fixture'}
+          </span>
+        </div>
+
+        {/* Primary Expected Points & Likely Range */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
+            <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Expected Points</div>
+            <div className="text-2xl font-black text-[#3FB950] mt-1">
+              {player.expected_points.toFixed(2)} <span className="text-xs text-[#8B949E] font-normal">xP</span>
+            </div>
+            <div className="text-[10px] text-[#8B949E] mt-0.5">Central mean forecast</div>
+          </div>
+
+          <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
+            <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Likely Range</div>
+            <div className="text-2xl font-black text-[#58A6FF] mt-1">
+              {p25} – {p75} <span className="text-xs text-[#8B949E] font-normal">pts</span>
+            </div>
+            <div className="text-[10px] text-[#8B949E] mt-0.5">Middle 50% distribution mass [P25, P75]</div>
+          </div>
+        </div>
+
+        {/* Upside Percentiles */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
+            <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Upside Score (P80)</div>
+            <div className="text-xl font-bold text-[#F0A500] mt-1">
+              {p80} <span className="text-xs text-[#8B949E] font-normal">pts</span>
+            </div>
+            <div className="text-[10px] text-[#8B949E] mt-0.5">80th percentile score</div>
+          </div>
+
+          <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
+            <div className="text-[11px] font-semibold text-[#8B949E] uppercase">High-Upside Score (P90)</div>
+            <div className="text-xl font-bold text-[#D29922] mt-1">
+              {p90} <span className="text-xs text-[#8B949E] font-normal">pts</span>
+            </div>
+            <div className="text-[10px] text-[#8B949E] mt-0.5">90th percentile score</div>
+          </div>
+        </div>
+
+        {/* Milestone Odds */}
+        <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D] space-y-2">
+          <div className="text-xs font-bold text-[#E6EDF3] uppercase tracking-wider">Milestone Probabilities</div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
+              <div className="text-[10px] text-[#8B949E]">10+ Points</div>
+              <div className="text-base font-black text-[#58A6FF]">{p10}%</div>
+            </div>
+            <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
+              <div className="text-[10px] text-[#8B949E]">15+ Points</div>
+              <div className="text-base font-black text-[#F0A500]">{p15}%</div>
+            </div>
+            <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
+              <div className="text-[10px] text-[#8B949E]">20+ Points</div>
+              <div className="text-base font-black text-[#F85149]">{p20}%</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Methodology Note */}
+        <p className="text-[10px] text-[#8B949E] italic leading-tight">
+          Ennovera Hybrid combines frozen expected points with a calibrated score probability distribution. Probabilities describe modeled uncertainty and are not guaranteed outcomes.
+        </p>
       </div>
     </div>
   )

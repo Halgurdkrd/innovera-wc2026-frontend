@@ -65,6 +65,12 @@ export interface FPLPlayer {
   expected_minutes: number
   starting_prob: number
   haul_prob: number
+  likely_range?: [number, number]
+  upside_score?: number
+  high_upside_score?: number
+  prob_10_plus?: number
+  prob_15_plus?: number
+  prob_20_plus?: number
   is_starting: boolean
   is_captain?: boolean
   is_vice_captain?: boolean
@@ -98,6 +104,9 @@ export interface FPLGameweekPlan {
   data_cutoff: string
   generated_at: string
   expected_total_points: number
+  team_likely_range?: [number, number]
+  team_upside_score?: number
+  team_high_upside_score?: number
   formation: string
   starting_xi: FPLPlayer[]
   bench: FPLPlayer[]
@@ -119,6 +128,32 @@ export interface FPLGameweekPlan {
     price: number
     expected_points: number
     haul_probability: number
+  }
+  manager_team_status?: string
+  expected_best_xi?: {
+    expected_total_points: number
+    team_likely_range: [number, number]
+    team_upside_score: number
+    team_high_upside_score: number
+    formation: string
+    captain: string
+    vice_captain: string
+    players: FPLPlayer[]
+  }
+  best_playable_100m?: {
+    expected_total_points: number
+    team_likely_range: [number, number]
+    team_upside_score: number
+    team_high_upside_score: number
+    squad_cost: number
+    starting_xi_cost: number
+    bench_cost: number
+    bank: number
+    formation: string
+    captain: string
+    vice_captain: string
+    starting_xi: FPLPlayer[]
+    bench: FPLPlayer[]
   }
   recommended_transfers: FPLTransferRecommendation[]
   chip_recommendation: FPLChipRecommendation

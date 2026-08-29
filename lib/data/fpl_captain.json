@@ -1,83 +1,50 @@
 {
   "season": "2026-27",
-  "gameweek": 2,
+  "gameweek": 3,
   "captain": {
     "player_id": 411,
     "name": "Erling Haaland",
     "club": "Man City",
     "position": "FWD",
-    "price": 15.5,
-    "expected_points": 7.9,
-    "haul_probability": 0.4,
-    "captain_score": 8.85
-  },
-  "recommended_captain": {
-    "player_id": 411,
-    "name": "Erling Haaland",
-    "club": "Man City",
-    "position": "FWD",
-    "price": 15.5,
-    "expected_points": 7.9,
-    "haul_probability": 0.4,
-    "captain_score": 8.85
+    "price": 15.0,
+    "expected_points": 11.77,
+    "haul_probability": 0.58,
+    "captain_score": 23.54
   },
   "vice_captain": {
-    "player_id": 154,
-    "name": "Cole Palmer",
-    "club": "Chelsea",
+    "player_id": 397,
+    "name": "Antoine Semenyo",
+    "club": "Man City",
     "position": "MID",
-    "price": 9.5,
-    "expected_points": 7.8,
-    "haul_probability": 0.39
-  },
-  "recommended_vice_captain": {
-    "player_id": 154,
-    "name": "Cole Palmer",
-    "club": "Chelsea",
-    "position": "MID",
-    "price": 9.5,
-    "expected_points": 7.8,
-    "haul_probability": 0.39
+    "price": 5.5,
+    "expected_points": 7.99,
+    "haul_probability": 0.36
   },
   "alternatives": [
     {
-      "name": "Alexander Isak",
-      "club": "Liverpool",
-      "expected_points": 7.6,
-      "haul_probability": 0.38
+      "name": "Antoine Semenyo",
+      "club": "Man City",
+      "expected_points": 7.99,
+      "haul_probability": 0.36
     },
     {
-      "name": "Cody Gakpo",
-      "club": "Liverpool",
-      "expected_points": 7.0,
-      "haul_probability": 0.34
+      "name": "Rayan Cherki",
+      "club": "Man City",
+      "expected_points": 7.35,
+      "haul_probability": 0.32
     },
-    {
-      "name": "Bukayo Saka",
-      "club": "Arsenal",
-      "expected_points": 6.85,
-      "haul_probability": 0.33
-    }
-  ],
-  "top_alternatives": [
     {
       "name": "Alexander Isak",
       "club": "Liverpool",
-      "expected_points": 7.6,
-      "haul_probability": 0.38
+      "expected_points": 7.25,
+      "haul_probability": 0.31
     },
     {
-      "name": "Cody Gakpo",
+      "name": "Florian Wirtz",
       "club": "Liverpool",
-      "expected_points": 7.0,
-      "haul_probability": 0.34
-    },
-    {
-      "name": "Bukayo Saka",
-      "club": "Arsenal",
-      "expected_points": 6.85,
-      "haul_probability": 0.33
+      "expected_points": 6.18,
+      "haul_probability": 0.24
     }
   ],
-  "selection_rationale": "Haaland features the highest overall baseline goal threat and 10+ haul odds against Crystal Palace away."
+  "selection_rationale": "Erling Haaland commands an overwhelming 11.77 base xP (23.54 captain xP) against Brighton with a 58% haul probability."
 }

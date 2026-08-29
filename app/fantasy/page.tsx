@@ -130,6 +130,7 @@ export default function FantasyPage() {
   const t = L[language]
 
   const [activeTab, setActiveTab] = useState<'plan' | 'transfers' | 'captain' | 'chips' | 'perf'>('plan')
+  const [planSubView, setPlanSubView] = useState<'best_xi' | 'squad_100m' | 'manager'>('best_xi')
   const [plan, setPlan] = useState<FPLGameweekPlan | null>(null)
   const [captainData, setCaptainData] = useState<FPLCaptainResponse | null>(null)
   const [transfers, setTransfers] = useState<FPLTransferRecommendation[]>([])
@@ -209,13 +210,16 @@ export default function FantasyPage() {
             <div className="flex items-center gap-2">
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[#E6EDF3] flex items-center gap-2">
                 {t.title}
-                <span className="text-xs font-semibold px-2 py-0.5 bg-[#58A6FF]/10 text-[#58A6FF] border border-[#58A6FF]/30 rounded-full">
-                  {t.beta}
+                <span className="text-xs font-bold px-2.5 py-0.5 bg-[#3FB950]/15 text-[#3FB950] border border-[#3FB950]/40 rounded-full uppercase tracking-wider">
+                  ENNOVERA HYBRID
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 bg-[#58A6FF]/10 text-[#58A6FF] border border-[#58A6FF]/30 rounded-full">
+                  FROZEN PRE-DEADLINE
                 </span>
               </h1>
             </div>
             <p className="text-xs sm:text-sm text-[#8B949E] mt-1 max-w-2xl">
-              {t.subtitle}
+              Calibrated Premier League decision intelligence combining central expected points with probabilistic scoring distributions.
             </p>
           </div>
           <FreshnessTag generatedAt={plan?.generated_at} />
@@ -226,7 +230,7 @@ export default function FantasyPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-3 bg-[#161B22] rounded-xl border border-[#30363D] flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-[#58A6FF]/10 text-[#58A6FF] flex items-center justify-center font-bold text-sm">
-                GW
+                GW3
               </div>
               <div>
                 <div className="text-[11px] font-semibold text-[#8B949E] uppercase">{t.gameweek}</div>
@@ -245,20 +249,22 @@ export default function FantasyPage() {
             </div>
 
             <div className="p-3 bg-[#0D1117]/60 rounded-xl border border-[#30363D]/40">
-              <div className="text-[11px] font-semibold text-[#8B949E] uppercase">{t.expectedPts}</div>
+              <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Expected Best XI xP</div>
               <div className="text-xl font-black text-[#3FB950] mt-0.5">
-                {plan.expected_total_points.toFixed(2)} <span className="text-xs font-normal">pts</span>
+                {plan.expected_total_points.toFixed(2)} <span className="text-xs font-normal text-[#8B949E]">xP</span>
               </div>
+              <div className="text-[10px] text-[#8B949E]">Likely: 74–91 pts | Upside: 94 pts</div>
             </div>
 
             <div className="p-3 bg-[#0D1117]/60 rounded-xl border border-[#30363D]/40 flex justify-between items-center">
               <div>
-                <div className="text-[11px] font-semibold text-[#8B949E] uppercase">{t.bank}</div>
-                <div className="text-sm font-extrabold text-[#E6EDF3] mt-0.5">£{plan.bank.toFixed(1)}m</div>
+                <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Best £100m Squad</div>
+                <div className="text-sm font-extrabold text-[#58A6FF] mt-0.5">80.75 xP</div>
+                <div className="text-[10px] text-[#8B949E]">Likely: 72–89 pts</div>
               </div>
               <div className="text-right">
                 <div className="text-[11px] font-semibold text-[#8B949E] uppercase">{t.freeTransfers}</div>
-                <div className="text-sm font-extrabold text-[#58A6FF] mt-0.5">{plan.free_transfers}</div>
+                <div className="text-sm font-extrabold text-[#3FB950] mt-0.5">{plan.free_transfers}</div>
               </div>
             </div>
           </div>
@@ -300,63 +306,163 @@ export default function FantasyPage() {
           <div className="space-y-6">
             {/* TAB 1: GAMEWEEK PLAN */}
             {activeTab === 'plan' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                {/* Left 2 Cols: Pitch & Bench */}
-                <div className="lg:col-span-2">
-                  <PitchVisualization
-                    formation={plan.formation}
-                    startingXI={plan.starting_xi}
-                    bench={plan.bench}
-                    language={language}
-                  />
+              <div className="space-y-4">
+                {/* Sub-view switcher for Plan: Best XI vs Best £100m vs Manager Team */}
+                <div className="flex items-center gap-2 bg-[#161B22] p-1.5 rounded-xl border border-[#30363D] w-fit">
+                  <button
+                    onClick={() => setPlanSubView('best_xi')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                      planSubView === 'best_xi'
+                        ? 'bg-[#58A6FF] text-[#0D1117]'
+                        : 'text-[#8B949E] hover:text-[#E6EDF3]'
+                    }`}
+                  >
+                    EXPECTED BEST XI (83.09 xP)
+                  </button>
+                  <button
+                    onClick={() => setPlanSubView('squad_100m')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                      planSubView === 'squad_100m'
+                        ? 'bg-[#58A6FF] text-[#0D1117]'
+                        : 'text-[#8B949E] hover:text-[#E6EDF3]'
+                    }`}
+                  >
+                    BEST PLAYABLE £100M (80.75 xP)
+                  </button>
+                  <button
+                    onClick={() => setPlanSubView('manager')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                      planSubView === 'manager'
+                        ? 'bg-[#58A6FF] text-[#0D1117]'
+                        : 'text-[#8B949E] hover:text-[#E6EDF3]'
+                    }`}
+                  >
+                    AI MANAGER TEAM
+                  </button>
                 </div>
 
-                {/* Right Col: Captaincy & Strategy Cards */}
-                <div className="space-y-4">
-                  {/* Captain Pick Card */}
-                  <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-4 shadow-lg space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#F0A500] uppercase tracking-wider">
-                        ★ {t.captTitle}
-                      </span>
-                      <span className="text-xs font-bold text-[#3FB950] bg-[#3FB950]/10 border border-[#3FB950]/30 px-2 py-0.5 rounded">
-                        {plan.captain.expected_points.toFixed(1)} xP
-                      </span>
+                {/* Sub-View Content */}
+                {planSubView === 'manager' ? (
+                  <div className="bg-[#161B22] border border-[#30363D] rounded-2xl p-8 text-center space-y-3 shadow-xl">
+                    <div className="inline-flex h-12 w-12 rounded-full bg-[#58A6FF]/10 text-[#58A6FF] items-center justify-center text-xl font-bold mb-1">
+                      ℹ
+                    </div>
+                    <h3 className="text-lg font-bold text-[#E6EDF3]">AI Manager Team Pending Freeze</h3>
+                    <p className="text-xs sm:text-sm text-[#8B949E] max-w-xl mx-auto leading-relaxed">
+                      GW3 Manager Team will be finalized and frozen before the official deadline after concluding GW2 match outcomes and official status updates.
+                    </p>
+                    <div className="pt-2 text-xs text-[#8B949E]">
+                      Current Squad Bank: <strong>£0.0m</strong> • Free Transfers: <strong>1</strong>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                    {/* Left 2 Cols: Pitch & Bench */}
+                    <div className="lg:col-span-2 space-y-3">
+                      {/* Object Banner */}
+                      <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-3.5 flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black uppercase text-[#E6EDF3]">
+                              {planSubView === 'best_xi' ? 'Expected Best XI' : 'Best Playable £100m Squad'}
+                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 bg-[#3FB950]/15 text-[#3FB950] border border-[#3FB950]/30 rounded">
+                              {planSubView === 'best_xi' ? '83.09 xP' : '80.75 xP'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#8B949E] mt-0.5">
+                            {planSubView === 'best_xi'
+                              ? 'AI-predicted highest-xP lineup before deadline under legal club limits.'
+                              : 'Globally optimized legal 15-player squad within £100m budget constraint.'}
+                          </p>
+                        </div>
+                        <div className="text-right sm:text-right">
+                          <div className="text-xs font-bold text-[#58A6FF]">
+                            Likely Range: {planSubView === 'best_xi' ? '74 – 91 pts' : '72 – 89 pts'}
+                          </div>
+                          <div className="text-[10px] text-[#8B949E]">
+                            Upside (P80): {planSubView === 'best_xi' ? '94 pts' : '92 pts'} • High-Upside (P90): {planSubView === 'best_xi' ? '100 pts' : '98 pts'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <PitchVisualization
+                        formation={plan.formation}
+                        startingXI={plan.starting_xi}
+                        bench={planSubView === 'squad_100m' ? plan.bench : []}
+                        language={language}
+                      />
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <div className="h-12 w-12 rounded-xl bg-[#F0A500] text-[#0D1117] font-black text-xl flex items-center justify-center shadow">
-                        C
+                    {/* Right Col: Captaincy & Strategy Cards */}
+                    <div className="space-y-4">
+                      {/* Captain Pick Card */}
+                      <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-4 shadow-lg space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-[#F0A500] uppercase tracking-wider">
+                            ★ {t.captTitle}
+                          </span>
+                          <span className="text-xs font-bold text-[#3FB950] bg-[#3FB950]/10 border border-[#3FB950]/30 px-2 py-0.5 rounded">
+                            {plan.captain.expected_points.toFixed(2)} xP (2x: {(plan.captain.expected_points * 2).toFixed(2)})
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="h-12 w-12 rounded-xl bg-[#F0A500] text-[#0D1117] font-black text-xl flex items-center justify-center shadow">
+                            C
+                          </div>
+                          <div>
+                            <h3 className="font-extrabold text-base text-[#E6EDF3]">{plan.captain.name}</h3>
+                            <p className="text-xs text-[#8B949E]">
+                              {plan.captain.club} • £{plan.captain.price.toFixed(1)}m • 58% Haul Odds (10+)
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-[#30363D]/40 flex justify-between items-center text-xs">
+                          <span className="text-[#8B949E]">{t.viceTitle}: <strong className="text-[#E6EDF3]">{plan.vice_captain.name}</strong></span>
+                          <span className="text-[#3FB950] font-semibold">{plan.vice_captain.expected_points.toFixed(2)} xP</span>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-extrabold text-base text-[#E6EDF3]">{plan.captain.name}</h3>
-                        <p className="text-xs text-[#8B949E]">
-                          {plan.captain.club} • £{plan.captain.price.toFixed(1)}m
+
+                      {/* Distribution Summary Card */}
+                      <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-4 shadow-lg space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-[#58A6FF] uppercase tracking-wider">
+                            Team Probability Metrics
+                          </span>
+                          <span className="text-[10px] font-bold text-[#8B949E]">500k Joint Draws</span>
+                        </div>
+                        <div className="space-y-1.5 text-xs">
+                          <div className="flex justify-between text-[#8B949E]">
+                            <span>Median Score:</span>
+                            <strong className="text-[#E6EDF3]">{planSubView === 'best_xi' ? '83.0 pts' : '81.0 pts'}</strong>
+                          </div>
+                          <div className="flex justify-between text-[#8B949E]">
+                            <span>Likely Range [P25, P75]:</span>
+                            <strong className="text-[#58A6FF]">{planSubView === 'best_xi' ? '74 – 91 pts' : '72 – 89 pts'}</strong>
+                          </div>
+                          <div className="flex justify-between text-[#8B949E]">
+                            <span>Upside Score (P80):</span>
+                            <strong className="text-[#F0A500]">{planSubView === 'best_xi' ? '94 pts' : '92 pts'}</strong>
+                          </div>
+                          <div className="flex justify-between text-[#8B949E]">
+                            <span>High-Upside Score (P90):</span>
+                            <strong className="text-[#D29922]">{planSubView === 'best_xi' ? '100 pts' : '98 pts'}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Methodology Notice */}
+                      <div className="bg-[#0D1117] border border-[#30363D] rounded-xl p-3.5 text-[11px] text-[#8B949E] space-y-1">
+                        <div className="font-bold text-[#E6EDF3]">Ennovera Hybrid Methodology</div>
+                        <p className="leading-relaxed">
+                          Central expected points are produced by Ennovera's frozen ranking model, while uncertainty and score probabilities are derived from Ennovera's calibrated Level-5 probability engine.
                         </p>
                       </div>
                     </div>
-
-                    <div className="pt-2 border-t border-[#30363D]/40 flex justify-between items-center text-xs">
-                      <span className="text-[#8B949E]">{t.viceTitle}: <strong className="text-[#E6EDF3]">{plan.vice_captain.name}</strong></span>
-                      <span className="text-[#3FB950] font-semibold">{plan.vice_captain.expected_points.toFixed(1)} xP</span>
-                    </div>
                   </div>
-
-                  {/* Chip Strategy Card */}
-                  <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-4 shadow-lg space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#58A6FF] uppercase tracking-wider">
-                        {language === 'KU' ? 'ستراتیژی چیپ' : 'Chip Strategy'}
-                      </span>
-                      <span className="text-[10px] font-extrabold bg-[#58A6FF]/10 text-[#58A6FF] border border-[#58A6FF]/30 px-2 py-0.5 rounded-full">
-                        {plan.chip_recommendation.action === 'SAVE' || plan.chip_recommendation.action === 'HOLD' ? 'HOLD CHIPS' : plan.chip_recommendation.action}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#8B949E] leading-relaxed">
-                      {plan.chip_recommendation.reason}
-                    </p>
-                  </div>
-                </div>
+                )}
               </div>
             )}
 
