@@ -119,9 +119,9 @@ if (!fs.existsSync(screenshotsDir)) {
     await page.screenshot({ path: ss9 });
     console.log('Saved Screenshot 9:', ss9);
 
-    // Close modal
-    await page.locator('text=✕').first().click();
-    await page.waitForTimeout(500);
+    // Close modal via Escape
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(600);
 
     // Navigate to Performance Tab (2nd tab)
     console.log('\nNavigating to Performance Tab (Second Tab)...');

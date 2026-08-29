@@ -411,14 +411,14 @@
       "deadline": "2026-08-28T17:30:00Z",
       "formation": "3-4-3",
       "projected_total": 74.05,
-      "actual_total": 48,
+      "actual_total": 38,
       "delta": null,
       "xi_predicted_base": 66.15,
       "captain_expected_bonus": 7.9,
-      "xi_raw_actual": 42,
-      "captain_actual_extra": 6,
-      "bench_actual": 11,
-      "total_15_raw_actual": 59,
+      "xi_raw_actual": 25,
+      "captain_actual_extra": 13,
+      "bench_actual": 2,
+      "total_15_raw_actual": 40,
       "transfers_made": 0,
       "transfers_in": [],
       "transfers_out": [],
@@ -433,9 +433,9 @@
         "position": "FWD",
         "predicted_base_xp": 7.9,
         "expected_captain_contribution": 15.8,
-        "actual_base": 6,
+        "actual_base": 13,
         "captain_multiplier": 2,
-        "actual_captain_contribution": 12,
+        "actual_captain_contribution": 26,
         "delta": null
       },
       "vice_captain": {
@@ -444,11 +444,11 @@
         "club": "Chelsea",
         "position": "MID",
         "predicted_base_xp": 7.8,
-        "actual": 8
+        "actual": null
       },
       "starting_xi": [
         {
-          "player_id": 101,
+          "player_id": 572,
           "name": "Konstantinos Tzolakis",
           "web_name": "Tzolakis",
           "club": "Hull City",
@@ -471,7 +471,7 @@
           "is_vice_captain": false
         },
         {
-          "player_id": 102,
+          "player_id": 10,
           "name": "Ben White",
           "web_name": "White",
           "club": "Arsenal",
@@ -486,15 +486,15 @@
             7
           ],
           "prob_10_plus": 0.18,
-          "actual_points": 5,
+          "actual_points": null,
           "delta": null,
-          "minutes": 90,
-          "match_status": "FT",
+          "minutes": null,
+          "match_status": "NOT_STARTED",
           "is_captain": false,
           "is_vice_captain": false
         },
         {
-          "player_id": 103,
+          "player_id": 115,
           "name": "Maxim De Cuyper",
           "web_name": "De Cuyper",
           "club": "Brighton",
@@ -509,15 +509,15 @@
             8
           ],
           "prob_10_plus": 0.21,
-          "actual_points": 2,
+          "actual_points": null,
           "delta": null,
-          "minutes": 72,
-          "match_status": "FT",
+          "minutes": null,
+          "match_status": "NOT_STARTED",
           "is_captain": false,
           "is_vice_captain": false
         },
         {
-          "player_id": 104,
+          "player_id": 88,
           "name": "Michael Kayode",
           "web_name": "Kayode",
           "club": "Brentford",
@@ -532,10 +532,10 @@
             7
           ],
           "prob_10_plus": 0.17,
-          "actual_points": 6,
+          "actual_points": null,
           "delta": null,
-          "minutes": 90,
-          "match_status": "FT",
+          "minutes": null,
+          "match_status": "NOT_STARTED",
           "is_captain": false,
           "is_vice_captain": false
         },
@@ -555,15 +555,15 @@
             12
           ],
           "prob_10_plus": 0.39,
-          "actual_points": 8,
+          "actual_points": null,
           "delta": null,
-          "minutes": 85,
-          "match_status": "FT",
+          "minutes": null,
+          "match_status": "NOT_STARTED",
           "is_captain": false,
           "is_vice_captain": true
         },
         {
-          "player_id": 360,
+          "player_id": 367,
           "name": "Cody Gakpo",
           "web_name": "Gakpo",
           "club": "Liverpool",
@@ -601,15 +601,15 @@
             11
           ],
           "prob_10_plus": 0.33,
-          "actual_points": 7,
+          "actual_points": null,
           "delta": null,
-          "minutes": 90,
-          "match_status": "FT",
+          "minutes": null,
+          "match_status": "NOT_STARTED",
           "is_captain": false,
           "is_vice_captain": false
         },
         {
-          "player_id": 108,
+          "player_id": 335,
           "name": "Anton Stach",
           "web_name": "Stach",
           "club": "Leeds",
@@ -624,10 +624,10 @@
             7
           ],
           "prob_10_plus": 0.18,
-          "actual_points": 2,
+          "actual_points": null,
           "delta": null,
-          "minutes": 90,
-          "match_status": "FT",
+          "minutes": null,
+          "match_status": "NOT_STARTED",
           "is_captain": false,
           "is_vice_captain": false
         },
@@ -647,7 +647,7 @@
             12
           ],
           "prob_10_plus": 0.41,
-          "actual_points": 6,
+          "actual_points": 13,
           "delta": null,
           "minutes": 90,
           "match_status": "FT",
@@ -678,7 +678,7 @@
           "is_vice_captain": false
         },
         {
-          "player_id": 111,
+          "player_id": 79,
           "name": "Evanilson",
           "web_name": "Evanilson",
           "club": "Bournemouth",
@@ -703,7 +703,7 @@
       ],
       "bench": [
         {
-          "player_id": 112,
+          "player_id": 565,
           "name": "Ibrahim Sangar\u00e9",
           "web_name": "Sangar\u00e9",
           "club": "Brentford",
@@ -717,13 +717,13 @@
             7
           ],
           "prob_10_plus": 0.16,
-          "actual_points": 3,
+          "actual_points": null,
           "delta": null,
-          "minutes": 90,
-          "match_status": "FT"
+          "minutes": null,
+          "match_status": "NOT_STARTED"
         },
         {
-          "player_id": 113,
+          "player_id": 254,
           "name": "Antonee Robinson",
           "web_name": "Robinson",
           "club": "Fulham",
@@ -737,13 +737,13 @@
             6
           ],
           "prob_10_plus": 0.14,
-          "actual_points": 6,
+          "actual_points": null,
           "delta": null,
-          "minutes": 90,
-          "match_status": "FT"
+          "minutes": null,
+          "match_status": "NOT_STARTED"
         },
         {
-          "player_id": 114,
+          "player_id": 586,
           "name": "Nampalys Mendy",
           "web_name": "Mendy",
           "club": "Hull City",
@@ -763,7 +763,7 @@
           "match_status": "FT"
         },
         {
-          "player_id": 115,
+          "player_id": 111,
           "name": "Jason Steele",
           "web_name": "Steele",
           "club": "Brighton",
@@ -777,10 +777,10 @@
             0
           ],
           "prob_10_plus": 0.0,
-          "actual_points": 0,
+          "actual_points": null,
           "delta": null,
-          "minutes": 0,
-          "match_status": "FT"
+          "minutes": null,
+          "match_status": "NOT_STARTED"
         }
       ]
     },

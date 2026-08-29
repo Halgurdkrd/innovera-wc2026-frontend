@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Navbar from '@/components/Navbar'
-import { PitchVisualization, ClubJerseySvg } from '@/components/fantasy/PitchVisualization'
+import { PitchVisualization } from '@/components/fantasy/PitchVisualization'
 import { FreshnessTag } from '@/components/ui/FreshnessTag'
 import ErrorState from '@/components/ui/ErrorState'
 import { useLanguage } from '@/hooks/useLanguage'
 import {
   getFPLGameweekPlan,
-  getFPLCurrentSquad,
   getFPLCaptain,
   getFPLTransfers,
   getFPLChips,
@@ -20,9 +19,6 @@ import type {
   FPLTransferRecommendation,
   FPLChipStatusItem,
   FPLPerformanceResponse,
-  FPLPerformanceGameweek,
-  FPLPerformancePlayer,
-  FPLPlayer,
 } from '@/lib/api/types'
 
 const L = {
@@ -212,9 +208,29 @@ export default function FantasyPage() {
     fetchFantasyData()
   }, [fetchFantasyData])
 
-  // Find active GW record (GW2) and selected historical GW
+  // Active GW record (GW2) & Historical selected GW
   const activeGWRecord = performance?.gameweeks?.find((g) => g.gameweek === 2) || performance?.gameweeks?.[1]
-  const selectedGWRecord = performance?.gameweeks?.find((g) => g.gameweek === selectedPerfGW) || activeGWRecord || performance?.gameweeks?.[0]
+  const selectedGWRecord =
+    performance?.gameweeks?.find((g) => g.gameweek === selectedPerfGW) || activeGWRecord || performance?.gameweeks?.[0]
+
+  // Dynamic calculations for GW2 live state
+  const starters = activeGWRecord?.starting_xi || []
+  const completedStarters = starters.filter(
+    (p) =>
+      p.match_status === 'FT' ||
+      (p.actual_points !== null && p.actual_points !== undefined && p.minutes !== null && p.match_status !== 'NOT_STARTED')
+  ).length
+  const remainingStarters = 11 - completedStarters
+
+  // Dynamic Manager Live score calculation
+  const startersRawPoints = starters.reduce((acc, p) => {
+    return acc + (p.actual_points !== null && p.actual_points !== undefined ? p.actual_points : 0)
+  }, 0)
+  const captActualBase = activeGWRecord?.captain?.actual_base ?? (starters.find((p) => p.is_captain)?.actual_points ?? 0)
+  const captMultiplier = activeGWRecord?.captain?.captain_multiplier ?? 2
+  const captBonus = captActualBase > 0 ? captActualBase * (captMultiplier - 1) : 0
+  const managerLiveScore = startersRawPoints + captBonus
+  const captainTotalContribution = captActualBase > 0 ? captActualBase * captMultiplier : 0
 
   return (
     <div className="min-h-screen bg-[#0D1117] text-[#E6EDF3] flex flex-col font-sans selection:bg-[#58A6FF]/30">
@@ -276,13 +292,13 @@ export default function FantasyPage() {
             <div>
               <div className="text-[11px] font-semibold text-[#8B949E] uppercase">GW2 Live Score</div>
               <div className="text-xl font-black text-[#3FB950] mt-0.5">
-                48 <span className="text-xs font-normal text-[#8B949E]">pts (Live)</span>
+                {managerLiveScore} <span className="text-xs font-normal text-[#8B949E]">pts (Live)</span>
               </div>
               <div className="text-[10px] text-[#8B949E]">Predicted: 74.05 xP</div>
             </div>
             <div className="text-right">
-              <span className="text-[10px] px-2 py-0.5 bg-[#3FB950]/15 text-[#3FB950] border border-[#3FB950]/30 rounded-full font-bold">
-                11/11 Completed
+              <span className="text-[10px] px-2 py-0.5 bg-[#58A6FF]/15 text-[#58A6FF] border border-[#58A6FF]/30 rounded-full font-bold">
+                {completedStarters} Finished • {remainingStarters} Remaining
               </span>
             </div>
           </div>
@@ -291,12 +307,16 @@ export default function FantasyPage() {
           <div className="p-3 bg-[#0D1117]/60 rounded-xl border border-[#30363D]/40 flex justify-between items-center">
             <div>
               <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Season Total</div>
-              <div className="text-sm font-extrabold text-[#58A6FF] mt-0.5">156 pts</div>
+              <div className="text-sm font-extrabold text-[#58A6FF] mt-0.5">
+                {108 + managerLiveScore} pts
+              </div>
               <div className="text-[10px] text-[#8B949E]">Bank: £0.2m • 1 FT</div>
             </div>
             <div className="text-right">
               <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Captain (GW2)</div>
-              <div className="text-xs font-extrabold text-[#F0A500] mt-0.5">Haaland (12 pts)</div>
+              <div className="text-xs font-extrabold text-[#F0A500] mt-0.5">
+                Haaland ({captainTotalContribution} pts)
+              </div>
             </div>
           </div>
         </div>
@@ -484,7 +504,7 @@ export default function FantasyPage() {
                             <div>
                               <h3 className="font-extrabold text-base text-[#E6EDF3]">{plan.captain.name}</h3>
                               <p className="text-xs text-[#8B949E]">
-                                {plan.captain.club} • £{plan.captain.price.toFixed(1)}m • 10+ Points Chance: {Math.round(plan.captain.haul_probability * 100)}%
+                                {plan.captain.club} • £{(plan.captain.price ?? 14.5).toFixed(1)}m • 10+ Points Chance: {Math.round(plan.captain.haul_probability * 100)}%
                               </p>
                             </div>
                           </div>
@@ -537,10 +557,10 @@ export default function FantasyPage() {
                         </div>
                         <div className="text-right sm:text-right shrink-0">
                           <div className="text-xs font-bold text-[#3FB950]">
-                            Live Score: 48 pts (Completed)
+                            Live Score: {managerLiveScore} pts (In Progress)
                           </div>
                           <div className="text-[10px] text-[#8B949E]">
-                            Predicted: 74.05 xP • Delta: -26.05 pts
+                            Predicted: 74.05 xP • {completedStarters}/11 Starters Finished
                           </div>
                         </div>
                       </div>
@@ -565,7 +585,7 @@ export default function FantasyPage() {
                             ★ GW2 Captain Result
                           </span>
                           <span className="text-xs font-bold text-[#3FB950] bg-[#3FB950]/10 border border-[#3FB950]/30 px-2 py-0.5 rounded">
-                            {activeGWRecord?.captain?.actual_captain_contribution ?? 12} pts (Live)
+                            {captainTotalContribution} pts (Live)
                           </span>
                         </div>
 
@@ -585,12 +605,18 @@ export default function FantasyPage() {
 
                         <div className="pt-2 border-t border-[#30363D]/40 space-y-1 text-xs">
                           <div className="flex justify-between items-center text-[#8B949E]">
-                            <span>Captain Score:</span>
-                            <strong className="text-[#3FB950]">6 pts (Base) → 12 pts (2x)</strong>
+                            <span>Captain Match Status:</span>
+                            <strong className="text-[#3FB950]">FT (Match Finished)</strong>
+                          </div>
+                          <div className="flex justify-between items-center text-[#8B949E]">
+                            <span>Captain Contribution:</span>
+                            <strong className="text-[#3FB950]">
+                              {captActualBase} pts (Base) × 2 = {captainTotalContribution} pts
+                            </strong>
                           </div>
                           <div className="flex justify-between items-center text-[#8B949E]">
                             <span>Vice-Captain:</span>
-                            <strong className="text-[#E6EDF3]">Cole Palmer (8 pts)</strong>
+                            <strong className="text-[#E6EDF3]">Cole Palmer (Not Started)</strong>
                           </div>
                         </div>
                       </div>
@@ -653,13 +679,13 @@ export default function FantasyPage() {
                   </div>
                   <div className="p-3 bg-[#161B22] rounded-xl border border-[#30363D]">
                     <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Live GW2 Score</div>
-                    <div className="text-2xl font-black text-[#F0A500] mt-1">48 pts</div>
-                    <div className="text-[10px] text-[#8B949E]">Predicted: 74.05 xP • LIVE</div>
+                    <div className="text-2xl font-black text-[#F0A500] mt-1">{managerLiveScore} pts</div>
+                    <div className="text-[10px] text-[#8B949E]">Predicted: 74.05 xP • {completedStarters}/11 Finished</div>
                   </div>
                   <div className="p-3 bg-[#161B22] rounded-xl border border-[#30363D]">
                     <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Cumulative Season Pts</div>
-                    <div className="text-2xl font-black text-[#58A6FF] mt-1">156 pts</div>
-                    <div className="text-[10px] text-[#8B949E]">GW1 (108) + GW2 (48 Live)</div>
+                    <div className="text-2xl font-black text-[#58A6FF] mt-1">{108 + managerLiveScore} pts</div>
+                    <div className="text-[10px] text-[#8B949E]">GW1 (108) + GW2 ({managerLiveScore} Live)</div>
                   </div>
                   <div className="p-3 bg-[#161B22] rounded-xl border border-[#30363D]">
                     <div className="text-[11px] font-semibold text-[#8B949E] uppercase">GW3 Status</div>
@@ -747,7 +773,11 @@ export default function FantasyPage() {
                             Predicted: {selectedGWRecord.projected_total.toFixed(2)} xP
                           </div>
                           <div className="text-xs font-bold text-[#E6EDF3]">
-                            Actual: {selectedGWRecord.actual_total !== null ? `${selectedGWRecord.actual_total} pts` : 'PENDING'}
+                            Actual: {selectedGWRecord.gameweek === 2
+                              ? `${managerLiveScore} pts (Live)`
+                              : selectedGWRecord.actual_total !== null
+                              ? `${selectedGWRecord.actual_total} pts`
+                              : 'PENDING'}
                           </div>
                         </div>
 
@@ -787,30 +817,59 @@ export default function FantasyPage() {
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-[#30363D]/60">
-                                {selectedGWRecord.starting_xi.map((p) => (
-                                  <tr key={p.player_id} className="hover:bg-[#161B22]/50">
-                                    <td className="px-4 py-2.5 font-bold flex items-center gap-1.5">
-                                      <span>{p.name}</span>
-                                      {p.is_captain && (
-                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#F0A500] text-[#0D1117] font-black">
-                                          C
-                                        </span>
-                                      )}
-                                      {p.is_vice_captain && (
-                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#E6EDF3] text-[#0D1117] font-black">
-                                          V
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td className="px-4 py-2.5 text-[#58A6FF]">{p.position}</td>
-                                    <td className="px-4 py-2.5 text-[#8B949E]">{p.club}</td>
-                                    <td className="px-4 py-2.5 text-[#8B949E]">{p.opponent ? `${p.opponent} (${p.home_away})` : '—'}</td>
-                                    <td className="px-4 py-2.5 font-semibold text-[#3FB950]">{p.predicted_xp.toFixed(2)}</td>
-                                    <td className="px-4 py-2.5 font-bold text-[#E6EDF3]">{p.actual_points !== null ? p.actual_points : '—'}</td>
-                                    <td className="px-4 py-2.5 text-[#8B949E]">{p.minutes !== null ? `${p.minutes}'` : '—'}</td>
-                                    <td className="px-4 py-2.5 text-[#8B949E]">{p.match_status || 'FT'}</td>
-                                  </tr>
-                                ))}
+                                {selectedGWRecord.starting_xi.map((p) => {
+                                  const isFT = p.match_status === 'FT'
+                                  const isLive = p.match_status === 'LIVE'
+
+                                  return (
+                                    <tr key={p.player_id} className="hover:bg-[#161B22]/50">
+                                      <td className="px-4 py-2.5 font-bold flex items-center gap-1.5">
+                                        <span>{p.name}</span>
+                                        {p.is_captain && (
+                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#F0A500] text-[#0D1117] font-black">
+                                            C
+                                          </span>
+                                        )}
+                                        {p.is_vice_captain && (
+                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#E6EDF3] text-[#0D1117] font-black">
+                                            V
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-2.5 text-[#58A6FF]">{p.position}</td>
+                                      <td className="px-4 py-2.5 text-[#8B949E]">{p.club}</td>
+                                      <td className="px-4 py-2.5 text-[#8B949E]">
+                                        {p.opponent ? `${p.opponent} (${p.home_away || 'H'})` : '—'}
+                                      </td>
+                                      <td className="px-4 py-2.5 font-semibold text-[#3FB950]">
+                                        {p.predicted_xp.toFixed(2)}
+                                      </td>
+                                      <td className="px-4 py-2.5 font-bold text-[#E6EDF3]">
+                                        {isFT || isLive ? (
+                                          p.is_captain ? (
+                                            <span className="text-[#3FB950]">{((p.actual_points ?? 0) * 2)} (2x)</span>
+                                          ) : (
+                                            p.actual_points ?? 0
+                                          )
+                                        ) : (
+                                          <span className="text-[#8B949E]">Not Started</span>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-2.5 text-[#8B949E]">
+                                        {p.minutes !== null && p.minutes !== undefined ? `${p.minutes}'` : '—'}
+                                      </td>
+                                      <td className="px-4 py-2.5 text-[#8B949E]">
+                                        {p.match_status === 'FT' ? (
+                                          <span className="text-[#3FB950] font-semibold">FT</span>
+                                        ) : p.match_status === 'LIVE' ? (
+                                          <span className="text-[#F0A500] font-semibold">LIVE</span>
+                                        ) : (
+                                          <span className="text-[#8B949E]">Not Started</span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  )
+                                })}
                               </tbody>
                             </table>
                           </div>
@@ -894,7 +953,7 @@ export default function FantasyPage() {
                       <div>
                         <h2 className="text-xl sm:text-2xl font-black text-[#E6EDF3]">{captainData.captain.name}</h2>
                         <div className="text-sm text-[#8B949E]">
-                          {captainData.captain.club} • {captainData.captain.position} • £{captainData.captain.price.toFixed(1)}m
+                          {captainData.captain.club} • {captainData.captain.position} • £{(captainData.captain.price ?? 14.5).toFixed(1)}m
                         </div>
                       </div>
                     </div>

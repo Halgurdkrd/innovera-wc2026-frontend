@@ -212,9 +212,11 @@ export interface FPLPerformancePlayer {
   web_name: string
   club: string
   position: 'GK' | 'DEF' | 'MID' | 'FWD'
+  price?: number
   opponent?: string
   home_away?: 'H' | 'A' | string
   predicted_xp: number
+  expected_points?: number
   likely_range?: [number, number]
   prob_10_plus?: number
   actual_points: number | null
