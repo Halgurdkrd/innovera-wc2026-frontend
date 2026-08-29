@@ -213,7 +213,7 @@ export default function FantasyPage() {
   const selectedGWRecord =
     performance?.gameweeks?.find((g) => g.gameweek === selectedPerfGW) || activeGWRecord || performance?.gameweeks?.[0]
 
-  // Dynamic calculations for GW2 live state
+  // Dynamic calculations for GW2 manager live state
   const starters = activeGWRecord?.starting_xi || []
   const completedStarters = starters.filter(
     (p) =>
@@ -465,15 +465,15 @@ export default function FantasyPage() {
                             </span>
                           </div>
                           <p className="text-[11px] text-[#8B949E] leading-relaxed max-w-xl">
-                            <strong>Expected Best XI:</strong> Highest-xP legal starting XI for GW2 under formation and max-3-per-club rules, without requiring a complete £100m 15-player squad (Theoretical Model Ceiling).
+                            <strong>Expected Best XI:</strong> Theoretical highest-xP legal XI benchmark for GW2 under formation and max-3-per-club rules, without requiring a complete £100m 15-player squad.
                           </p>
                         </div>
                         <div className="text-right sm:text-right shrink-0">
-                          <div className="text-xs font-bold text-[#58A6FF]">
-                            Likely Range: 69 – 85 pts
+                          <div className="text-xs font-bold text-[#3FB950]">
+                            Current realized points of selected XI: 44 pts
                           </div>
                           <div className="text-[10px] text-[#8B949E]">
-                            Upside (P80): 88 pts • High-Upside (P90): 94 pts
+                            5 Finished • 6 Remaining
                           </div>
                         </div>
                       </div>
@@ -494,15 +494,15 @@ export default function FantasyPage() {
                             </span>
                           </div>
                           <p className="text-[11px] text-[#8B949E] leading-relaxed max-w-xl">
-                            <strong>Best Playable £100m:</strong> Fresh legal 15-player squad costing ≤£100m, then optimal GW2 starting XI and captain. Starting XI: £83.5m • Bench: £16.5m • Bank: £0.0m.
+                            <strong>Best Playable £100m:</strong> Fresh legal 15-player squad costing ≤£100m, then optimal GW2 starting XI and captain. Starting XI: £81.5m • Bench: £18.5m • Bank: £0.0m.
                           </p>
                         </div>
                         <div className="text-right sm:text-right shrink-0">
-                          <div className="text-xs font-bold text-[#58A6FF]">
-                            Likely Range: 67 – 83 pts
+                          <div className="text-xs font-bold text-[#3FB950]">
+                            Current realized points of selected squad: 59 pts
                           </div>
                           <div className="text-[10px] text-[#8B949E]">
-                            Upside (P80): 86 pts • High-Upside (P90): 92 pts
+                            6 Finished (5 XI + 1 Bench) • 9 Remaining
                           </div>
                         </div>
                       </div>
@@ -524,7 +524,7 @@ export default function FantasyPage() {
                             </span>
                           </div>
                           <p className="text-[11px] text-[#8B949E] leading-relaxed max-w-xl">
-                            Highest projected XI for GW3 without £100m 15-player constraint. Deadline: Fri 4 Sep • 8:30 PM Iraq Time.
+                            Theoretical highest-xP legal XI benchmark for GW3 without £100m 15-player constraint. Deadline: Fri 4 Sep • 8:30 PM Iraq Time.
                           </p>
                         </div>
                         <button
@@ -563,30 +563,7 @@ export default function FantasyPage() {
                       </div>
                     )}
 
-                    {planSubView === 'gw3_preview_manager' && (
-                      <div className="bg-[#161B22] border border-[#F0A500]/60 rounded-2xl p-8 text-center space-y-4 shadow-xl">
-                        <div className="inline-flex h-12 w-12 rounded-full bg-[#F0A500]/15 text-[#F0A500] items-center justify-center text-xl font-bold">
-                          ⏱
-                        </div>
-                        <div className="flex items-center justify-center gap-2">
-                          <h3 className="text-lg font-bold text-[#E6EDF3]">GW3 AI Manager Team</h3>
-                          <span className="text-[10px] font-bold px-2 py-0.5 bg-[#F0A500]/15 text-[#F0A500] border border-[#F0A500]/30 rounded-full">
-                            STATUS: PENDING
-                          </span>
-                        </div>
-                        <p className="text-xs sm:text-sm text-[#8B949E] max-w-xl mx-auto leading-relaxed">
-                          GW3 Manager Team will be finalized after GW2 completion and before the official GW3 deadline.
-                        </p>
-                        <button
-                          onClick={() => setPlanSubView('active_manager')}
-                          className="px-4 py-2 text-xs font-bold bg-[#58A6FF] text-[#0D1117] rounded-lg shadow"
-                        >
-                          Return to Active GW2
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Pitch Visualization for Active or Benchmark Selection */}
+                    {/* Pitch Visualization for Selected Object */}
                     {planSubView === 'active_manager' && activeGWRecord && (
                       <PitchVisualization
                         formation={activeGWRecord.formation}
@@ -598,8 +575,8 @@ export default function FantasyPage() {
 
                     {planSubView === 'gw2_best_xi' && activeGWRecord?.expected_best_xi && (
                       <PitchVisualization
-                        formation={activeGWRecord.expected_best_xi.formation || '3-4-3'}
-                        startingXI={(activeGWRecord.expected_best_xi as any).starting_xi || activeGWRecord.starting_xi}
+                        formation={(activeGWRecord.expected_best_xi as any).formation || '3-5-2'}
+                        startingXI={(activeGWRecord.expected_best_xi as any).starting_xi || []}
                         bench={[]}
                         language={language}
                       />
@@ -607,9 +584,9 @@ export default function FantasyPage() {
 
                     {planSubView === 'gw2_squad_100m' && activeGWRecord?.best_playable_100m && (
                       <PitchVisualization
-                        formation={activeGWRecord.best_playable_100m.formation || '3-4-3'}
-                        startingXI={(activeGWRecord.best_playable_100m as any).starting_xi || activeGWRecord.starting_xi}
-                        bench={(activeGWRecord.best_playable_100m as any).bench || activeGWRecord.bench}
+                        formation={(activeGWRecord.best_playable_100m as any).formation || '3-4-3'}
+                        startingXI={(activeGWRecord.best_playable_100m as any).starting_xi || []}
+                        bench={(activeGWRecord.best_playable_100m as any).bench || []}
                         language={language}
                       />
                     )}

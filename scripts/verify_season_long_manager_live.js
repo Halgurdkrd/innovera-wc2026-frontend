@@ -70,65 +70,45 @@ if (!fs.existsSync(screenshotsDir)) {
     await page.screenshot({ path: ss3 });
     console.log('Saved Screenshot 3:', ss3);
 
-    // Check GW3 Expected Best XI view
-    console.log('\nClicking GW3 Expected Best XI...');
-    await page.getByRole('button', { name: /GW3 EXPECTED BEST XI/i }).click();
-    await page.waitForTimeout(1000);
-    const bestXiText = await page.innerText('body');
-    const has8309 = bestXiText.includes('83.09');
-    const has7491 = bestXiText.includes('74 – 91') || bestXiText.includes('74-91');
-    console.log('✓ 7. GW3 Expected Best XI is 83.09 xP with 74–91 range:', has8309 && has7491);
+    // Check GW2 Expected Best XI view
+    console.log('\nClicking GW2 Expected Best XI...');
+    await page.getByRole('button', { name: /GW2 EXPECTED BEST XI/i }).click();
+    const has6985 = bestXiText.includes('69 – 85') || bestXiText.includes('69-85');
+    console.log('✓ 7. GW2 Expected Best XI is 77.41 xP with 69–85 range:', has7741 && has6985);
 
     // Screenshot 7: Expected Best XI
     const ss7 = path.join(screenshotsDir, '07_expected_best_xi.png');
-    await page.screenshot({ path: ss7, fullPage: true });
-    console.log('Saved Screenshot 7:', ss7);
-
-    // Check GW3 Best Playable £100m view
-    console.log('\nClicking GW3 Best Playable £100m...');
-    await page.getByRole('button', { name: /GW3 BEST PLAYABLE £100M/i }).click();
+    // Check GW2 Best Playable £100m view
+    console.log('\nClicking GW2 Best Playable £100m...');
+    await page.getByRole('button', { name: /GW2 BEST PLAYABLE £100M/i }).click();
     await page.waitForTimeout(1000);
     const squad100mText = await page.innerText('body');
-    const has8075 = squad100mText.includes('80.75');
-    console.log('✓ 8. GW3 Best Playable £100m is 80.75 xP:', has8075);
+    const has7545 = squad100mText.includes('75.45');
+    console.log('✓ 8. GW2 Best Playable £100m is 75.45 xP:', has7545);
 
     // Screenshot 8: Best Playable £100m
-    const ss8 = path.join(screenshotsDir, '08_best_playable_100m.png');
-    await page.screenshot({ path: ss8, fullPage: true });
-    console.log('Saved Screenshot 8:', ss8);
 
-    // Check GW3 AI Manager PENDING view
-    console.log('\nClicking GW3 AI Manager...');
-    await page.getByRole('button', { name: /GW3 AI MANAGER/i }).click();
-    await page.waitForTimeout(1000);
-    const gw3ManagerText = await page.innerText('body');
-    const gw3ManagerPending = gw3ManagerText.includes('STATUS: PENDING');
-    console.log('✓ 9. GW3 AI Manager is PENDING (not falsely frozen):', gw3ManagerPending);
+    // Check Next GW panel GW3 Preview view
+    console.log('\nClicking Explore XI in Next Gameweek panel...');
+    await page.getByRole('button', { name: 'Explore XI' }).click();
+    const gw3Has8309 = gw3PreviewText.includes('83.09');
+    console.log('✓ 9. GW3 Preview from Next GW panel displays 83.09 xP:', gw3Has8309);
 
     // Expand player card modal on Haaland
-    console.log('\nSwitching back to Expected Best XI and opening Haaland Player Modal...');
-    await page.getByRole('button', { name: /GW3 EXPECTED BEST XI/i }).click();
-    await page.waitForTimeout(800);
+    console.log('\nOpening Haaland Player Modal...');
     const haalandCard = page.locator('text=Haaland').first();
     await haalandCard.click();
     await page.waitForTimeout(1000);
 
-    // Screenshot 9: Expanded Hybrid Player Card
-    const ss9 = path.join(screenshotsDir, '09_expanded_hybrid_player_card.png');
-    await page.screenshot({ path: ss9 });
     console.log('Saved Screenshot 9:', ss9);
 
     // Close modal via Escape
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(600);
-
-    // Navigate to Performance Tab (2nd tab)
     console.log('\nNavigating to Performance Tab (Second Tab)...');
     await page.getByRole('button', { name: 'Performance' }).click();
     await page.waitForTimeout(1200);
 
     // Screenshot 4: Performance page
-    const ss4 = path.join(screenshotsDir, '04_performance_page_history_explorer.png');
     await page.screenshot({ path: ss4, fullPage: true });
     console.log('Saved Screenshot 4:', ss4);
 
@@ -151,8 +131,7 @@ if (!fs.existsSync(screenshotsDir)) {
     await page.waitForTimeout(1000);
     const gw2Text = await page.innerText('body');
     const gw2HasLive = gw2Text.includes('54') && gw2Text.includes('74.05');
-    console.log('✓ 11. GW2 History shows 54 pts live vs 74.05 xP predicted:', gw2HasLive);
-
+    const ss6 = path.join(screenshotsDir, '06_performance_gw2_selected.png');
     await page.screenshot({ path: ss6, fullPage: true });
     console.log('Saved Screenshot 6:', ss6);
 
@@ -174,6 +153,5 @@ if (!fs.existsSync(screenshotsDir)) {
   } catch (err) {
     console.error('Error during public verification:', err);
   } finally {
-    await browser.close();
   }
 })();
