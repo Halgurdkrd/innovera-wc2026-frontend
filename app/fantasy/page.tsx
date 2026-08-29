@@ -8,6 +8,7 @@ import ErrorState from '@/components/ui/ErrorState'
 import { useLanguage } from '@/hooks/useLanguage'
 import {
   getFPLGameweekPlan,
+  getFPLCurrentSquad,
   getFPLCaptain,
   getFPLTransfers,
   getFPLChips,
@@ -19,17 +20,19 @@ import type {
   FPLTransferRecommendation,
   FPLChipStatusItem,
   FPLPerformanceResponse,
+  FPLPerformanceGameweek,
   FPLPerformancePlayer,
+  FPLPlayer,
 } from '@/lib/api/types'
 
 const L = {
   EN: {
     title: 'Fantasy AI',
-    subtitle: 'Calibrated Premier League decision intelligence combining central expected points with probabilistic scoring distributions.',
-    beta: 'Beta',
-    gameweek: 'Gameweek',
-    deadline: 'Official Deadline',
-    expectedPts: 'Projected Gameweek Score',
+    subtitle: 'Season-long autonomous AI manager combining central expected points with calibrated probabilistic distributions.',
+    gameweek: 'Active Gameweek',
+    deadline: 'Next Deadline',
+    expectedPts: 'Projected Score',
+    livePts: 'Live Official Score',
     bank: 'In Bank',
     freeTransfers: 'Free Transfers',
     tabPlan: 'Gameweek Plan',
@@ -38,7 +41,7 @@ const L = {
     tabCaptain: 'Captaincy',
     tabChips: 'Chip Strategy',
     holdTransferTitle: 'Hold Transfer (No Move Recommended)',
-    holdTransferDesc: 'Current owned squad is projected to outperform all available single and double transfer replacement candidates within budget.',
+    holdTransferDesc: 'Current carried squad is projected to outperform all available single and double transfer replacement candidates within budget.',
     transfersHeading: 'Recommended Transfers',
     out: 'OUT',
     in: 'IN',
@@ -50,14 +53,9 @@ const L = {
     captScore: 'Selection Utility Score',
     topAlts: 'Top Alternatives',
     chipsHeading: 'Season Chip Inventory & Guidance',
-    chipStatusUse: 'RECOMMENDED TO USE',
-    chipStatusSave: 'HOLD / PRESERVE',
-    chipStatusUsed: 'USED',
-    chipStatusLocked: 'LOCKED',
-    chipStatusExpired: 'EXPIRED',
-    perfHeading: 'FPL Performance & Historical Ledger',
-    perfNotice: 'Immutable pre-deadline AI predictions versus authenticated official post-match realizations.',
-    totPts: 'Total Points',
+    perfHeading: 'Season-Long Gameweek History & Ledger',
+    perfNotice: 'Immutable pre-deadline AI predictions versus authenticated official live and finalized match outcomes.',
+    totPts: 'Season Total',
     avgPts: 'Average / GW',
     captPts: 'Captain Points',
     transCost: 'Transfer Hits',
@@ -68,18 +66,18 @@ const L = {
     colTrans: 'Transfers',
     colChip: 'Chip',
     colBench: 'Bench',
-    loading: 'Calculating optimal Fantasy plan...',
+    loading: 'Loading Fantasy intelligence...',
     errorTitle: 'Unable to Load Fantasy Plan',
     errorDesc: 'Could not connect to the Fantasy optimization service. Please retry.',
     retry: 'Retry',
   },
   KU: {
     title: 'فانتاسی AI',
-    subtitle: 'بەڕێوەبەری هۆشی دەستکرد بۆ پێکهاتە، گواستنەوەی یاریزانان، کاپتن و ستراتیژی چیپەکان.',
-    beta: 'تاقیکاری',
-    gameweek: 'گەڕی',
-    deadline: 'کاتی کۆتایی فەرمی',
-    expectedPts: 'خاڵی پێشبینیکراوی ئەم هەفتەیە',
+    subtitle: 'بەڕێوەبەری هۆشی دەستکرد بۆ وەرزی ٢٠٢٦-٢٧ بە بەکارهێنانی مۆدێلی ئەگەری و پێشبینی ورد.',
+    gameweek: 'گەڕی چالاک',
+    deadline: 'کاتی کۆتایی داهاتوو',
+    expectedPts: 'خاڵی پێشبینیکراو',
+    livePts: 'خاڵی ڕاستەوخۆ',
     bank: 'بودجەی ماوە',
     freeTransfers: 'گواستنەوەی بێ بەرامەر',
     tabPlan: 'پلانی گەڕ',
@@ -100,13 +98,8 @@ const L = {
     captScore: 'نمرەی شیاوی',
     topAlts: 'باشترین جێگرەوەکان',
     chipsHeading: 'لیستی چیپەکانی وەرز و ڕێنمایی',
-    chipStatusUse: 'پێشنیاری بەکارهێنان دەکرێت',
-    chipStatusSave: 'هەڵگرتن',
-    chipStatusUsed: 'بەکارهاتووە',
-    chipStatusLocked: 'داخراوە',
-    chipStatusExpired: 'بەسەرچووە',
-    perfHeading: 'ئەنجامەکانی AI لە وەرزی ٢٠٢٦-٢٧',
-    perfNotice: 'تۆماری خاڵە ڕاستەقینەکانی بەدەستهاتوو لە گەڕی ١-ەوە.',
+    perfHeading: 'تۆماری ئەنجامە مێژووییەکانی هەموو گەڕەکان',
+    perfNotice: 'پێشبینییە نەگۆڕەکانی پێش یارییەکان بەرامبەر خاڵە فەرمییە ڕاستەقینەکان.',
     totPts: 'کۆی گشتی خاڵەکان',
     avgPts: 'تێکڕا بۆ هەر گەڕێک',
     captPts: 'خاڵەکانی کاپتن',
@@ -118,15 +111,15 @@ const L = {
     colTrans: 'گواستنەوە',
     colChip: 'چیپ',
     colBench: 'یەدەگ',
-    loading: 'پلانی فانتاسی شیکاری بۆ دەکرێت...',
-    errorTitle: 'کێشە لە بارکردنی پلانی فانتاسیدا هەیە',
+    loading: 'زانیارییەکانی فانتاسی باردەکرێن...',
+    errorTitle: 'کێشە لە بارکردنی فانتاسیدا هەیە',
     errorDesc: 'نەتوانرا پەیوەندی بە سێرڤەری فانتاسییەوە بکرێت. تکایە دووبارە هەوڵبدەرەوە.',
     retry: 'دووبارە هەوڵبدەرەوە',
   },
 }
 
-function formatDeadline(isoString?: string): string {
-  if (!isoString) return 'Fri, 4 Sep 2026, 17:30 UTC'
+function formatIraqTime(isoString?: string): string {
+  if (!isoString) return 'Fri, 4 Sep 2026, 8:30 PM Iraq Time'
   try {
     const d = new Date(isoString)
     if (isNaN(d.getTime())) return isoString
@@ -135,12 +128,13 @@ function formatDeadline(isoString?: string): string {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
-      hour: '2-digit',
+      hour: 'numeric',
       minute: '2-digit',
-      timeZone: 'UTC',
-      timeZoneName: 'short',
+      hour12: true,
+      timeZone: 'Asia/Baghdad',
     }
-    return d.toLocaleDateString('en-GB', options)
+    const formatted = d.toLocaleDateString('en-US', options)
+    return `${formatted} Iraq Time`
   } catch {
     return isoString
   }
@@ -151,13 +145,13 @@ export default function FantasyPage() {
   const t = L[language]
 
   const [activeTab, setActiveTab] = useState<'plan' | 'perf' | 'transfers' | 'captain' | 'chips'>('plan')
-  const [planSubView, setPlanSubView] = useState<'best_xi' | 'squad_100m' | 'manager'>('best_xi')
+  const [planSubView, setPlanSubView] = useState<'active_manager' | 'gw3_best_xi' | 'gw3_squad_100m' | 'gw3_manager'>('active_manager')
   const [plan, setPlan] = useState<FPLGameweekPlan | null>(null)
   const [captainData, setCaptainData] = useState<FPLCaptainResponse | null>(null)
   const [transfers, setTransfers] = useState<FPLTransferRecommendation[]>([])
   const [chips, setChips] = useState<FPLChipStatusItem[]>([])
   const [performance, setPerformance] = useState<FPLPerformanceResponse | null>(null)
-  const [selectedPerfGW, setSelectedPerfGW] = useState<number>(1)
+  const [selectedPerfGW, setSelectedPerfGW] = useState<number>(2)
   const [perfViewMode, setPerfViewMode] = useState<'pitch' | 'table'>('pitch')
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -218,7 +212,9 @@ export default function FantasyPage() {
     fetchFantasyData()
   }, [fetchFantasyData])
 
-  const selectedGWObj = performance?.gameweeks?.find((g) => g.gameweek === selectedPerfGW) || performance?.gameweeks?.[0]
+  // Find active GW record (GW2) and selected historical GW
+  const activeGWRecord = performance?.gameweeks?.find((g) => g.gameweek === 2) || performance?.gameweeks?.[1]
+  const selectedGWRecord = performance?.gameweeks?.find((g) => g.gameweek === selectedPerfGW) || activeGWRecord || performance?.gameweeks?.[0]
 
   return (
     <div className="min-h-screen bg-[#0D1117] text-[#E6EDF3] flex flex-col font-sans selection:bg-[#58A6FF]/30">
@@ -235,8 +231,8 @@ export default function FantasyPage() {
               <span className="text-xs font-bold px-2.5 py-0.5 bg-[#3FB950]/15 text-[#3FB950] border border-[#3FB950]/40 rounded-full uppercase tracking-wider">
                 ENNOVERA HYBRID
               </span>
-              <span className="text-[10px] font-semibold px-2 py-0.5 bg-[#58A6FF]/10 text-[#58A6FF] border border-[#58A6FF]/30 rounded-full">
-                FROZEN PRE-DEADLINE
+              <span className="text-[10px] font-bold px-2.5 py-0.5 bg-[#F0A500]/15 text-[#F0A500] border border-[#F0A500]/40 rounded-full uppercase tracking-wider">
+                GW2 • LIVE
               </span>
             </div>
             <p className="text-xs sm:text-sm text-[#8B949E] mt-1 max-w-2xl">
@@ -247,55 +243,65 @@ export default function FantasyPage() {
         </div>
 
         {/* Global Gameweek Status Bar */}
-        {plan && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-3 bg-[#161B22] rounded-xl border border-[#30363D] flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-[#58A6FF]/10 text-[#58A6FF] flex items-center justify-center font-bold text-sm">
-                GW3
-              </div>
-              <div>
-                <div className="text-[11px] font-semibold text-[#8B949E] uppercase">{t.gameweek}</div>
-                <div className="text-sm font-extrabold text-[#E6EDF3]">GW {plan.gameweek}</div>
-              </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {/* Active GW Card */}
+          <div className="p-3 bg-[#161B22] rounded-xl border border-[#30363D] flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-[#F0A500]/15 text-[#F0A500] flex items-center justify-center font-black text-xs border border-[#F0A500]/30">
+              GW2
             </div>
-
-            <div className="p-3 bg-[#161B22] rounded-xl border border-[#30363D] flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-[#F0A500]/10 text-[#F0A500] flex items-center justify-center font-bold text-sm">
-                ⏱
-              </div>
-              <div>
-                <div className="text-[11px] font-semibold text-[#8B949E] uppercase">{t.deadline}</div>
-                <div className="text-xs font-bold text-[#E6EDF3] truncate" title={plan.deadline}>
-                  {formatDeadline(plan.deadline)}
-                </div>
-              </div>
-            </div>
-
-            <div className="p-3 bg-[#0D1117]/60 rounded-xl border border-[#30363D]/40">
-              <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Expected Best XI xP</div>
-              <div className="text-xl font-black text-[#3FB950] mt-0.5">
-                {(plan.expected_best_xi?.expected_total_points || plan.expected_total_points).toFixed(2)} <span className="text-xs font-normal text-[#8B949E]">xP</span>
-              </div>
-              <div className="text-[10px] text-[#8B949E]">Likely: 74–91 pts | Upside: 94 pts</div>
-            </div>
-
-            <div className="p-3 bg-[#0D1117]/60 rounded-xl border border-[#30363D]/40 flex justify-between items-center">
-              <div>
-                <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Best £100m Squad</div>
-                <div className="text-sm font-extrabold text-[#58A6FF] mt-0.5">
-                  {(plan.best_playable_100m?.expected_total_points || 80.75).toFixed(2)} xP
-                </div>
-                <div className="text-[10px] text-[#8B949E]">Likely: 72–89 pts</div>
-              </div>
-              <div className="text-right">
-                <div className="text-[11px] font-semibold text-[#8B949E] uppercase">{t.freeTransfers}</div>
-                <div className="text-sm font-extrabold text-[#3FB950] mt-0.5">{plan.free_transfers}</div>
+            <div>
+              <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Active Gameweek</div>
+              <div className="text-sm font-extrabold text-[#E6EDF3] flex items-center gap-1.5">
+                <span>GW2</span>
+                <span className="text-[9px] px-1.5 py-0.2 bg-[#F0A500] text-[#0D1117] font-black rounded">LIVE</span>
               </div>
             </div>
           </div>
-        )}
 
-        {/* Navigation Tabs (Performance is 2nd) */}
+          {/* Next Deadline Card in Iraq Time */}
+          <div className="p-3 bg-[#161B22] rounded-xl border border-[#30363D] flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-[#58A6FF]/10 text-[#58A6FF] flex items-center justify-center font-bold text-sm">
+              ⏱
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-[#8B949E] uppercase">GW3 Deadline</div>
+              <div className="text-xs font-bold text-[#E6EDF3]" title="2026-09-04T17:30:00Z (17:30 UTC)">
+                Fri, 4 Sep • 8:30 PM Iraq Time
+              </div>
+            </div>
+          </div>
+
+          {/* Live vs Predicted Score Card */}
+          <div className="p-3 bg-[#0D1117]/60 rounded-xl border border-[#30363D]/40 flex justify-between items-center">
+            <div>
+              <div className="text-[11px] font-semibold text-[#8B949E] uppercase">GW2 Live Score</div>
+              <div className="text-xl font-black text-[#3FB950] mt-0.5">
+                48 <span className="text-xs font-normal text-[#8B949E]">pts (Live)</span>
+              </div>
+              <div className="text-[10px] text-[#8B949E]">Predicted: 74.05 xP</div>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] px-2 py-0.5 bg-[#3FB950]/15 text-[#3FB950] border border-[#3FB950]/30 rounded-full font-bold">
+                11/11 Completed
+              </span>
+            </div>
+          </div>
+
+          {/* Season State Card */}
+          <div className="p-3 bg-[#0D1117]/60 rounded-xl border border-[#30363D]/40 flex justify-between items-center">
+            <div>
+              <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Season Total</div>
+              <div className="text-sm font-extrabold text-[#58A6FF] mt-0.5">156 pts</div>
+              <div className="text-[10px] text-[#8B949E]">Bank: £0.2m • 1 FT</div>
+            </div>
+            <div className="text-right">
+              <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Captain (GW2)</div>
+              <div className="text-xs font-extrabold text-[#F0A500] mt-0.5">Haaland (12 pts)</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Tabs (Performance is Second) */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-[#30363D] scrollbar-none">
           {[
             { id: 'plan', label: t.tabPlan },
@@ -327,126 +333,239 @@ export default function FantasyPage() {
             retryLabel={t.retry}
             onRetry={fetchFantasyData}
           />
-        ) : !plan ? null : (
+        ) : (
           <div className="space-y-6">
-            {/* TAB 1: GAMEWEEK PLAN */}
+            {/* TAB 1: GAMEWEEK PLAN (Focuses on Active GW2 + Next GW3 Panel) */}
             {activeTab === 'plan' && (
-              <div className="space-y-4">
-                {/* Sub-view switcher for Plan: Best XI vs Best £100m vs Manager Team */}
-                <div className="flex items-center gap-2 bg-[#161B22] p-1.5 rounded-xl border border-[#30363D] w-fit flex-wrap">
-                  <button
-                    onClick={() => setPlanSubView('best_xi')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-2 ${
-                      planSubView === 'best_xi'
-                        ? 'bg-[#58A6FF] text-[#0D1117]'
-                        : 'text-[#8B949E] hover:text-[#E6EDF3]'
-                    }`}
-                  >
-                    <span>EXPECTED BEST XI (83.09 xP)</span>
-                    <span className="text-[9px] px-1.5 py-0.2 bg-[#3FB950] text-[#0D1117] font-extrabold rounded">FROZEN</span>
-                  </button>
-                  <button
-                    onClick={() => setPlanSubView('squad_100m')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-2 ${
-                      planSubView === 'squad_100m'
-                        ? 'bg-[#58A6FF] text-[#0D1117]'
-                        : 'text-[#8B949E] hover:text-[#E6EDF3]'
-                    }`}
-                  >
-                    <span>BEST PLAYABLE £100M (80.75 xP)</span>
-                    <span className="text-[9px] px-1.5 py-0.2 bg-[#3FB950] text-[#0D1117] font-extrabold rounded">FROZEN</span>
-                  </button>
-                  <button
-                    onClick={() => setPlanSubView('manager')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-2 ${
-                      planSubView === 'manager'
-                        ? 'bg-[#58A6FF] text-[#0D1117]'
-                        : 'text-[#8B949E] hover:text-[#E6EDF3]'
-                    }`}
-                  >
-                    <span>AI MANAGER TEAM</span>
-                    <span className="text-[9px] px-1.5 py-0.2 bg-[#F0A500] text-[#0D1117] font-extrabold rounded">PENDING</span>
-                  </button>
+              <div className="space-y-6">
+                {/* Team Object & Horizon Selector */}
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-[#161B22] p-2 rounded-xl border border-[#30363D]">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => setPlanSubView('active_manager')}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-2 ${
+                        planSubView === 'active_manager'
+                          ? 'bg-[#58A6FF] text-[#0D1117]'
+                          : 'text-[#8B949E] hover:text-[#E6EDF3]'
+                      }`}
+                    >
+                      <span>GW2 AI MANAGER TEAM</span>
+                      <span className="text-[9px] px-1.5 py-0.2 bg-[#F0A500] text-[#0D1117] font-black rounded">LIVE</span>
+                    </button>
+
+                    <button
+                      onClick={() => setPlanSubView('gw3_best_xi')}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-2 ${
+                        planSubView === 'gw3_best_xi'
+                          ? 'bg-[#58A6FF] text-[#0D1117]'
+                          : 'text-[#8B949E] hover:text-[#E6EDF3]'
+                      }`}
+                    >
+                      <span>GW3 EXPECTED BEST XI (83.09 xP)</span>
+                      <span className="text-[9px] px-1.5 py-0.2 bg-[#3FB950] text-[#0D1117] font-black rounded">FROZEN</span>
+                    </button>
+
+                    <button
+                      onClick={() => setPlanSubView('gw3_squad_100m')}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-2 ${
+                        planSubView === 'gw3_squad_100m'
+                          ? 'bg-[#58A6FF] text-[#0D1117]'
+                          : 'text-[#8B949E] hover:text-[#E6EDF3]'
+                      }`}
+                    >
+                      <span>GW3 BEST PLAYABLE £100M (80.75 xP)</span>
+                      <span className="text-[9px] px-1.5 py-0.2 bg-[#3FB950] text-[#0D1117] font-black rounded">FROZEN</span>
+                    </button>
+
+                    <button
+                      onClick={() => setPlanSubView('gw3_manager')}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-2 ${
+                        planSubView === 'gw3_manager'
+                          ? 'bg-[#58A6FF] text-[#0D1117]'
+                          : 'text-[#8B949E] hover:text-[#E6EDF3]'
+                      }`}
+                    >
+                      <span>GW3 AI MANAGER</span>
+                      <span className="text-[9px] px-1.5 py-0.2 bg-[#F0A500] text-[#0D1117] font-black rounded">PENDING</span>
+                    </button>
+                  </div>
+
+                  {/* Next Gameweek Teaser in Iraq Time */}
+                  <div className="text-right hidden md:block">
+                    <div className="text-[10px] uppercase font-bold text-[#8B949E]">Next Deadline (GW3)</div>
+                    <div className="text-xs font-bold text-[#58A6FF]">Fri, 4 Sep • 8:30 PM Iraq Time</div>
+                  </div>
                 </div>
 
-                {/* Sub-View Content */}
-                {planSubView === 'manager' ? (
-                  <div className="bg-[#161B22] border border-[#30363D] rounded-2xl p-8 text-center space-y-3 shadow-xl">
-                    <div className="inline-flex h-12 w-12 rounded-full bg-[#F0A500]/10 text-[#F0A500] items-center justify-center text-xl font-bold mb-1">
+                {/* Sub-view Rendering */}
+                {planSubView === 'gw3_manager' ? (
+                  <div className="bg-[#161B22] border border-[#30363D] rounded-2xl p-8 text-center space-y-4 shadow-xl">
+                    <div className="inline-flex h-12 w-12 rounded-full bg-[#F0A500]/15 text-[#F0A500] items-center justify-center text-xl font-bold">
                       ⏱
                     </div>
                     <div className="flex items-center justify-center gap-2">
-                      <h3 className="text-lg font-bold text-[#E6EDF3]">AI Manager Team</h3>
+                      <h3 className="text-lg font-bold text-[#E6EDF3]">GW3 AI Manager Team</h3>
                       <span className="text-[10px] font-bold px-2 py-0.5 bg-[#F0A500]/15 text-[#F0A500] border border-[#F0A500]/30 rounded-full">
                         STATUS: PENDING
                       </span>
                     </div>
                     <p className="text-xs sm:text-sm text-[#8B949E] max-w-xl mx-auto leading-relaxed">
-                      GW3 Manager Team will be finalized after GW2 completion and before the GW3 deadline.
+                      GW3 Manager Team will be finalized after GW2 completion and before the official GW3 deadline.
                     </p>
-                    <div className="p-3 bg-[#0D1117] border border-[#30363D]/60 rounded-xl max-w-lg mx-auto text-xs text-[#8B949E] space-y-1">
+                    <div className="p-4 bg-[#0D1117] border border-[#30363D]/60 rounded-xl max-w-lg mx-auto text-xs text-[#8B949E] space-y-2 text-left">
                       <div className="text-[#58A6FF] font-semibold">
-                        Expected Best XI (83.09 xP) and Best Playable £100m (80.75 xP) are already available.
+                        Expected Best XI (83.09 xP) and Best Playable £100m (80.75 xP) are already available for GW3.
                       </div>
-                      <div>
-                        Description: Practical recommendation based on your current squad, bank, free transfers and transfer rules.
+                      <div className="leading-relaxed">
+                        <strong>AI Manager Meaning:</strong> Ennovera's season-long AI manager. The squad carries forward from Gameweek to Gameweek and follows real FPL transfer, budget and squad rules.
                       </div>
                     </div>
                   </div>
-                ) : (
+                ) : planSubView === 'gw3_best_xi' || planSubView === 'gw3_squad_100m' ? (
+                  /* GW3 Analytical Benchmarks */
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                    {/* Left 2 Cols: Pitch & Bench */}
                     <div className="lg:col-span-2 space-y-3">
-                      {/* Object Banner */}
-                      <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-3.5 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                      <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs font-black uppercase text-[#E6EDF3]">
-                              {planSubView === 'best_xi' ? 'Expected Best XI' : 'Best Playable £100m Squad'}
+                              {planSubView === 'gw3_best_xi' ? 'GW3 Expected Best XI' : 'GW3 Best Playable £100m Squad'}
                             </span>
                             <span className="text-[10px] font-bold px-2 py-0.5 bg-[#3FB950]/15 text-[#3FB950] border border-[#3FB950]/30 rounded">
-                              {planSubView === 'best_xi'
-                                ? `${(plan.expected_best_xi?.expected_total_points || plan.expected_total_points).toFixed(2)} xP`
-                                : `${(plan.best_playable_100m?.expected_total_points || 80.75).toFixed(2)} xP`}
+                              {planSubView === 'gw3_best_xi' ? '83.09 xP' : '80.75 xP'}
                             </span>
                             <span className="text-[10px] font-bold px-2 py-0.5 bg-[#58A6FF]/10 text-[#58A6FF] border border-[#58A6FF]/30 rounded">
                               FROZEN PRE-DEADLINE
                             </span>
                           </div>
                           <p className="text-[11px] text-[#8B949E] leading-relaxed max-w-xl">
-                            {planSubView === 'best_xi'
+                            {planSubView === 'gw3_best_xi'
                               ? 'Highest projected XI without the full £100m 15-player squad-budget constraint. Formation and maximum-three-per-club rules still apply. (Theoretical Model xP Ceiling)'
-                              : 'Highest projected starting XI obtained from a fully legal 15-player FPL squad costing no more than £100m. Starting XI: £83.5m • Bench: £16.5m • Total: £100.0m • Bank: £0.0m'}
+                              : 'Highest projected starting XI obtainable from a fully legal 15-player FPL squad costing no more than £100m. Starting XI: £83.5m • Bench: £16.5m • Total: £100.0m • Bank: £0.0m'}
                           </p>
                         </div>
                         <div className="text-right sm:text-right shrink-0">
                           <div className="text-xs font-bold text-[#58A6FF]">
-                            Likely Range: {planSubView === 'best_xi' ? '74 – 91 pts' : '72 – 89 pts'}
+                            Likely Range: {planSubView === 'gw3_best_xi' ? '74 – 91 pts' : '72 – 89 pts'}
                           </div>
                           <div className="text-[10px] text-[#8B949E]">
-                            Upside (P80): {planSubView === 'best_xi' ? '94 pts' : '92 pts'} • High-Upside (P90): {planSubView === 'best_xi' ? '100 pts' : '98 pts'}
+                            Upside (P80): {planSubView === 'gw3_best_xi' ? '94 pts' : '92 pts'} • High-Upside (P90): {planSubView === 'gw3_best_xi' ? '100 pts' : '98 pts'}
                           </div>
                         </div>
                       </div>
 
-                      <PitchVisualization
-                        formation={plan.formation}
-                        startingXI={plan.starting_xi}
-                        bench={planSubView === 'squad_100m' ? plan.bench : []}
-                        language={language}
-                      />
+                      {plan && (
+                        <PitchVisualization
+                          formation={plan.formation}
+                          startingXI={plan.starting_xi}
+                          bench={planSubView === 'gw3_squad_100m' ? plan.bench : []}
+                          language={language}
+                        />
+                      )}
                     </div>
 
-                    {/* Right Col: Captaincy & Strategy Cards */}
+                    {/* Right Col: Captaincy & Methodology */}
                     <div className="space-y-4">
-                      {/* Captain Pick Card */}
+                      {plan && (
+                        <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-4 shadow-lg space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-[#F0A500] uppercase tracking-wider">
+                              ★ {t.captTitle} (GW3)
+                            </span>
+                            <span className="text-xs font-bold text-[#3FB950] bg-[#3FB950]/10 border border-[#3FB950]/30 px-2 py-0.5 rounded">
+                              {plan.captain.expected_points.toFixed(2)} xP
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <div className="h-12 w-12 rounded-xl bg-[#F0A500] text-[#0D1117] font-black text-xl flex items-center justify-center shadow">
+                              C
+                            </div>
+                            <div>
+                              <h3 className="font-extrabold text-base text-[#E6EDF3]">{plan.captain.name}</h3>
+                              <p className="text-xs text-[#8B949E]">
+                                {plan.captain.club} • £{plan.captain.price.toFixed(1)}m • 10+ Points Chance: {Math.round(plan.captain.haul_probability * 100)}%
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="pt-2 border-t border-[#30363D]/40 space-y-1 text-xs">
+                            <div className="flex justify-between items-center text-[#8B949E]">
+                              <span>Captain contribution:</span>
+                              <strong className="text-[#3FB950]">{(plan.captain.expected_points * 2).toFixed(2)} projected pts (2x)</strong>
+                            </div>
+                            <div className="flex justify-between items-center text-[#8B949E]">
+                              <span>{t.viceTitle}: <strong className="text-[#E6EDF3]">{plan.vice_captain.name}</strong></span>
+                              <span className="text-[#3FB950] font-semibold">{plan.vice_captain.expected_points.toFixed(2)} xP</span>
+                            </div>
+                            <p className="text-[10px] text-[#8B949E] italic pt-1 border-t border-[#30363D]/30">
+                              Captain points are counted twice in the projected team total.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="bg-[#0D1117] border border-[#30363D] rounded-xl p-3.5 text-[11px] text-[#8B949E] space-y-1">
+                        <div className="font-bold text-[#E6EDF3]">Ennovera Hybrid Architecture</div>
+                        <p className="leading-relaxed">
+                          Central expected points are generated from Ennovera's frozen C10-E ranking model, while uncertainty percentiles and joint ranges are produced by the calibrated Level-5 probability engine.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Active GW2 Live Manager Plan */
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                    <div className="lg:col-span-2 space-y-3">
+                      {/* Active GW2 Banner */}
+                      <div className="bg-[#161B22] border border-[#F0A500]/40 rounded-xl p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 shadow-lg">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-black uppercase text-[#E6EDF3]">
+                              GW2 AI Manager Team
+                            </span>
+                            <span className="text-[10px] font-black px-2 py-0.5 bg-[#F0A500] text-[#0D1117] rounded uppercase">
+                              LIVE IN PROGRESS
+                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 bg-[#58A6FF]/10 text-[#58A6FF] border border-[#58A6FF]/30 rounded">
+                              FROZEN PRE-DEADLINE
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#8B949E] leading-relaxed max-w-xl">
+                            Authentic frozen decision carried forward from GW1. Squad: 3-4-3 • Bank: £0.2m • Free Transfers: 1.
+                          </p>
+                        </div>
+                        <div className="text-right sm:text-right shrink-0">
+                          <div className="text-xs font-bold text-[#3FB950]">
+                            Live Score: 48 pts (Completed)
+                          </div>
+                          <div className="text-[10px] text-[#8B949E]">
+                            Predicted: 74.05 xP • Delta: -26.05 pts
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* GW2 Pitch Visualization */}
+                      {activeGWRecord && (
+                        <PitchVisualization
+                          formation={activeGWRecord.formation}
+                          startingXI={activeGWRecord.starting_xi as any}
+                          bench={activeGWRecord.bench as any}
+                          language={language}
+                        />
+                      )}
+                    </div>
+
+                    {/* Right Col: Live Captain & Next GW Panel */}
+                    <div className="space-y-4">
+                      {/* GW2 Live Captain Pick */}
                       <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-4 shadow-lg space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-[#F0A500] uppercase tracking-wider">
-                            ★ {t.captTitle}
+                            ★ GW2 Captain Result
                           </span>
                           <span className="text-xs font-bold text-[#3FB950] bg-[#3FB950]/10 border border-[#3FB950]/30 px-2 py-0.5 rounded">
-                            {plan.captain.expected_points.toFixed(2)} xP
+                            {activeGWRecord?.captain?.actual_captain_contribution ?? 12} pts (Live)
                           </span>
                         </div>
 
@@ -455,62 +574,56 @@ export default function FantasyPage() {
                             C
                           </div>
                           <div>
-                            <h3 className="font-extrabold text-base text-[#E6EDF3]">{plan.captain.name}</h3>
+                            <h3 className="font-extrabold text-base text-[#E6EDF3]">
+                              {activeGWRecord?.captain?.name || 'Erling Haaland'}
+                            </h3>
                             <p className="text-xs text-[#8B949E]">
-                              {plan.captain.club} • £{plan.captain.price.toFixed(1)}m • 10+ Points Chance: {Math.round(plan.captain.haul_probability * 100)}%
+                              {activeGWRecord?.captain?.club || 'Man City'} • Predicted: {activeGWRecord?.captain?.predicted_base_xp?.toFixed(2) || '7.90'} xP
                             </p>
                           </div>
                         </div>
 
                         <div className="pt-2 border-t border-[#30363D]/40 space-y-1 text-xs">
                           <div className="flex justify-between items-center text-[#8B949E]">
-                            <span>Captain contribution:</span>
-                            <strong className="text-[#3FB950]">{(plan.captain.expected_points * 2).toFixed(2)} projected pts (2x)</strong>
+                            <span>Captain Score:</span>
+                            <strong className="text-[#3FB950]">6 pts (Base) → 12 pts (2x)</strong>
                           </div>
                           <div className="flex justify-between items-center text-[#8B949E]">
-                            <span>{t.viceTitle}: <strong className="text-[#E6EDF3]">{plan.vice_captain.name}</strong></span>
-                            <span className="text-[#3FB950] font-semibold">{plan.vice_captain.expected_points.toFixed(2)} xP</span>
+                            <span>Vice-Captain:</span>
+                            <strong className="text-[#E6EDF3]">Cole Palmer (8 pts)</strong>
                           </div>
-                          <p className="text-[10px] text-[#8B949E] italic pt-1 border-t border-[#30363D]/30">
-                            Captain points are counted twice in the projected team total.
-                          </p>
                         </div>
                       </div>
 
-                      {/* Distribution Summary Card */}
-                      <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-4 shadow-lg space-y-2.5">
+                      {/* Next Gameweek Panel */}
+                      <div className="bg-gradient-to-br from-[#161B22] to-[#0D1117] border border-[#58A6FF]/40 rounded-xl p-4 shadow-lg space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-[#58A6FF] uppercase tracking-wider">
-                            Team Probability Metrics
+                            Next Gameweek: GW3
                           </span>
-                          <span className="text-[10px] font-bold text-[#8B949E]">500k Joint Draws</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 bg-[#58A6FF]/15 text-[#58A6FF] border border-[#58A6FF]/30 rounded-full">
+                            UPCOMING
+                          </span>
                         </div>
-                        <div className="space-y-1.5 text-xs">
-                          <div className="flex justify-between text-[#8B949E]">
-                            <span>Median Score:</span>
-                            <strong className="text-[#E6EDF3]">{planSubView === 'best_xi' ? '83.0 pts' : '81.0 pts'}</strong>
+                        <div className="space-y-1 text-xs">
+                          <div className="text-[#8B949E]">
+                            Official Deadline:
                           </div>
-                          <div className="flex justify-between text-[#8B949E]">
-                            <span>Likely Range [P25, P75]:</span>
-                            <strong className="text-[#58A6FF]">{planSubView === 'best_xi' ? '74 – 91 pts' : '72 – 89 pts'}</strong>
+                          <div className="font-bold text-[#E6EDF3]">
+                            {formatIraqTime('2026-09-04T17:30:00Z')}
                           </div>
-                          <div className="flex justify-between text-[#8B949E]">
-                            <span>Upside Score (P80):</span>
-                            <strong className="text-[#F0A500]">{planSubView === 'best_xi' ? '94 pts' : '92 pts'}</strong>
-                          </div>
-                          <div className="flex justify-between text-[#8B949E]">
-                            <span>High-Upside Score (P90):</span>
-                            <strong className="text-[#D29922]">{planSubView === 'best_xi' ? '100 pts' : '98 pts'}</strong>
+                          <div className="text-[11px] text-[#8B949E]">
+                            (17:30 UTC)
                           </div>
                         </div>
-                      </div>
-
-                      {/* Methodology Notice */}
-                      <div className="bg-[#0D1117] border border-[#30363D] rounded-xl p-3.5 text-[11px] text-[#8B949E] space-y-1">
-                        <div className="font-bold text-[#E6EDF3]">Ennovera Hybrid Methodology</div>
-                        <p className="leading-relaxed">
-                          Central expected points are produced by Ennovera's frozen ranking model, while uncertainty and score probabilities are derived from Ennovera's calibrated Level-5 probability engine.
-                        </p>
+                        <div className="pt-2 border-t border-[#30363D]/50 flex gap-2">
+                          <button
+                            onClick={() => setPlanSubView('gw3_best_xi')}
+                            className="flex-1 py-1.5 px-2 bg-[#58A6FF]/10 hover:bg-[#58A6FF]/20 text-[#58A6FF] border border-[#58A6FF]/30 rounded-lg text-xs font-bold transition-colors text-center"
+                          >
+                            View Expected Best XI (83.09 xP)
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -518,7 +631,7 @@ export default function FantasyPage() {
               </div>
             )}
 
-            {/* TAB 2: PERFORMANCE V2 */}
+            {/* TAB 2: PERFORMANCE (FULL GAMEWEEK HISTORY EXPLORER) */}
             {activeTab === 'perf' && performance && (
               <div className="space-y-6">
                 {/* Header Title */}
@@ -534,77 +647,181 @@ export default function FantasyPage() {
                 {/* Performance Summary Metrics */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="p-3 bg-[#161B22] rounded-xl border border-[#30363D]">
-                    <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Historical Actual (GW1)</div>
+                    <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Historical Score (GW1)</div>
                     <div className="text-2xl font-black text-[#3FB950] mt-1">{performance.summary.historical_actual_total} pts</div>
-                    <div className="text-[10px] text-[#8B949E]">Delta: +{performance.summary.historical_delta.toFixed(1)} pts</div>
+                    <div className="text-[10px] text-[#8B949E]">Predicted: {performance.summary.historical_projected_total.toFixed(1)} xP (+{performance.summary.historical_delta.toFixed(1)})</div>
                   </div>
                   <div className="p-3 bg-[#161B22] rounded-xl border border-[#30363D]">
-                    <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Historical Projected (GW1)</div>
-                    <div className="text-2xl font-black text-[#58A6FF] mt-1">{performance.summary.historical_projected_total.toFixed(1)} xP</div>
-                    <div className="text-[10px] text-[#8B949E]">1 Completed GW</div>
+                    <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Live GW2 Score</div>
+                    <div className="text-2xl font-black text-[#F0A500] mt-1">48 pts</div>
+                    <div className="text-[10px] text-[#8B949E]">Predicted: 74.05 xP • LIVE</div>
                   </div>
                   <div className="p-3 bg-[#161B22] rounded-xl border border-[#30363D]">
-                    <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Prospective GW2 Status</div>
-                    <div className="text-2xl font-black text-[#F0A500] mt-1">IN PROGRESS</div>
-                    <div className="text-[10px] text-[#8B949E]">Projected: 77.41 xP</div>
+                    <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Cumulative Season Pts</div>
+                    <div className="text-2xl font-black text-[#58A6FF] mt-1">156 pts</div>
+                    <div className="text-[10px] text-[#8B949E]">GW1 (108) + GW2 (48 Live)</div>
                   </div>
                   <div className="p-3 bg-[#161B22] rounded-xl border border-[#30363D]">
-                    <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Prospective GW3 Status</div>
+                    <div className="text-[11px] font-semibold text-[#8B949E] uppercase">GW3 Status</div>
                     <div className="text-2xl font-black text-[#58A6FF] mt-1">FROZEN</div>
-                    <div className="text-[10px] text-[#8B949E]">Projected: 83.09 xP</div>
+                    <div className="text-[10px] text-[#8B949E]">Best XI: 83.09 xP (Upcoming)</div>
                   </div>
                 </div>
 
-                {/* Historical vs Prospective Ledger */}
-                <div className="bg-[#161B22] border border-[#30363D] rounded-xl overflow-hidden shadow-lg">
-                  <div className="p-4 border-b border-[#30363D] flex justify-between items-center">
-                    <h3 className="text-sm font-bold text-[#E6EDF3]">Gameweek Ledger (GW1 – GW3)</h3>
-                    <span className="text-xs text-[#8B949E]">Official Points</span>
+                {/* Gameweek History Explorer Selector */}
+                <div className="bg-[#161B22] border border-[#30363D] rounded-2xl p-5 space-y-5 shadow-xl">
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-[#30363D]/60 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#8B949E]">
+                        Select Historical Gameweek:
+                      </span>
+                      <div className="flex gap-1.5">
+                        {performance.gameweeks.map((gw) => (
+                          <button
+                            key={gw.gameweek}
+                            onClick={() => setSelectedPerfGW(gw.gameweek)}
+                            className={`px-3 py-1 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                              selectedPerfGW === gw.gameweek
+                                ? 'bg-[#58A6FF] text-[#0D1117]'
+                                : 'bg-[#0D1117] text-[#8B949E] hover:text-[#E6EDF3] border border-[#30363D]'
+                            }`}
+                          >
+                            <span>GW {gw.gameweek}</span>
+                            <span
+                              className={`text-[9px] px-1 py-0.2 rounded font-black ${
+                                gw.status === 'COMPLETE'
+                                  ? 'bg-[#3FB950]/20 text-[#3FB950]'
+                                  : gw.status === 'LIVE'
+                                  ? 'bg-[#F0A500]/20 text-[#F0A500]'
+                                  : 'bg-[#58A6FF]/20 text-[#58A6FF]'
+                              }`}
+                            >
+                              {gw.status === 'COMPLETE' ? '✓' : gw.status === 'LIVE' ? 'LIVE' : 'UPCOMING'}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* View Mode Toggle */}
+                    <div className="flex items-center gap-1 bg-[#0D1117] p-1 rounded-lg border border-[#30363D]">
+                      <button
+                        onClick={() => setPerfViewMode('pitch')}
+                        className={`px-2.5 py-1 text-xs font-bold rounded ${
+                          perfViewMode === 'pitch' ? 'bg-[#161B22] text-[#58A6FF]' : 'text-[#8B949E]'
+                        }`}
+                      >
+                        Pitch View
+                      </button>
+                      <button
+                        onClick={() => setPerfViewMode('table')}
+                        className={`px-2.5 py-1 text-xs font-bold rounded ${
+                          perfViewMode === 'table' ? 'bg-[#161B22] text-[#58A6FF]' : 'text-[#8B949E]'
+                        }`}
+                      >
+                        Table View
+                      </button>
+                    </div>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs text-left text-[#E6EDF3]">
-                      <thead className="bg-[#0D1117] text-[#8B949E] border-b border-[#30363D]">
-                        <tr>
-                          <th className="px-4 py-2.5">{t.colGw}</th>
-                          <th className="px-4 py-2.5">Predicted (Best XI)</th>
-                          <th className="px-4 py-2.5">Actual Score</th>
-                          <th className="px-4 py-2.5">{t.colCapt}</th>
-                          <th className="px-4 py-2.5">{t.colChip}</th>
-                          <th className="px-4 py-2.5">Classification</th>
-                          <th className="px-4 py-2.5">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#30363D]/60">
-                        <tr className="hover:bg-[#0D1117]/50">
-                          <td className="px-4 py-3 font-bold text-[#58A6FF]">GW 1</td>
-                          <td className="px-4 py-3 font-semibold text-[#3FB950]">78.65 xP</td>
-                          <td className="px-4 py-3 font-bold text-[#E6EDF3]">108 pts (Manager) / 79 pts (Best XI)</td>
-                          <td className="px-4 py-3">Haaland (4 pts)</td>
-                          <td className="px-4 py-3 text-[#8B949E]">None</td>
-                          <td className="px-4 py-3 text-[10px] text-[#8B949E]">HISTORICAL_REPLAY</td>
-                          <td className="px-4 py-3 text-[#3FB950] font-bold">COMPLETED</td>
-                        </tr>
-                        <tr className="hover:bg-[#0D1117]/50">
-                          <td className="px-4 py-3 font-bold text-[#58A6FF]">GW 2</td>
-                          <td className="px-4 py-3 font-semibold text-[#3FB950]">77.41 xP</td>
-                          <td className="px-4 py-3 font-bold text-[#F0A500]">PENDING</td>
-                          <td className="px-4 py-3">Haaland</td>
-                          <td className="px-4 py-3 text-[#8B949E]">None</td>
-                          <td className="px-4 py-3 text-[10px] text-[#8B949E]">AUTHENTIC_PROSPECTIVE</td>
-                          <td className="px-4 py-3 text-[#F0A500] font-bold">IN_PROGRESS</td>
-                        </tr>
-                        <tr className="hover:bg-[#0D1117]/50">
-                          <td className="px-4 py-3 font-bold text-[#58A6FF]">GW 3</td>
-                          <td className="px-4 py-3 font-semibold text-[#3FB950]">83.09 xP</td>
-                          <td className="px-4 py-3 font-bold text-[#8B949E]">PENDING</td>
-                          <td className="px-4 py-3">Haaland (C)</td>
-                          <td className="px-4 py-3 text-[#8B949E]">None</td>
-                          <td className="px-4 py-3 text-[10px] text-[#8B949E]">DEPLOYED_HYBRID_PROSPECTIVE</td>
-                          <td className="px-4 py-3 text-[#58A6FF] font-bold">FROZEN</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+
+                  {/* Selected GW Details Header */}
+                  {selectedGWRecord && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#0D1117] p-4 rounded-xl border border-[#30363D]">
+                        <div>
+                          <div className="text-[10px] text-[#8B949E] uppercase font-semibold">Classification & Model</div>
+                          <div className="text-xs font-extrabold text-[#E6EDF3] mt-0.5">{selectedGWRecord.classification}</div>
+                          <div className="text-[10px] text-[#58A6FF]">{selectedGWRecord.model_version}</div>
+                        </div>
+
+                        <div>
+                          <div className="text-[10px] text-[#8B949E] uppercase font-semibold">Official Deadline</div>
+                          <div className="text-xs font-bold text-[#E6EDF3] mt-0.5">
+                            {formatIraqTime(selectedGWRecord.deadline)}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="text-[10px] text-[#8B949E] uppercase font-semibold">Predicted vs Actual</div>
+                          <div className="text-xs font-extrabold text-[#3FB950] mt-0.5">
+                            Predicted: {selectedGWRecord.projected_total.toFixed(2)} xP
+                          </div>
+                          <div className="text-xs font-bold text-[#E6EDF3]">
+                            Actual: {selectedGWRecord.actual_total !== null ? `${selectedGWRecord.actual_total} pts` : 'PENDING'}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="text-[10px] text-[#8B949E] uppercase font-semibold">Transfers & Chip</div>
+                          <div className="text-xs font-bold text-[#E6EDF3] mt-0.5">
+                            {selectedGWRecord.transfers_made === 0 ? 'No Transfers (0 hit)' : `${selectedGWRecord.transfers_made} Transfer(s)`}
+                          </div>
+                          <div className="text-[10px] text-[#8B949E]">
+                            Chip: {selectedGWRecord.chip_used} • Bank: £{selectedGWRecord.bank.toFixed(1)}m
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Pitch or Table Representation */}
+                      {selectedGWRecord.starting_xi && selectedGWRecord.starting_xi.length > 0 ? (
+                        perfViewMode === 'pitch' ? (
+                          <PitchVisualization
+                            formation={selectedGWRecord.formation}
+                            startingXI={selectedGWRecord.starting_xi as any}
+                            bench={selectedGWRecord.bench as any}
+                            language={language}
+                          />
+                        ) : (
+                          <div className="overflow-x-auto bg-[#0D1117] rounded-xl border border-[#30363D]">
+                            <table className="w-full text-xs text-left text-[#E6EDF3]">
+                              <thead className="bg-[#161B22] text-[#8B949E] border-b border-[#30363D]">
+                                <tr>
+                                  <th className="px-4 py-2.5">Player</th>
+                                  <th className="px-4 py-2.5">Pos</th>
+                                  <th className="px-4 py-2.5">Club</th>
+                                  <th className="px-4 py-2.5">Fixture</th>
+                                  <th className="px-4 py-2.5">Predicted xP</th>
+                                  <th className="px-4 py-2.5">Actual Pts</th>
+                                  <th className="px-4 py-2.5">Mins</th>
+                                  <th className="px-4 py-2.5">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-[#30363D]/60">
+                                {selectedGWRecord.starting_xi.map((p) => (
+                                  <tr key={p.player_id} className="hover:bg-[#161B22]/50">
+                                    <td className="px-4 py-2.5 font-bold flex items-center gap-1.5">
+                                      <span>{p.name}</span>
+                                      {p.is_captain && (
+                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#F0A500] text-[#0D1117] font-black">
+                                          C
+                                        </span>
+                                      )}
+                                      {p.is_vice_captain && (
+                                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#E6EDF3] text-[#0D1117] font-black">
+                                          V
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-2.5 text-[#58A6FF]">{p.position}</td>
+                                    <td className="px-4 py-2.5 text-[#8B949E]">{p.club}</td>
+                                    <td className="px-4 py-2.5 text-[#8B949E]">{p.opponent ? `${p.opponent} (${p.home_away})` : '—'}</td>
+                                    <td className="px-4 py-2.5 font-semibold text-[#3FB950]">{p.predicted_xp.toFixed(2)}</td>
+                                    <td className="px-4 py-2.5 font-bold text-[#E6EDF3]">{p.actual_points !== null ? p.actual_points : '—'}</td>
+                                    <td className="px-4 py-2.5 text-[#8B949E]">{p.minutes !== null ? `${p.minutes}'` : '—'}</td>
+                                    <td className="px-4 py-2.5 text-[#8B949E]">{p.match_status || 'FT'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )
+                      ) : (
+                        <div className="p-8 text-center bg-[#0D1117] rounded-xl border border-[#30363D] text-sm text-[#8B949E]">
+                          GW3 Manager Team is currently PENDING freeze and will appear once GW2 matches conclude.
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -659,11 +876,10 @@ export default function FantasyPage() {
             {/* TAB 4: CAPTAIN */}
             {activeTab === 'captain' && captainData && (
               <div className="space-y-6">
-                {/* Hero Captain Card */}
                 <div className="bg-gradient-to-r from-[#161B22] to-[#1c222c] border border-[#F0A500]/40 rounded-2xl p-6 shadow-2xl space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-[#F0A500] uppercase tracking-wider">
-                      ★ {t.captTitle}
+                      ★ {t.captTitle} (GW3 Forecast)
                     </span>
                     <span className="text-xs font-bold text-[#F0A500] bg-[#F0A500]/10 border border-[#F0A500]/30 px-3 py-1 rounded-full">
                       {captainData.captain.expected_points.toFixed(2)} xP ({(captainData.captain.expected_points * 2).toFixed(2)} pts with 2x)

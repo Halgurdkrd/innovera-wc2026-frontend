@@ -213,11 +213,14 @@ export interface FPLPerformancePlayer {
   club: string
   position: 'GK' | 'DEF' | 'MID' | 'FWD'
   opponent?: string
-  home_away?: 'H' | 'A'
+  home_away?: 'H' | 'A' | string
   predicted_xp: number
+  likely_range?: [number, number]
+  prob_10_plus?: number
   actual_points: number | null
   delta: number | null
   minutes: number | null
+  match_status?: string
   bench_order?: number | null
   is_captain?: boolean
   is_vice_captain?: boolean
@@ -238,27 +241,52 @@ export interface FPLPerformanceCaptain {
 
 export interface FPLPerformanceGameweek {
   gameweek: number
-  classification: 'HISTORICAL_REPLAY' | 'PROSPECTIVE'
-  status: 'COMPLETE' | 'FROZEN_PENDING'
+  classification: 'HISTORICAL_REPLAY' | 'PROSPECTIVE' | 'AUTHENTIC_PROSPECTIVE' | 'DEPLOYED_HYBRID_PROSPECTIVE' | string
+  status: 'COMPLETE' | 'FROZEN_PENDING' | 'LIVE' | 'UPCOMING' | 'PRE_DEADLINE' | string
   model_version: string
-  model_hash: string
-  prediction_hash: string
+  model_hash?: string
+  prediction_hash?: string
   deadline: string
   formation: string
   projected_total: number
   actual_total: number | null
   delta: number | null
-  xi_predicted_base: number
-  captain_expected_bonus: number
-  xi_raw_actual: number | null
-  captain_actual_extra: number | null
-  bench_actual: number | null
-  total_15_raw_actual: number | null
+  xi_predicted_base?: number
+  captain_expected_bonus?: number
+  xi_raw_actual?: number | null
+  captain_actual_extra?: number | null
+  bench_actual?: number | null
+  total_15_raw_actual?: number | null
   transfers_made: number
+  transfers_in?: string[]
+  transfers_out?: string[]
   hit_cost: number
   chip_used: string
   bank: number
   free_transfers: number
+  manager_team_status?: string
+  expected_best_xi?: {
+    expected_total_points: number
+    team_likely_range?: [number, number]
+    team_upside_score?: number
+    team_high_upside_score?: number
+    formation?: string
+    captain?: string
+    vice_captain?: string
+  }
+  best_playable_100m?: {
+    expected_total_points: number
+    team_likely_range?: [number, number]
+    team_upside_score?: number
+    team_high_upside_score?: number
+    squad_cost?: number
+    starting_xi_cost?: number
+    bench_cost?: number
+    bank?: number
+    formation?: string
+    captain?: string
+    vice_captain?: string
+  }
   captain: FPLPerformanceCaptain
   vice_captain: {
     player_id: number
