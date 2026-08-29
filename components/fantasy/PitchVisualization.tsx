@@ -200,6 +200,9 @@ export function PitchVisualization({
               return (
                 <div
                   key={player.player_id}
+                  data-player-id={player.player_id}
+                  data-player-name={player.name}
+                  data-role="bench"
                   onClick={() => setSelectedPlayer(player)}
                   className="bg-[#0D1117] border border-[#30363D] hover:border-[#58A6FF] rounded-lg p-2.5 transition-all cursor-pointer group flex flex-col justify-between"
                 >
@@ -264,6 +267,9 @@ function PlayerPitchCard({ player, onClick }: { player: FPLPlayer; onClick?: () 
   return (
     <div
       onClick={onClick}
+      data-player-id={player.player_id}
+      data-player-name={player.name}
+      data-role="starter"
       className="flex flex-col items-center group cursor-pointer transition-transform hover:scale-105 select-none max-w-[86px] sm:max-w-[104px] w-full"
     >
       {/* Jersey Icon Container & C/VC Badges */}

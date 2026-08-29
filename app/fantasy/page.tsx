@@ -480,8 +480,8 @@ export default function FantasyPage() {
                     )}
 
                     {planSubView === 'gw2_squad_100m' && (
-                      <div className="bg-[#161B22] border border-[#3FB950]/40 rounded-xl p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 shadow-lg">
-                        <div className="space-y-1">
+                      <div className="bg-[#161B22] border border-[#3FB950]/40 rounded-xl p-4 flex flex-col md:flex-row justify-between md:items-center gap-4 shadow-lg">
+                        <div className="space-y-1.5 max-w-2xl">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs font-black uppercase text-[#E6EDF3]">
                               GW2 Best Playable £100m Squad
@@ -493,16 +493,25 @@ export default function FantasyPage() {
                               FROZEN PRE-DEADLINE
                             </span>
                           </div>
-                          <p className="text-[11px] text-[#8B949E] leading-relaxed max-w-xl">
-                            <strong>Best Playable £100m:</strong> Fresh legal 15-player squad costing ≤£100m, then optimal GW2 starting XI and captain. Starting XI: £81.5m • Bench: £18.5m • Bank: £0.0m.
+                          <p className="text-[11px] text-[#8B949E] leading-relaxed">
+                            <strong>Best Playable £100m:</strong> Fresh legal 15-player squad ≤£100m optimized independently for GW2. Starting XI: £81.5m • Bench: £18.5m • Bank: £0.0m.
+                          </p>
+                          <p className="text-[10px] text-[#58A6FF] leading-relaxed bg-[#0D1117] p-2 rounded-lg border border-[#30363D]/60">
+                            <strong>Compared with AI Manager:</strong> 10/11 starters shared • 14/15 squad players shared • <strong>Key XI difference:</strong> Semenyo replaces Stach in starting XI (Stach to bench, Sangaré omitted).
                           </p>
                         </div>
-                        <div className="text-right sm:text-right shrink-0">
-                          <div className="text-xs font-bold text-[#3FB950]">
-                            Current realized points of selected squad: 59 pts
+                        <div className="text-right md:text-right shrink-0 bg-[#0D1117] p-3 rounded-xl border border-[#30363D]/60 space-y-0.5">
+                          <div className="text-xs font-extrabold text-[#3FB950]">
+                            Current selected-XI total: 59 pts
                           </div>
                           <div className="text-[10px] text-[#8B949E]">
-                            6 Finished (5 XI + 1 Bench) • 9 Remaining
+                            Realized XI: 46 pts • Captain extra (Haaland 2x): +13 pts
+                          </div>
+                          <div className="text-[10px] text-[#8B949E]">
+                            Bench so far: 1 pt (Mendy)
+                          </div>
+                          <div className="text-[10px] text-[#58A6FF] pt-1 border-t border-[#30363D]/40">
+                            5/11 XI finished • 1/4 bench finished • 6 XI remaining
                           </div>
                         </div>
                       </div>
