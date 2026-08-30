@@ -1,0 +1,60 @@
+export type ChatIntent =
+  | 'PREDICTION_RECOMMENDATION'
+  | 'SELECTION_EXPLANATION'
+  | 'OFFICIAL_FPL_FACT'
+  | 'LIVE_GAMEWEEK'
+  | 'TEAM_OBJECT_QUERY'
+  | 'PLAYER_COMPARISON'
+  | 'METHODOLOGY_QUERY'
+  | 'GENERAL_FPL_RULE_QUERY'
+  | 'BUDGET_QUERY'
+  | 'PROMPT_INJECTION_ATTEMPT'
+  | 'UNSUPPORTED'
+  | 'CLARIFICATION_REQUIRED'
+
+export type DataSourceType =
+  | 'ENNOVERA_FROZEN'
+  | 'ENNOVERA_LIVE_MANAGER'
+  | 'OFFICIAL_FPL'
+  | 'OFFICIAL_FIXTURE'
+  | 'FPL_RULES'
+  | 'DERIVED_COMPUTATION'
+
+export interface ReferencedPlayer {
+  id: number
+  name: string
+  webName: string
+  club: string
+  position: 'GK' | 'DEF' | 'MID' | 'FWD'
+  price: number
+  predictedXp?: number
+  actualPoints?: number | null
+  minutes?: number | null
+  matchStatus?: 'FT' | 'LIVE' | 'NOT_STARTED'
+  isCaptain?: boolean
+  isViceCaptain?: boolean
+}
+
+export interface FantasyChatRequest {
+  question: string
+  language?: 'en' | 'ku'
+  requestedGameweek?: number
+  conversationHistory?: Array<{
+    role: 'user' | 'assistant'
+    content: string
+  }>
+}
+
+export interface FantasyChatResponse {
+  answer: string
+  intent: ChatIntent
+  requestedGameweek: number
+  contextStatus: 'GW2_LIVE' | 'GW3_UPCOMING' | 'GW1_COMPLETED' | 'GENERAL'
+  sourceTypes: DataSourceType[]
+  sourceBadge: string
+  referencedPlayers: ReferencedPlayer[]
+  suggestedFollowups: string[]
+  generatedAt: string
+  dataSnapshot: string
+  responseTimeMs?: number
+}

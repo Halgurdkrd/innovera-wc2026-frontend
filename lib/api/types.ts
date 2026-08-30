@@ -213,17 +213,14 @@ export interface FPLPerformancePlayer {
   club: string
   position: 'GK' | 'DEF' | 'MID' | 'FWD'
   price?: number
+  predicted_xp: number
+  actual_points?: number | null
   opponent?: string
   home_away?: 'H' | 'A' | string
-  predicted_xp: number
-  expected_points?: number
   likely_range?: [number, number]
-  prob_10_plus?: number
-  actual_points: number | null
   delta: number | null
   minutes: number | null
   match_status?: string
-  bench_order?: number | null
   is_captain?: boolean
   is_vice_captain?: boolean
 }
