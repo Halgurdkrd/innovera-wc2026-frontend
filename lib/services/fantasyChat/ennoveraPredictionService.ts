@@ -1,11 +1,11 @@
 import { OfficialFplService } from './officialFplService'
 import { ReferencedPlayer } from './types'
 import captainData from '@/lib/data/fpl_captain.json'
-import planData from '@/lib/data/fpl_gameweek_plan.json'
-import performanceData from '@/lib/data/fpl_performance.json'
+import allPlayersData from '@/lib/data/fpl_player_registry.json'
 
 export interface RankingFilter {
   position?: 'GK' | 'DEF' | 'MID' | 'FWD'
+  minPrice?: number
   maxPrice?: number
   gameweek?: number
   limit?: number
@@ -55,21 +55,40 @@ export class EnnoveraPredictionService {
     }
   }
 
-  static async getTopPlayers(filter: RankingFilter): Promise<ReferencedPlayer[]> {
-    const players = await OfficialFplService.getAllActivePlayers()
-    let filtered = [...players]
+  static getTopPlayers(filter: RankingFilter): ReferencedPlayer[] {
+    const gwKey = filter.gameweek === 2 ? 'gw2_xp' : 'gw3_xp'
+    const rawList = (allPlayersData as any[])
+
+    let filtered = rawList.filter((p) => p.is_active !== false)
 
     if (filter.position) {
       filtered = filtered.filter((p) => p.position === filter.position)
+    }
+
+    if (filter.minPrice !== undefined) {
+      filtered = filtered.filter((p) => p.price >= filter.minPrice!)
     }
 
     if (filter.maxPrice !== undefined) {
       filtered = filtered.filter((p) => p.price <= filter.maxPrice!)
     }
 
-    const gw = filter.gameweek || 3
-    filtered.sort((a, b) => (b.predictedXp || 0) - (a.predictedXp || 0))
+    filtered.sort((a, b) => (b[gwKey] || 0) - (a[gwKey] || 0))
 
-    return filtered.slice(0, filter.limit || 5)
+    const limit = filter.limit || 5
+    return filtered.slice(0, limit).map((p) => ({
+      id: p.id,
+      name: p.name,
+      webName: p.web_name || p.name,
+      club: p.club,
+      position: p.position,
+      price: p.price,
+      predictedXp: p[gwKey],
+      actualPoints: p.actual_points_gw2,
+      minutes: p.minutes_gw2,
+      matchStatus: p.match_status_gw2,
+      isCaptain: p.id === 411,
+      isViceCaptain: p.id === 154,
+    }))
   }
 }

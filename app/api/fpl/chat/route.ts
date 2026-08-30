@@ -10,6 +10,10 @@ const RATE_LIMIT_WINDOW_MS = 60 * 1000 // 1 minute
 const MAX_REQUESTS_PER_WINDOW = 30
 
 function isRateLimited(ip: string): boolean {
+  // Localhost (test/dev environment) — no rate limiting
+  if (ip === '127.0.0.1' || ip === '::1' || ip === 'localhost' || ip === '::ffff:127.0.0.1') {
+    return false
+  }
   const now = Date.now()
   const timestamps = rateLimitMap.get(ip) || []
   const validTimestamps = timestamps.filter((ts) => now - ts < RATE_LIMIT_WINDOW_MS)

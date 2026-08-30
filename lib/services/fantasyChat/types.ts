@@ -35,14 +35,16 @@ export interface ReferencedPlayer {
   isViceCaptain?: boolean
 }
 
+export interface ConversationTurn {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export interface FantasyChatRequest {
   question: string
   language?: 'en' | 'ku'
   requestedGameweek?: number
-  conversationHistory?: Array<{
-    role: 'user' | 'assistant'
-    content: string
-  }>
+  conversationHistory?: ConversationTurn[]
 }
 
 export interface FantasyChatResponse {
@@ -56,5 +58,7 @@ export interface FantasyChatResponse {
   suggestedFollowups: string[]
   generatedAt: string
   dataSnapshot: string
+  llmUsed?: boolean
+  llmProvider?: string
   responseTimeMs?: number
 }

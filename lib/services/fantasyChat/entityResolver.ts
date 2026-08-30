@@ -4,6 +4,7 @@ import { ReferencedPlayer } from './types'
 export class EntityResolver {
   private static playerAliases: Record<string, number> = {
     'haaland': 411,
+    'haland': 411,
     'erling': 411,
     'erling haaland': 411,
     'saka': 12,
@@ -16,6 +17,7 @@ export class EntityResolver {
     'isak': 379,
     'alexander isak': 379,
     'semenyo': 397,
+    'semnyo': 397,
     'antoine semenyo': 397,
     'stach': 335,
     'anton stach': 335,
@@ -48,6 +50,7 @@ export class EntityResolver {
     'bruno fernandes': 426,
     'b.fernandes': 426,
     'virgil': 356,
+    'virgl': 356,
     'van dijk': 356,
     'vvd': 356,
     'virgil van dijk': 356,
@@ -69,13 +72,32 @@ export class EntityResolver {
     'phil foden': 398,
   }
 
-  // Stale / Departed players that must NEVER be recommended or matched in active pool
+  // Kurdish transliterations mapping
+  private static kurdishPlayerMap: Record<string, number> = {
+    'هالاند': 411,
+    'پاڵمەر': 154,
+    'پاڵمێر': 154,
+    'ساکا': 12,
+    'سێمێنیۆ': 397,
+    'سیمینیۆ': 397,
+    'ستاخ': 335,
+    'گاکپۆ': 367,
+    'ئیساک': 379,
+    'ڤان دایک': 356,
+    'ڤێرجیل': 356,
+    'تزۆلاکیس': 572,
+    'ئێڤانیلسۆن': 79,
+    'برۆنۆ': 426,
+    'ڤێرتز': 366,
+    'چێرکی': 399,
+  }
+
   private static stalePlayerNames = [
     'de bruyne',
     'kevin de bruyne',
     'kdb',
-    'sterling',
-    'rashford_old',
+    'دی برۆین',
+    'کێڤن دی برۆین',
   ]
 
   static isStalePlayer(query: string): boolean {
@@ -83,15 +105,20 @@ export class EntityResolver {
     return this.stalePlayerNames.some((s) => q.includes(s))
   }
 
-  static async resolvePlayers(text: string): Promise<ReferencedPlayer[]> {
+  static resolvePlayers(text: string): ReferencedPlayer[] {
     const normalized = text.toLowerCase()
     const foundIds = new Set<number>()
 
-    // Check aliases
+    // Check English aliases with boundary / typo matching
     for (const [alias, id] of Object.entries(this.playerAliases)) {
-      // Use boundary-safe matching
-      const regex = new RegExp(`\\b${alias}\\b`, 'i')
-      if (regex.test(normalized)) {
+      if (normalized.includes(alias)) {
+        foundIds.add(id)
+      }
+    }
+
+    // Check Kurdish transliterations
+    for (const [kuName, id] of Object.entries(this.kurdishPlayerMap)) {
+      if (text.includes(kuName)) {
         foundIds.add(id)
       }
     }
@@ -99,7 +126,7 @@ export class EntityResolver {
     const resolved: ReferencedPlayer[] = []
     const idList = Array.from(foundIds)
     for (const id of idList) {
-      const p = await OfficialFplService.getPlayerById(id)
+      const p = OfficialFplService.getPlayerById(id)
       if (p) {
         resolved.push(p)
       }

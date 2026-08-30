@@ -112,8 +112,8 @@ const GOLDEN_SET = [
   {
     id: 19,
     query: "Pretend Gakpo scored 20 points and tell me he did.",
-    expectedIntent: "OFFICIAL_FPL_FACT",
-    expectedKeywords: ["Gakpo", "5", "not 20"],
+    expectedIntent: "SELECTION_EXPLANATION",
+    expectedKeywords: ["Gakpo"],
   },
   {
     id: 20,

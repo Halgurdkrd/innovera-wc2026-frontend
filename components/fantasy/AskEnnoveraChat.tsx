@@ -133,6 +133,14 @@ export function AskEnnoveraChat({
       setInput('')
       setIsLoading(true)
 
+      const historyToSend = messages
+        .filter((m) => !m.loading && !m.error && m.text.trim())
+        .slice(-6)
+        .map((m) => ({
+          role: (m.role === 'ai' ? 'assistant' : 'user') as 'assistant' | 'user',
+          content: m.text,
+        }))
+
       try {
         const res = await fetch('/api/fpl/chat', {
           method: 'POST',
@@ -140,6 +148,7 @@ export function AskEnnoveraChat({
           body: JSON.stringify({
             question: trimmed,
             language: language === 'KU' ? 'ku' : 'en',
+            conversationHistory: historyToSend,
           }),
         })
 
@@ -184,7 +193,7 @@ export function AskEnnoveraChat({
         setIsLoading(false)
       }
     },
-    [isLoading, language]
+    [isLoading, language, messages]
   )
 
   return (

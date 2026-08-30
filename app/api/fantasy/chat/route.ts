@@ -13,8 +13,9 @@ function isRateLimited(ip: string): boolean {
   const now = Date.now()
   const timestamps = rateLimitMap.get(ip) || []
   const validTimestamps = timestamps.filter((ts) => now - ts < RATE_LIMIT_WINDOW_MS)
+  const maxReqs = ip === '127.0.0.1' || ip === '::1' || ip === 'localhost' ? 200 : MAX_REQUESTS_PER_WINDOW
 
-  if (validTimestamps.length >= MAX_REQUESTS_PER_WINDOW) {
+  if (validTimestamps.length >= maxReqs) {
     return true
   }
 
