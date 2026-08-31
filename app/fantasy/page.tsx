@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Navbar from '@/components/Navbar'
 import { PitchVisualization } from '@/components/fantasy/PitchVisualization'
+import { AskEnnoveraChat } from '@/components/fantasy/AskEnnoveraChat'
 import { FreshnessTag } from '@/components/ui/FreshnessTag'
 import ErrorState from '@/components/ui/ErrorState'
 import { useLanguage } from '@/hooks/useLanguage'
@@ -1093,6 +1094,9 @@ export default function FantasyPage() {
           </div>
         )}
       </main>
+
+      {/* Ask Ennovera AI — Fantasy Football Intelligence Chat */}
+      <AskEnnoveraChat language={language} />
     </div>
   )
 }
