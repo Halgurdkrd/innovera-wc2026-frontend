@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { usePathname } from 'next/navigation'
 import { useLanguage } from '@/hooks/useLanguage'
 import { API_BASE } from '@/lib/api'
 
@@ -109,7 +110,12 @@ function LoadingDots() {
 // ── Main widget ───────────────────────────────────────────────────────────────
 
 export default function ChatWidget() {
+  const pathname = usePathname()
   const { language } = useLanguage()
+
+  // Do not render WC ChatWidget on /fantasy — AskEnnoveraChat handles that page
+  if (pathname === '/fantasy') return null
+
   const [chatLang, setChatLang] = useState<Lang>('EN')
   const [isOpen, setIsOpen] = useState(false)
   const [hasOpened, setHasOpened] = useState(false)
