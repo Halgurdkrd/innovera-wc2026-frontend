@@ -269,11 +269,20 @@ export class FantasyChatEngine {
           sourceTypes = ['ENNOVERA_FROZEN', 'DERIVED_COMPUTATION']
           sourceBadge = 'GW2 • Team Optimization Constraint'
           followups = ['Compare our Manager Team with Best £100m', 'How many points does Semenyo have?']
-        } else if (q.includes('haaland') || q.includes('haland') || q.includes('captain') || q.includes('هالاند') || q.includes('کاپتن')) {
+        } else if (
+          q.includes('haaland') ||
+          q.includes('haland') ||
+          q.includes('captain') ||
+          q.includes('captin') ||
+          q.includes('capitan') ||
+          q.includes('cpt') ||
+          q.includes('هالاند') ||
+          q.includes('کاپتن')
+        ) {
           answer =
             lang === 'ku'
-              ? 'ئێنۆڤێرا هالاندی کردە کاپتن بە ٧.٩٠ xP پێشبینیکراو، کە بەرزترین نمرەی شیاوی (Utility) و ئەگەری هاتنی زیاتر لە ١٠ خاڵی هەبوو. لە یارییە ڕاستەقینەکەدا ١٣ خاڵی هێنا کە بە کاپتنی بووە ٢٦ خاڵ.'
-              : 'Ennovera captained Erling Haaland based on a model-leading 7.90 base xP against Crystal Palace, representing the highest haul probability. He delivered 13 raw points (26 captain points with the 2x multiplier).'
+              ? 'ئێنۆڤێرا لە GW2 دا ئێرلینگ هالاندی کردە کاپتن بە ٧.٩٠ xP پێشبینیکراو. هالاند لە یارییە ڕاستەقینەکەدا ١٣ خاڵی هێنا کە بە کاپتنی بووە ٢٦ خاڵ (جێگری کاپتن: کۆڵ پاڵمەر بوو بە ٧ خاڵ).'
+              : 'For GW2, Ennovera selected Erling Haaland (Man City) as captain based on a model-leading 7.90 pre-deadline base xP. He delivered 13 raw points (26 captain points with the 2x multiplier). Vice-captain: Cole Palmer (7 raw pts).'
           sourceTypes = ['ENNOVERA_FROZEN', 'OFFICIAL_FPL']
           sourceBadge = 'Ennovera + Official FPL Live'
           followups = ['Who is the recommended captain for GW3?', 'How is our AI Manager doing?']

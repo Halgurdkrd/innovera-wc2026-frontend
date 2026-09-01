@@ -1,32 +1,15 @@
 import { NextResponse } from 'next/server'
+import { FPLLiveSyncService } from '@/lib/services/fplLiveSync'
 import fallbackData from '@/lib/data/fpl_performance.json'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const qs = searchParams.toString() ? '?' + searchParams.toString() : ''
-  const upstreamHost = (process.env.BACKEND_INTERNAL_URL || process.env.VPS_BACKEND_URL || 'http://72.62.35.32').trim().replace(/\/+$/, '')
-  const upstreamUrl = upstreamHost + '/api/v1/fpl/performance' + qs
-
   try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 2500)
-    const res = await fetch(upstreamUrl, {
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
-    })
-    clearTimeout(timeoutId)
-
-    if (res.ok) {
-      const data = await res.json()
-      if (data.official_start_gw === 2 || data.governance_mode === 'PROSPECTIVE_IMMUTABLE') {
-        return NextResponse.json(data)
-      }
-    }
+    const data = await FPLLiveSyncService.getPerformanceData()
+    return NextResponse.json(data)
   } catch (err) {
-    // Upstream unavailable or timed out -> serve canonical 2026-27 data
+    console.error('[Performance API] Live sync error, using canonical baseline:', err)
+    return NextResponse.json(fallbackData)
   }
-
-  return NextResponse.json(fallbackData)
 }

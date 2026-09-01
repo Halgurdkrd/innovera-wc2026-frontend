@@ -195,7 +195,8 @@ export function PitchVisualization({
             {bench.map((player) => {
               const actualPts = (player as any).actual_points
               const matchSt = (player as any).match_status
-              const isFT = matchSt === 'FT'
+              const isFT = matchSt === 'FT' || matchSt === 'FINISHED' || matchSt === 'DID_NOT_PLAY'
+              const isLive = matchSt === 'LIVE'
 
               return (
                 <div
@@ -260,8 +261,8 @@ function PlayerPitchCard({ player, onClick }: { player: FPLPlayer; onClick?: () 
       : `${Math.round((player.haul_prob ?? 0.2) * 100)}%`
   const expPoints = player.expected_points ?? (player as any).predicted_xp ?? 0
   const actualPoints = (player as any).actual_points
-  const matchStatus = (player as any).match_status || (actualPoints !== null && actualPoints !== undefined ? 'FT' : 'NOT_STARTED')
-  const isFinished = matchStatus === 'FT'
+  const matchStatus = (player as any).match_status || (actualPoints !== null && actualPoints !== undefined ? 'FINISHED' : 'NOT_STARTED')
+  const isFinished = matchStatus === 'FT' || matchStatus === 'FINISHED' || matchStatus === 'DID_NOT_PLAY'
   const isLive = matchStatus === 'LIVE'
 
   return (
@@ -348,7 +349,8 @@ function PlayerDetailModal({
   const p15 = player.prob_15_plus !== undefined ? Math.round(player.prob_15_plus * 100) : Math.round(p10 * 0.4)
   const p20 = player.prob_20_plus !== undefined ? Math.round(player.prob_20_plus * 100) : Math.round(p15 * 0.3)
   const actualPts = (player as any).actual_points
-  const matchStatus = (player as any).match_status || (actualPts !== null && actualPts !== undefined ? 'FT' : 'NOT_STARTED')
+  const matchStatus = (player as any).match_status || (actualPts !== null && actualPts !== undefined ? 'FINISHED' : 'NOT_STARTED')
+  const isFT = matchStatus === 'FT' || matchStatus === 'FINISHED' || matchStatus === 'DID_NOT_PLAY'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
@@ -388,9 +390,9 @@ function PlayerDetailModal({
             </span>
           </div>
           <div>
-            {matchStatus === 'FT' ? (
+            {isFT ? (
               <span className="text-[10px] font-bold px-2 py-0.5 bg-[#3FB950]/20 text-[#3FB950] border border-[#3FB950]/40 rounded">
-                FT: {actualPts !== null ? `${player.is_captain ? actualPts * 2 : actualPts} pts` : 'Finished'}
+                FT: {actualPts !== null && actualPts !== undefined ? `${player.is_captain ? actualPts * 2 : actualPts} pts` : 'Finished'}
               </span>
             ) : matchStatus === 'LIVE' ? (
               <span className="text-[10px] font-bold px-2 py-0.5 bg-[#F0A500]/20 text-[#F0A500] border border-[#F0A500]/40 rounded">

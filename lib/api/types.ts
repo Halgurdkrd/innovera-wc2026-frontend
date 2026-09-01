@@ -119,6 +119,8 @@ export interface FPLGameweekPlan {
     expected_points: number
     haul_probability: number
     captain_score?: number
+    actual_points?: number | null
+    actual_total?: number | null
   }
   vice_captain: {
     player_id: number
@@ -128,6 +130,7 @@ export interface FPLGameweekPlan {
     price: number
     expected_points: number
     haul_probability: number
+    actual_points?: number | null
   }
   manager_team_status?: string
   expected_best_xi?: {
@@ -266,15 +269,21 @@ export interface FPLPerformanceGameweek {
   manager_team_status?: string
   expected_best_xi?: {
     expected_total_points: number
+    actual_total?: number | null
+    delta?: number | null
     team_likely_range?: [number, number]
     team_upside_score?: number
     team_high_upside_score?: number
     formation?: string
     captain?: string
     vice_captain?: string
+    starting_xi?: FPLPerformancePlayer[]
+    bench?: FPLPerformancePlayer[]
   }
   best_playable_100m?: {
     expected_total_points: number
+    actual_total?: number | null
+    delta?: number | null
     team_likely_range?: [number, number]
     team_upside_score?: number
     team_high_upside_score?: number
@@ -285,6 +294,8 @@ export interface FPLPerformanceGameweek {
     formation?: string
     captain?: string
     vice_captain?: string
+    starting_xi?: FPLPerformancePlayer[]
+    bench?: FPLPerformancePlayer[]
   }
   captain: FPLPerformanceCaptain
   vice_captain: {

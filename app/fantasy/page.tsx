@@ -218,6 +218,7 @@ export default function FantasyPage() {
   const starters = activeGWRecord?.starting_xi || []
   const completedStarters = starters.filter(
     (p) =>
+      p.match_status === 'FINISHED' ||
       p.match_status === 'FT' ||
       (p.actual_points !== null && p.actual_points !== undefined && p.minutes !== null && p.match_status !== 'NOT_STARTED')
   ).length
@@ -232,6 +233,32 @@ export default function FantasyPage() {
   const captBonus = captActualBase > 0 ? captActualBase * (captMultiplier - 1) : 0
   const managerLiveScore = startersRawPoints + captBonus
   const captainTotalContribution = captActualBase > 0 ? captActualBase * captMultiplier : 0
+
+  // Dynamic calculations for Expected Best XI
+  const bestXIStarters = (activeGWRecord?.expected_best_xi as any)?.starting_xi || []
+  const bestXICompleted = bestXIStarters.filter(
+    (p: any) =>
+      p.match_status === 'FINISHED' ||
+      p.match_status === 'FT' ||
+      (p.actual_points !== null && p.actual_points !== undefined && p.minutes !== null && p.match_status !== 'NOT_STARTED')
+  ).length
+  const bestXIRaw = bestXIStarters.reduce((acc: number, p: any) => acc + (p.actual_points || 0), 0)
+  const bestXICaptBase = bestXIStarters.find((p: any) => p.is_captain)?.actual_points || 0
+  const bestXITotalScore = (activeGWRecord?.expected_best_xi as any)?.actual_total ?? (bestXIRaw + bestXICaptBase)
+
+  // Dynamic calculations for Best Playable £100m
+  const squad100mStarters = (activeGWRecord?.best_playable_100m as any)?.starting_xi || []
+  const squad100mBench = (activeGWRecord?.best_playable_100m as any)?.bench || []
+  const squad100mCompleted = squad100mStarters.filter(
+    (p: any) =>
+      p.match_status === 'FINISHED' ||
+      p.match_status === 'FT' ||
+      (p.actual_points !== null && p.actual_points !== undefined && p.minutes !== null && p.match_status !== 'NOT_STARTED')
+  ).length
+  const squad100mRaw = squad100mStarters.reduce((acc: number, p: any) => acc + (p.actual_points || 0), 0)
+  const squad100mCaptBase = squad100mStarters.find((p: any) => p.is_captain)?.actual_points || 0
+  const squad100mTotalScore = (activeGWRecord?.best_playable_100m as any)?.actual_total ?? (squad100mRaw + squad100mCaptBase)
+  const squad100mBenchPts = squad100mBench.reduce((acc: number, p: any) => acc + (p.actual_points || 0), 0)
 
   return (
     <div className="min-h-screen bg-[#0D1117] text-[#E6EDF3] flex flex-col font-sans selection:bg-[#58A6FF]/30">
@@ -471,10 +498,10 @@ export default function FantasyPage() {
                         </div>
                         <div className="text-right sm:text-right shrink-0">
                           <div className="text-xs font-bold text-[#3FB950]">
-                            Current realized points of selected XI: 44 pts
+                            Current realized points of selected XI: {bestXITotalScore} pts
                           </div>
                           <div className="text-[10px] text-[#8B949E]">
-                            5 Finished • 6 Remaining
+                            {bestXICompleted} Finished • {11 - bestXICompleted} Remaining
                           </div>
                         </div>
                       </div>
@@ -503,16 +530,16 @@ export default function FantasyPage() {
                         </div>
                         <div className="text-right md:text-right shrink-0 bg-[#0D1117] p-3 rounded-xl border border-[#30363D]/60 space-y-0.5">
                           <div className="text-xs font-extrabold text-[#3FB950]">
-                            Current selected-XI total: 59 pts
+                            Current selected-XI total: {squad100mTotalScore} pts
                           </div>
                           <div className="text-[10px] text-[#8B949E]">
-                            Realized XI: 46 pts • Captain extra (Haaland 2x): +13 pts
+                            Realized XI: {squad100mRaw} pts • Captain extra (Haaland 2x): +{squad100mCaptBase} pts
                           </div>
                           <div className="text-[10px] text-[#8B949E]">
-                            Bench so far: 1 pt (Mendy)
+                            Bench so far: {squad100mBenchPts} pts
                           </div>
                           <div className="text-[10px] text-[#58A6FF] pt-1 border-t border-[#30363D]/40">
-                            5/11 XI finished • 1/4 bench finished • 6 XI remaining
+                            {squad100mCompleted}/11 XI finished • {11 - squad100mCompleted} XI remaining
                           </div>
                         </div>
                       </div>

@@ -51,7 +51,25 @@ export class IntentRouter {
       return 'TEAM_OBJECT_QUERY'
     }
 
-    // 4. Selection Explanation
+    // 4. Captain Query & Typo Robustness (captin, capitan, captain, etc.)
+    const isCaptainQuery = /capt[ai]{1,2}n|capitan|captin|cpt|کاپتن/i.test(q)
+    if (isCaptainQuery) {
+      if (
+        q.includes('gw2') ||
+        q.includes('gw 2') ||
+        q.includes('did we') ||
+        q.includes('why') ||
+        q.includes('was') ||
+        q.includes('who was') ||
+        q.includes('who is gw2') ||
+        q.includes('our captain')
+      ) {
+        return 'SELECTION_EXPLANATION'
+      }
+      return 'PREDICTION_RECOMMENDATION'
+    }
+
+    // 5. Selection Explanation
     if (
       q.startsWith('why did') ||
       q.startsWith('why is') ||
