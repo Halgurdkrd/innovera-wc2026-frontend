@@ -112,10 +112,6 @@ function LoadingDots() {
 export default function ChatWidget() {
   const pathname = usePathname()
   const { language } = useLanguage()
-
-  // Do not render WC ChatWidget on /fantasy — AskEnnoveraChat handles that page
-  if (pathname === '/fantasy') return null
-
   const [chatLang, setChatLang] = useState<Lang>('EN')
   const [isOpen, setIsOpen] = useState(false)
   const [hasOpened, setHasOpened] = useState(false)
@@ -237,6 +233,11 @@ export default function ChatWidget() {
 
   const c = COPY[chatLang]
   const charCount = input.length
+
+  // Do not render WC ChatWidget on /fantasy or /fantasy/* routes — AskEnnoveraChat handles that page
+  if (pathname === '/fantasy' || pathname?.startsWith('/fantasy/')) {
+    return null
+  }
 
   return (
     <>
