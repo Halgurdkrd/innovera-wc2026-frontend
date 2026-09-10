@@ -7,6 +7,7 @@ import { EnnoveraPredictionService } from './ennoveraPredictionService'
 import { TeamObjectService } from './teamObjectService'
 import { FantasyRulesService } from './fantasyRulesService'
 import { FANTASY_SYSTEM_PROMPT } from './systemPrompt'
+import { buildResearchGroundedAnswer } from './researchGroundingService'
 
 function normalizeNumerals(str: string): string {
   const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩']
@@ -88,6 +89,15 @@ export class FantasyChatEngine {
         llmUsed: false,
         responseTimeMs: Date.now() - t0,
       }
+    }
+
+    // 2b. Ennovera Research Model (M3_SHRUNK / V0_CONTROL) Fast Path.
+    // These answers are grounded exclusively in the verified research artifact
+    // API and are never handed to the LLM for numeric synthesis: every value
+    // here is read directly from the fetched artifact, per the governance
+    // requirement that M3/V0 answers use deterministic calculations only.
+    if (intent === 'RESEARCH_MODEL_QUERY' || intent === 'GAMEWEEK_DELTA') {
+      return buildResearchGroundedAnswer(question, intent, lang)
     }
 
     // 3. Resolve Context & Entities
@@ -206,7 +216,13 @@ export class FantasyChatEngine {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
+            // 'llama-3.3-70b-versatile' was removed from this Groq account's
+            // available models (confirmed via a direct API call returning
+            // HTTP 404 model_not_found), which silently broke this entire
+            // LLM path -- every chat answer was falling back to the
+            // deterministic synthesis below without anyone noticing, since
+            // that fallback is designed to look like a normal answer.
+            model: 'openai/gpt-oss-120b',
             messages,
             temperature: 0.2,
             max_tokens: 350,
@@ -219,7 +235,7 @@ export class FantasyChatEngine {
           const gData = await groqResp.json()
           llmAnswer = gData.choices?.[0]?.message?.content?.trim() || null
           if (llmAnswer) {
-            llmProvider = 'Groq (llama-3.3-70b-versatile)'
+            llmProvider = 'Groq (openai/gpt-oss-120b)'
           }
         }
       } catch (e) {

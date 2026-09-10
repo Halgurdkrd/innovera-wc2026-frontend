@@ -32,6 +32,23 @@ export class IntentRouter {
       return 'UNSUPPORTED'
     }
 
+    // 2b. Ennovera Research Model Query (M3_SHRUNK / V0_CONTROL) — HIGH PRECEDENCE.
+    // These keywords are unambiguous and do not collide with the legacy FPL-03
+    // demo vocabulary above, so this is checked before the FPL-03 intents.
+    const mentionsM3 = q.includes('m3_shrunk') || q.includes('m3 shrunk') || /\bm3\b/.test(q)
+    const mentionsV0 = q.includes('v0_control') || q.includes('v0 control') || /\bv0\b/.test(q)
+    const mentionsResearchModel = mentionsM3 || mentionsV0 || q.includes('research model') || q.includes('research view')
+    if (mentionsResearchModel) {
+      if (
+        (q.includes('change') || q.includes('different') || q.includes('difference')) &&
+        (q.includes('gameweek') || q.includes('gw')) &&
+        (q.includes('between') || q.includes('from') || q.includes('to'))
+      ) {
+        return 'GAMEWEEK_DELTA'
+      }
+      return 'RESEARCH_MODEL_QUERY'
+    }
+
     // 3. Team Object Query & Comparison (HIGH PRECEDENCE)
     if (
       q.includes('expected best xi') ||

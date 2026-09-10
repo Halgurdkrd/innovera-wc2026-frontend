@@ -11,6 +11,8 @@ export type ChatIntent =
   | 'PROMPT_INJECTION_ATTEMPT'
   | 'UNSUPPORTED'
   | 'CLARIFICATION_REQUIRED'
+  | 'RESEARCH_MODEL_QUERY'
+  | 'GAMEWEEK_DELTA'
 
 export type DataSourceType =
   | 'ENNOVERA_FROZEN'
@@ -19,6 +21,7 @@ export type DataSourceType =
   | 'OFFICIAL_FIXTURE'
   | 'FPL_RULES'
   | 'DERIVED_COMPUTATION'
+  | 'ENNOVERA_RESEARCH_ARTIFACT'
 
 export interface ReferencedPlayer {
   id: number
@@ -61,4 +64,8 @@ export interface FantasyChatResponse {
   llmUsed?: boolean
   llmProvider?: string
   responseTimeMs?: number
+  researchModel?: 'M3_SHRUNK' | 'V0_CONTROL'
+  researchGameweek?: number
+  researchArtifactVersion?: string
+  researchArtifactStatus?: string
 }
