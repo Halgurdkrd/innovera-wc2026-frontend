@@ -49,6 +49,19 @@ export class IntentRouter {
       return 'RESEARCH_MODEL_QUERY'
     }
 
+    // 2c. Research-conversation continuity: a bare follow-up like "what
+    // about GW2?" or "and GW3?" carries no M3/V0 keyword of its own, but if
+    // the immediately preceding turn was research-grounded, treat it as a
+    // continuation rather than falling through to an unrelated FPL-03
+    // intent (which would silently swap the user from the research track
+    // back to the legacy demo data mid-conversation).
+    const lastTurn = history.length > 0 ? history[history.length - 1].content.toLowerCase() : ''
+    const wasResearchTurn = lastTurn.includes('m3_shrunk') || lastTurn.includes('v0_control')
+    const isBareGwFollowup = /^(what about|and|show|compare)?\s*gw\s*[1-4]\b/.test(q) || /^(what about|and)\s+(gw\s*[1-4]|it)\b/.test(q)
+    if (wasResearchTurn && isBareGwFollowup) {
+      return 'RESEARCH_MODEL_QUERY'
+    }
+
     // 3. Team Object Query & Comparison (HIGH PRECEDENCE)
     if (
       q.includes('expected best xi') ||

@@ -8,7 +8,7 @@
 // this integration require deterministic numerical grounding for M3/V0
 // research-model queries, with no invented scores, rankings, or legality.
 
-import type { ChatIntent, DataSourceType, FantasyChatResponse, ReferencedPlayer } from './types'
+import type { ChatIntent, ConversationTurn, DataSourceType, FantasyChatResponse, ReferencedPlayer } from './types'
 
 export type ResearchModel = 'M3_SHRUNK' | 'V0_CONTROL'
 
@@ -42,7 +42,10 @@ interface OwnStartResponse {
 }
 
 function upstreamBase(): string {
-  return (process.env.BACKEND_INTERNAL_URL || process.env.VPS_BACKEND_URL || 'http://127.0.0.1:8000').trim().replace(/\/+$/, '')
+  // Matches the existing FPL-03 proxy routes' production fallback (see
+  // app/api/research-fpl/status/route.ts) -- 72.62.35.32 with no port
+  // reaches the VPS's Nginx, not a Vercel-container-local loopback.
+  return (process.env.BACKEND_INTERNAL_URL || process.env.VPS_BACKEND_URL || 'http://72.62.35.32').trim().replace(/\/+$/, '')
 }
 
 async function fetchOwnStart(gw: number, model: ResearchModel): Promise<OwnStartResponse> {
@@ -50,7 +53,7 @@ async function fetchOwnStart(gw: number, model: ResearchModel): Promise<OwnStart
   try {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 4000)
-    const res = await fetch(url, { signal: controller.signal })
+    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' })
     clearTimeout(timeoutId)
     if (!res.ok) {
       return { status: 'NOT_AVAILABLE', reason: `Research API returned HTTP ${res.status}.`, model, gameweek: gw }
@@ -73,11 +76,29 @@ function parseTwoGameweeks(q: string, fallback: number): [number, number] {
   return [Math.max(1, single - 1), single]
 }
 
-function parseModel(q: string): ResearchModel | 'BOTH' {
+function detectModelMention(q: string): ResearchModel | 'BOTH' | null {
   const hasM3 = q.includes('m3_shrunk') || q.includes('m3 shrunk') || /\bm3\b/.test(q)
   const hasV0 = q.includes('v0_control') || q.includes('v0 control') || /\bv0\b/.test(q)
   if (hasM3 && hasV0) return 'BOTH'
   if (hasV0) return 'V0_CONTROL'
+  if (hasM3) return 'M3_SHRUNK'
+  return null
+}
+
+// An explicit model mention in the CURRENT question always wins (a user
+// switching models mid-conversation must never keep getting the old
+// model's answer). Only when the current question is silent on model does
+// this fall back to the most recently mentioned model in history, so a
+// natural follow-up like "what about GW2?" keeps talking about whichever
+// model was already under discussion instead of silently resetting to the
+// M3_SHRUNK default.
+function parseModel(q: string, history: ConversationTurn[] = []): ResearchModel | 'BOTH' {
+  const current = detectModelMention(q)
+  if (current) return current
+  for (let i = history.length - 1; i >= 0; i--) {
+    const prior = detectModelMention(history[i].content.toLowerCase())
+    if (prior && prior !== 'BOTH') return prior
+  }
   return 'M3_SHRUNK'
 }
 
@@ -111,7 +132,8 @@ const citation = (model: ResearchModel, gw: number, artifactVersion?: string) =>
 export async function buildResearchGroundedAnswer(
   question: string,
   intent: ChatIntent,
-  lang: 'en' | 'ku'
+  lang: 'en' | 'ku',
+  history: ConversationTurn[] = []
 ): Promise<FantasyChatResponse> {
   const t0 = Date.now()
   const q = question.toLowerCase()
@@ -139,7 +161,7 @@ export async function buildResearchGroundedAnswer(
   })
 
   if (intent === 'GAMEWEEK_DELTA') {
-    const model = parseModel(q) === 'BOTH' ? 'M3_SHRUNK' : (parseModel(q) as ResearchModel)
+    const model = parseModel(q, history) === 'BOTH' ? 'M3_SHRUNK' : (parseModel(q, history) as ResearchModel)
     const [gwA, gwB] = parseTwoGameweeks(q, 3)
     const [respA, respB] = await Promise.all([fetchOwnStart(gwA, model), fetchOwnStart(gwB, model)])
 
@@ -193,7 +215,7 @@ export async function buildResearchGroundedAnswer(
   }
 
   // RESEARCH_MODEL_QUERY
-  const modelSel = parseModel(q)
+  const modelSel = parseModel(q, history)
   const gw = parseGameweek(q, 3)
 
   if (modelSel === 'BOTH' || q.includes('compare') || q.includes(' vs ')) {

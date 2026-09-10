@@ -97,7 +97,7 @@ export class FantasyChatEngine {
     // here is read directly from the fetched artifact, per the governance
     // requirement that M3/V0 answers use deterministic calculations only.
     if (intent === 'RESEARCH_MODEL_QUERY' || intent === 'GAMEWEEK_DELTA') {
-      return buildResearchGroundedAnswer(question, intent, lang)
+      return buildResearchGroundedAnswer(question, intent, lang, history)
     }
 
     // 3. Resolve Context & Entities
@@ -454,6 +454,21 @@ export class FantasyChatEngine {
       }
     }
 
+    // Every answer on this legacy path is grounded in the fixed 2026-27
+    // GW2/GW3 demo snapshot (see systemPrompt.ts rule 9), never a live feed.
+    // The deterministic fallback text below was written before that data
+    // was understood to be presentable as "current" -- append one honest
+    // trailing line for the advice-giving intents specifically, since those
+    // are the ones most likely to be mistaken for a live recommendation.
+    // The LLM path already carries this instruction in its own system
+    // prompt, so it is not double-appended there.
+    const adviceIntents: typeof intent[] = ['PREDICTION_RECOMMENDATION', 'SELECTION_EXPLANATION', 'TEAM_OBJECT_QUERY', 'METHODOLOGY_QUERY', 'BUDGET_QUERY', 'PLAYER_COMPARISON']
+    if (!llmAnswer && adviceIntents.includes(intent)) {
+      answer += lang === 'ku'
+        ? '\n\n(تێبینی: ئەمە نمونەیەکی جێگیری وەرزی ٢٠٢٦-٢٧ گەڕی ٢/٣ یە، نەک داتای ڕاستەقینەی ئێستا.)'
+        : '\n\n(Note: this is a fixed 2026-27 season GW2/GW3 demo snapshot, not a live current-gameweek feed.)'
+    }
+
     return {
       answer,
       intent,
@@ -465,6 +480,8 @@ export class FantasyChatEngine {
       suggestedFollowups: followups.length > 0 ? followups : ['Who should I captain for GW3?', 'How is our AI Manager doing?'],
       generatedAt: new Date().toISOString(),
       dataSnapshot: gwContext.snapshotType,
+      isHistoricalDemoSnapshot: true,
+      demoSnapshotLabel: 'Fixed 2026-27 season GW2/GW3 demo snapshot (FPL-03)',
       llmUsed: !!llmAnswer,
       llmProvider,
       responseTimeMs: Date.now() - t0,

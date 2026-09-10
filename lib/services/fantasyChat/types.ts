@@ -68,4 +68,11 @@ export interface FantasyChatResponse {
   researchGameweek?: number
   researchArtifactVersion?: string
   researchArtifactStatus?: string
+  // Set on every legacy FPL-03 answer (never on a research-grounded answer,
+  // which already carries its own accurate status/GW/version fields above).
+  // FPL-03's GW2/GW3 data is a fixed 2026-27 season snapshot, not a live
+  // feed -- this flag exists so callers never present it as a current
+  // recommendation for whatever gameweek is actually live today.
+  isHistoricalDemoSnapshot?: boolean
+  demoSnapshotLabel?: string
 }

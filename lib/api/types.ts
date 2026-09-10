@@ -77,6 +77,16 @@ export interface FPLPlayer {
   prob_10_plus?: number
   prob_15_plus?: number
   prob_20_plus?: number
+  actual_points?: number | null
+  // 'NOT_TRACKED' means no live match-state evidence exists for this
+  // player at all (e.g. a frozen research forecast for an unplayed
+  // gameweek) -- distinct from 'NOT_STARTED', which existing live pages
+  // use for a match that IS being tracked but has not kicked off yet.
+  match_status?: 'FT' | 'FINISHED' | 'DID_NOT_PLAY' | 'LIVE' | 'NOT_STARTED' | 'NOT_TRACKED'
+  // Real research probability-card fields (distinct from starting_prob's
+  // dual use above) -- only ever set from a source artifact, never derived.
+  p_sub?: number | null
+  p_dnp?: number | null
 }
 
 export interface FPLTransferRecommendation {

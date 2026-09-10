@@ -9,6 +9,14 @@ export interface PitchVisualizationProps {
   startingXI: FPLPlayer[]
   bench: FPLPlayer[]
   language?: Language
+  // When true, suppresses the Ennovera-Hybrid-branded milestone/percentile
+  // probability estimates (Likely Range, P80/P90 upside, 10+/15+/20+ point
+  // milestones) that are otherwise derived from unrelated fields as a
+  // fallback for callers that don't supply real percentile data. Research
+  // (M3_SHRUNK/V0_CONTROL) data has no such calibrated distribution, so
+  // showing that block there would misattribute methodology and invent
+  // numbers. Default false preserves exact existing behavior everywhere else.
+  researchMode?: boolean
 }
 
 // Authentic 20 Premier League Club Kit Palette & Styles
@@ -113,6 +121,7 @@ export function PitchVisualization({
   startingXI,
   bench,
   language = 'EN',
+  researchMode = false,
 }: PitchVisualizationProps) {
   const [selectedPlayer, setSelectedPlayer] = React.useState<FPLPlayer | null>(null)
 
@@ -132,12 +141,14 @@ export function PitchVisualization({
           <span className="text-xs font-bold text-[#58A6FF] bg-[#58A6FF]/10 border border-[#58A6FF]/30 px-2 py-0.5 rounded">
             {formation}
           </span>
-          <span className="text-xs font-bold text-[#3FB950] bg-[#3FB950]/10 border border-[#3FB950]/30 px-2 py-0.5 rounded">
-            Ennovera Hybrid
-          </span>
+          {!researchMode && (
+            <span className="text-xs font-bold text-[#3FB950] bg-[#3FB950]/10 border border-[#3FB950]/30 px-2 py-0.5 rounded">
+              Ennovera Hybrid
+            </span>
+          )}
         </div>
         <span className="text-xs text-[#8B949E]">
-          {startingXI.length} {language === 'KU' ? 'یاریزانی سەرەکی' : 'Starters'} • Click player for full probability card
+          {startingXI.length} {language === 'KU' ? 'یاریزانی سەرەکی' : 'Starters'} • Click player for details
         </span>
       </div>
 
@@ -155,28 +166,28 @@ export function PitchVisualization({
         {/* Row 1: Goalkeeper */}
         <div className="relative z-10 flex justify-center items-center py-1">
           {gks.map((p) => (
-            <PlayerPitchCard key={p.player_id} player={p} onClick={() => setSelectedPlayer(p)} />
+            <PlayerPitchCard key={p.player_id} player={p} onClick={() => setSelectedPlayer(p)} researchMode={researchMode} />
           ))}
         </div>
 
         {/* Row 2: Defenders */}
         <div className="relative z-10 flex justify-around items-center py-1 px-2">
           {defs.map((p) => (
-            <PlayerPitchCard key={p.player_id} player={p} onClick={() => setSelectedPlayer(p)} />
+            <PlayerPitchCard key={p.player_id} player={p} onClick={() => setSelectedPlayer(p)} researchMode={researchMode} />
           ))}
         </div>
 
         {/* Row 3: Midfielders */}
         <div className="relative z-10 flex justify-around items-center py-1 px-2">
           {mids.map((p) => (
-            <PlayerPitchCard key={p.player_id} player={p} onClick={() => setSelectedPlayer(p)} />
+            <PlayerPitchCard key={p.player_id} player={p} onClick={() => setSelectedPlayer(p)} researchMode={researchMode} />
           ))}
         </div>
 
         {/* Row 4: Forwards */}
         <div className="relative z-10 flex justify-around items-center py-1 px-4">
           {fwds.map((p) => (
-            <PlayerPitchCard key={p.player_id} player={p} onClick={() => setSelectedPlayer(p)} />
+            <PlayerPitchCard key={p.player_id} player={p} onClick={() => setSelectedPlayer(p)} researchMode={researchMode} />
           ))}
         </div>
       </div>
@@ -197,6 +208,7 @@ export function PitchVisualization({
               const matchSt = (player as any).match_status
               const isFT = matchSt === 'FT' || matchSt === 'FINISHED' || matchSt === 'DID_NOT_PLAY'
               const isLive = matchSt === 'LIVE'
+              const isUntracked = matchSt === 'NOT_TRACKED'
 
               return (
                 <div
@@ -229,6 +241,10 @@ export function PitchVisualization({
                         <span className="font-black px-1 rounded bg-[#58A6FF]/20 text-[#58A6FF]">
                           {actualPts} pts
                         </span>
+                      ) : isUntracked ? (
+                        <span className="font-semibold text-[#8B949E]" title="No live match-state evidence for this forecast">
+                          —
+                        </span>
                       ) : (
                         <span className="font-semibold text-[#8B949E]">
                           NS
@@ -245,13 +261,13 @@ export function PitchVisualization({
 
       {/* Expanded Player Detail Modal */}
       {selectedPlayer && (
-        <PlayerDetailModal player={selectedPlayer} onClose={() => setSelectedPlayer(null)} language={language} />
+        <PlayerDetailModal player={selectedPlayer} onClose={() => setSelectedPlayer(null)} language={language} researchMode={researchMode} />
       )}
     </div>
   )
 }
 
-function PlayerPitchCard({ player, onClick }: { player: FPLPlayer; onClick?: () => void }) {
+function PlayerPitchCard({ player, onClick, researchMode = false }: { player: FPLPlayer; onClick?: () => void; researchMode?: boolean }) {
   const isCap = player.is_captain
   const isVice = player.is_vice_captain
   const rangeText = player.likely_range ? `${player.likely_range[0]}–${player.likely_range[1]} pts` : '—'
@@ -264,6 +280,7 @@ function PlayerPitchCard({ player, onClick }: { player: FPLPlayer; onClick?: () 
   const matchStatus = (player as any).match_status || (actualPoints !== null && actualPoints !== undefined ? 'FINISHED' : 'NOT_STARTED')
   const isFinished = matchStatus === 'FT' || matchStatus === 'FINISHED' || matchStatus === 'DID_NOT_PLAY'
   const isLive = matchStatus === 'LIVE'
+  const isUntracked = matchStatus === 'NOT_TRACKED'
 
   return (
     <div
@@ -317,6 +334,10 @@ function PlayerPitchCard({ player, onClick }: { player: FPLPlayer; onClick?: () 
             <span className="text-[9px] font-black px-1 rounded bg-[#F0A500]/20 text-[#F0A500]" title="Match Live">
               {isCap ? `${actualPoints * 2} pts (Live)` : `${actualPoints} pts`}
             </span>
+          ) : isUntracked ? (
+            <span className="text-[9px] font-bold px-1 rounded bg-[#30363D]/60 text-[#8B949E]" title="No live match-state evidence -- this is a forecast for a gameweek that has not been played">
+              Forecast
+            </span>
           ) : (
             <span className="text-[9px] font-bold px-1 rounded bg-[#30363D]/60 text-[#8B949E]" title="Not Started">
               Not Started
@@ -324,8 +345,16 @@ function PlayerPitchCard({ player, onClick }: { player: FPLPlayer; onClick?: () 
           )}
         </div>
         <div className="flex justify-between items-center text-[8px] text-[#8B949E] px-0.5 mt-0.5 border-t border-[#30363D]/60 pt-0.5">
-          <span>{rangeText}</span>
-          <span className="text-[#58A6FF] font-semibold">10+:{haulText}</span>
+          {researchMode ? (
+            <span className="text-[#58A6FF] font-semibold">
+              {player.starting_prob !== undefined ? `P(start): ${Math.round(player.starting_prob * 100)}%` : 'No probability data'}
+            </span>
+          ) : (
+            <>
+              <span>{rangeText}</span>
+              <span className="text-[#58A6FF] font-semibold">10+:{haulText}</span>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -336,10 +365,12 @@ function PlayerDetailModal({
   player,
   onClose,
   language = 'EN',
+  researchMode = false,
 }: {
   player: FPLPlayer
   onClose: () => void
   language?: Language
+  researchMode?: boolean
 }) {
   const p25 = player.likely_range ? player.likely_range[0] : Math.max(0, Math.floor(player.expected_points * 0.5))
   const p75 = player.likely_range ? player.likely_range[1] : Math.ceil(player.expected_points * 1.5)
@@ -351,6 +382,7 @@ function PlayerDetailModal({
   const actualPts = (player as any).actual_points
   const matchStatus = (player as any).match_status || (actualPts !== null && actualPts !== undefined ? 'FINISHED' : 'NOT_STARTED')
   const isFT = matchStatus === 'FT' || matchStatus === 'FINISHED' || matchStatus === 'DID_NOT_PLAY'
+  const isUntracked = matchStatus === 'NOT_TRACKED'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
@@ -398,6 +430,10 @@ function PlayerDetailModal({
               <span className="text-[10px] font-bold px-2 py-0.5 bg-[#F0A500]/20 text-[#F0A500] border border-[#F0A500]/40 rounded">
                 LIVE: {actualPts ?? 0} pts
               </span>
+            ) : isUntracked ? (
+              <span className="text-[10px] font-bold px-2 py-0.5 bg-[#30363D]/60 text-[#8B949E] border border-[#30363D] rounded" title="No live match-state evidence -- this is a forecast for a gameweek that has not been played">
+                Forecast (not yet played)
+              </span>
             ) : (
               <span className="text-[10px] font-bold px-2 py-0.5 bg-[#30363D]/60 text-[#8B949E] border border-[#30363D] rounded">
                 Not Started
@@ -416,56 +452,98 @@ function PlayerDetailModal({
             <div className="text-[10px] text-[#8B949E] mt-0.5">Central mean forecast</div>
           </div>
 
-          <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
-            <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Likely Range</div>
-            <div className="text-2xl font-black text-[#58A6FF] mt-1">
-              {p25} – {p75} <span className="text-xs text-[#8B949E] font-normal">pts</span>
+          {researchMode ? (
+            <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
+              <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Expected Minutes</div>
+              <div className="text-2xl font-black text-[#58A6FF] mt-1">
+                {player.expected_minutes != null ? player.expected_minutes : '—'} <span className="text-xs text-[#8B949E] font-normal">mins</span>
+              </div>
+              <div className="text-[10px] text-[#8B949E] mt-0.5">Forecast field, not match-status evidence</div>
             </div>
-            <div className="text-[10px] text-[#8B949E] mt-0.5">Middle 50% distribution mass [P25, P75]</div>
-          </div>
+          ) : (
+            <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
+              <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Likely Range</div>
+              <div className="text-2xl font-black text-[#58A6FF] mt-1">
+                {p25} – {p75} <span className="text-xs text-[#8B949E] font-normal">pts</span>
+              </div>
+              <div className="text-[10px] text-[#8B949E] mt-0.5">Middle 50% distribution mass [P25, P75]</div>
+            </div>
+          )}
         </div>
 
-        {/* Upside Percentiles */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
-            <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Upside Score (P80)</div>
-            <div className="text-xl font-bold text-[#F0A500] mt-1">
-              {p80} <span className="text-xs text-[#8B949E] font-normal">pts</span>
-            </div>
-            <div className="text-[10px] text-[#8B949E] mt-0.5">80th percentile score</div>
+        {researchMode ? (
+          /* Real research probability-card fields only -- never a
+             fabricated percentile-score estimate for M3/V0 research data. */
+          <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D] space-y-2">
+            <div className="text-xs font-bold text-[#E6EDF3] uppercase tracking-wider">Probability Card</div>
+            {player.starting_prob !== undefined || player.p_sub != null || player.p_dnp != null ? (
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
+                  <div className="text-[10px] text-[#8B949E]">P(start)</div>
+                  <div className="text-base font-black text-[#58A6FF]">{player.starting_prob !== undefined ? `${Math.round(player.starting_prob * 100)}%` : '—'}</div>
+                </div>
+                <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
+                  <div className="text-[10px] text-[#8B949E]">P(sub)</div>
+                  <div className="text-base font-black text-[#F0A500]">{player.p_sub != null ? `${Math.round(player.p_sub * 100)}%` : '—'}</div>
+                </div>
+                <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
+                  <div className="text-[10px] text-[#8B949E]">P(DNP)</div>
+                  <div className="text-base font-black text-[#F85149]">{player.p_dnp != null ? `${Math.round(player.p_dnp * 100)}%` : '—'}</div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-[11px] text-[#8B949E]">
+                No probability-card fields are available for this gameweek's source artifact (historical GW1-3 reconstruction does not include them).
+              </div>
+            )}
           </div>
+        ) : (
+          <>
+            {/* Upside Percentiles */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
+                <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Upside Score (P80)</div>
+                <div className="text-xl font-bold text-[#F0A500] mt-1">
+                  {p80} <span className="text-xs text-[#8B949E] font-normal">pts</span>
+                </div>
+                <div className="text-[10px] text-[#8B949E] mt-0.5">80th percentile score</div>
+              </div>
 
-          <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
-            <div className="text-[11px] font-semibold text-[#8B949E] uppercase">High-Upside Score (P90)</div>
-            <div className="text-xl font-bold text-[#D29922] mt-1">
-              {p90} <span className="text-xs text-[#8B949E] font-normal">pts</span>
+              <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
+                <div className="text-[11px] font-semibold text-[#8B949E] uppercase">High-Upside Score (P90)</div>
+                <div className="text-xl font-bold text-[#D29922] mt-1">
+                  {p90} <span className="text-xs text-[#8B949E] font-normal">pts</span>
+                </div>
+                <div className="text-[10px] text-[#8B949E] mt-0.5">90th percentile score</div>
+              </div>
             </div>
-            <div className="text-[10px] text-[#8B949E] mt-0.5">90th percentile score</div>
-          </div>
-        </div>
 
-        {/* Milestone Odds */}
-        <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D] space-y-2">
-          <div className="text-xs font-bold text-[#E6EDF3] uppercase tracking-wider">Milestone Probabilities</div>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
-              <div className="text-[10px] text-[#8B949E]">10+ Points</div>
-              <div className="text-base font-black text-[#58A6FF]">{p10}%</div>
+            {/* Milestone Odds */}
+            <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D] space-y-2">
+              <div className="text-xs font-bold text-[#E6EDF3] uppercase tracking-wider">Milestone Probabilities</div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
+                  <div className="text-[10px] text-[#8B949E]">10+ Points</div>
+                  <div className="text-base font-black text-[#58A6FF]">{p10}%</div>
+                </div>
+                <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
+                  <div className="text-[10px] text-[#8B949E]">15+ Points</div>
+                  <div className="text-base font-black text-[#F0A500]">{p15}%</div>
+                </div>
+                <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
+                  <div className="text-[10px] text-[#8B949E]">20+ Points</div>
+                  <div className="text-base font-black text-[#F85149]">{p20}%</div>
+                </div>
+              </div>
             </div>
-            <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
-              <div className="text-[10px] text-[#8B949E]">15+ Points</div>
-              <div className="text-base font-black text-[#F0A500]">{p15}%</div>
-            </div>
-            <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
-              <div className="text-[10px] text-[#8B949E]">20+ Points</div>
-              <div className="text-base font-black text-[#F85149]">{p20}%</div>
-            </div>
-          </div>
-        </div>
+          </>
+        )}
 
         {/* Methodology Note */}
         <p className="text-[10px] text-[#8B949E] italic leading-tight">
-          Ennovera Hybrid combines frozen expected points with a calibrated score probability distribution. Probabilities describe modeled uncertainty and are not guaranteed outcomes.
+          {researchMode
+            ? 'M3_SHRUNK / V0_CONTROL research forecast. Expected points and probability-card fields are model outputs from the verified research artifact, not the Ennovera Hybrid live-product methodology.'
+            : 'Ennovera Hybrid combines frozen expected points with a calibrated score probability distribution. Probabilities describe modeled uncertainty and are not guaranteed outcomes.'}
         </p>
       </div>
     </div>

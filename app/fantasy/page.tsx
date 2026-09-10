@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import { PitchVisualization } from '@/components/fantasy/PitchVisualization'
 import { AskEnnoveraChat } from '@/components/fantasy/AskEnnoveraChat'
@@ -285,6 +286,26 @@ export default function FantasyPage() {
           </div>
           <FreshnessTag generatedAt={plan?.generated_at} />
         </div>
+
+        {/* Link to the separate M3_SHRUNK/V0_CONTROL research track -- distinct
+            from the ENNOVERA HYBRID / FPL-03 engine above, never a claim that
+            either has been proven superior. */}
+        <Link
+          href="/fantasy/research"
+          className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[#30363D] bg-[#161B22] hover:border-[#58A6FF] transition-colors group"
+        >
+          <div>
+            <div className="text-sm font-bold text-[#E6EDF3] group-hover:text-[#58A6FF]">
+              {language === 'KU' ? 'دیمەنی ئێنۆڤێرا ڕیسێرچ (M3_SHRUNK / V0_CONTROL)' : 'Ennovera Research View (M3_SHRUNK / V0_CONTROL)'}
+            </div>
+            <div className="text-xs text-[#8B949E]">
+              {language === 'KU'
+                ? 'شیکاری جیاوازی تویژینەوە، جیا لە AI Manager ی سەرەوە.'
+                : 'A separate, independently-verified research track. Historical reconstruction and forecast status shown honestly.'}
+            </div>
+          </div>
+          <span className="text-[#58A6FF] text-sm font-bold shrink-0">→</span>
+        </Link>
 
         {/* Global Gameweek Status Bar */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
