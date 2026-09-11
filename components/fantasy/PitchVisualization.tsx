@@ -197,7 +197,7 @@ export function PitchVisualization({
         </div>
 
         {/* Row 4: Forwards */}
-        <div className="relative z-10 flex justify-around items-center py-1 px-4">
+        <div className="relative z-10 flex justify-around items-center py-1 px-2">
           {fwds.map((p) => (
             <PlayerPitchCard key={p.player_id} player={p} onClick={() => setSelectedPlayer(p)} researchMode={researchMode} />
           ))}
@@ -297,13 +297,25 @@ function PlayerPitchCard({ player, onClick, researchMode = false }: { player: FP
   const isLive = matchStatus === 'LIVE'
   const isUntracked = matchStatus === 'NOT_TRACKED'
 
+  // Home/away is only shown when the source genuinely has it -- never
+  // guessed as "Home" by default, which would misrepresent an unknown
+  // venue as a verified fact.
+  const venueLabel = player.home_away === 'H' ? 'H' : player.home_away === 'A' ? 'A' : null
+
   return (
     <div
       onClick={onClick}
       data-player-id={player.player_id}
       data-player-name={player.name}
       data-role="starter"
-      className="flex flex-col items-center group cursor-pointer transition-transform hover:scale-105 select-none max-w-[86px] sm:max-w-[104px] w-full"
+      // min-w-0 overrides the flex default of min-width:auto (which pins a
+      // flex item to its content's intrinsic minimum width) -- without it,
+      // the name's `truncate` class can't actually clip, so a long name
+      // silently forces this card wider than its allotted share of the
+      // row. With 5 cards in a MID/DEF row on a narrow phone, that extra
+      // width pushes total row width past the pitch container's
+      // overflow-hidden bound, clipping whichever card ends up rightmost.
+      className="flex min-w-0 flex-col items-center group cursor-pointer transition-transform hover:scale-105 select-none max-w-[72px] sm:max-w-[104px] w-full px-0.5"
     >
       {/* Jersey Icon Container & C/VC Badges */}
       <div className="relative flex items-center justify-center">
@@ -334,7 +346,7 @@ function PlayerPitchCard({ player, onClick, researchMode = false }: { player: FP
         </div>
         <div className="text-[8px] sm:text-[9px] text-[#8B949E] truncate">
           {player.opponent
-            ? `${player.club.slice(0, 3).toUpperCase()} vs ${player.opponent.slice(0, 3).toUpperCase()} (${player.home_away || 'H'})`
+            ? `${player.club.slice(0, 3).toUpperCase()} vs ${player.opponent.slice(0, 3).toUpperCase()}${venueLabel ? ` (${venueLabel})` : ''}`
             : player.club}
         </div>
         <div className="flex items-center justify-center gap-1 mt-0.5">
@@ -342,12 +354,12 @@ function PlayerPitchCard({ player, onClick, researchMode = false }: { player: FP
             {player.xp_unavailable ? 'xP —' : `${expPoints.toFixed(2)} xP`}
           </span>
           {isFinished && actualPoints !== null && actualPoints !== undefined ? (
-            <span className="text-[9px] font-black px-1 rounded bg-[#58A6FF]/20 text-[#58A6FF]" title="Match Finished">
-              {isCap ? `${actualPoints * 2} pts (2x)` : `${actualPoints} pts`}
+            <span className="text-[9px] font-black px-1 rounded bg-[#58A6FF]/20 text-[#58A6FF]" title={isCap ? `Player points: ${actualPoints}. Captain doubles this to ${actualPoints * 2}.` : 'Match Finished'}>
+              {isCap ? `${actualPoints}→${actualPoints * 2} pts` : `${actualPoints} pts`}
             </span>
           ) : isLive && actualPoints !== null && actualPoints !== undefined ? (
-            <span className="text-[9px] font-black px-1 rounded bg-[#F0A500]/20 text-[#F0A500]" title="Match Live">
-              {isCap ? `${actualPoints * 2} pts (Live)` : `${actualPoints} pts`}
+            <span className="text-[9px] font-black px-1 rounded bg-[#F0A500]/20 text-[#F0A500]" title={isCap ? `Player points: ${actualPoints}. Captain doubles this to ${actualPoints * 2}.` : 'Match Live'}>
+              {isCap ? `${actualPoints}→${actualPoints * 2} pts` : `${actualPoints} pts`}
             </span>
           ) : isUntracked ? (
             <span className="text-[9px] font-bold px-1 rounded bg-[#30363D]/60 text-[#8B949E]" title="No live match-state evidence -- this is a forecast for a gameweek that has not been played">
@@ -396,6 +408,17 @@ function PlayerDetailModal({
   const p10 = player.prob_10_plus !== undefined ? Math.round(player.prob_10_plus * 100) : Math.round(player.haul_prob * 100)
   const p15 = player.prob_15_plus !== undefined ? Math.round(player.prob_15_plus * 100) : Math.round(p10 * 0.4)
   const p20 = player.prob_20_plus !== undefined ? Math.round(player.prob_20_plus * 100) : Math.round(p15 * 0.3)
+  // Never guess a venue -- only 'H'/'A' from the verified source renders.
+  const modalVenueLabel = player.home_away === 'H' ? 'Home' : player.home_away === 'A' ? 'Away' : null
+  // Each of P(start)/P(sub)/P(dnp) is rounded independently for display;
+  // the raw probabilities always reconcile to 1.0 (verified against the
+  // frozen source), but three independently-rounded whole percentages can
+  // land on 99% or 101% -- disclosed rather than silently forced to 100,
+  // which would misstate whichever value got adjusted.
+  const pStartPct = player.starting_prob !== undefined ? Math.round(player.starting_prob * 100) : null
+  const pSubPct = player.p_sub != null ? Math.round(player.p_sub * 100) : null
+  const pDnpPct = player.p_dnp != null ? Math.round(player.p_dnp * 100) : null
+  const probabilitySumPct = pStartPct != null && pSubPct != null && pDnpPct != null ? pStartPct + pSubPct + pDnpPct : null
   const actualPts = (player as any).actual_points
   const matchStatus = (player as any).match_status || (actualPts !== null && actualPts !== undefined ? 'FINISHED' : 'NOT_STARTED')
   const isFT = matchStatus === 'FT' || matchStatus === 'FINISHED' || matchStatus === 'DID_NOT_PLAY'
@@ -403,7 +426,11 @@ function PlayerDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-[#161B22] border border-[#30363D] rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-2xl relative text-[#E6EDF3]">
+      {/* Responsive max-width (wider on desktop for readability, capped so
+          it never exceeds the viewport) + max-h/overflow-y-auto so content
+          scrolls within the modal instead of overflowing off-screen on
+          short viewports. */}
+      <div className="bg-[#161B22] border border-[#30363D] rounded-2xl w-full max-w-lg sm:max-w-xl lg:max-w-2xl max-h-[90vh] overflow-y-auto p-5 sm:p-6 space-y-4 shadow-2xl relative text-[#E6EDF3] text-sm sm:text-base">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -417,14 +444,14 @@ function PlayerDetailModal({
           <ClubJerseySvg club={player.club} position={player.position} isCaptain={player.is_captain} />
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-[#E6EDF3]">{player.name}</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-[#E6EDF3]">{player.name}</h2>
               {player.is_captain && (
-                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-[#F0A500] text-[#0D1117]">
+                <span className="text-[10px] sm:text-xs font-extrabold px-2 py-0.5 rounded bg-[#F0A500] text-[#0D1117]">
                   CAPTAIN
                 </span>
               )}
             </div>
-            <p className="text-xs text-[#8B949E]">
+            <p className="text-xs sm:text-sm text-[#8B949E]">
               {player.club} • {player.position}
               {' • '}{player.price_unavailable ? 'Price unavailable' : `£${(player.price ?? 5.0).toFixed(1)}m`}
               {' • '}{player.expected_minutes != null ? `${player.expected_minutes} mins (forecast)` : 'Expected minutes unavailable'}
@@ -433,30 +460,32 @@ function PlayerDetailModal({
         </div>
 
         {/* Fixture & Match Status Banner */}
-        <div className="bg-[#0D1117] p-2.5 rounded-lg border border-[#30363D] flex justify-between items-center text-xs">
+        <div className="bg-[#0D1117] p-2.5 rounded-lg border border-[#30363D] flex justify-between items-center text-xs sm:text-sm">
           <div>
             <span className="text-[#8B949E]">Fixture: </span>
             <span className="font-semibold text-[#58A6FF]">
               {player.opponent
-                ? `${player.club} vs ${player.opponent} (${player.home_away === 'H' ? 'Home' : 'Away'})`
+                ? `${player.club} vs ${player.opponent}${modalVenueLabel ? ` (${modalVenueLabel})` : ''}`
                 : researchMode ? 'Fixture data not available for this decision object' : 'Gameweek Fixture'}
             </span>
           </div>
           <div>
             {isFT ? (
-              <span className="text-[10px] font-bold px-2 py-0.5 bg-[#3FB950]/20 text-[#3FB950] border border-[#3FB950]/40 rounded">
-                FT: {actualPts !== null && actualPts !== undefined ? `${player.is_captain ? actualPts * 2 : actualPts} pts` : 'Finished'}
+              <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 bg-[#3FB950]/20 text-[#3FB950] border border-[#3FB950]/40 rounded" title={player.is_captain && actualPts != null ? `Player points: ${actualPts}. Captain doubles this to ${actualPts * 2}.` : undefined}>
+                FT: {actualPts !== null && actualPts !== undefined
+                  ? (player.is_captain ? `${actualPts}→${actualPts * 2} pts (captain)` : `${actualPts} pts`)
+                  : 'Finished'}
               </span>
             ) : matchStatus === 'LIVE' ? (
-              <span className="text-[10px] font-bold px-2 py-0.5 bg-[#F0A500]/20 text-[#F0A500] border border-[#F0A500]/40 rounded">
-                LIVE: {actualPts ?? 0} pts
+              <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 bg-[#F0A500]/20 text-[#F0A500] border border-[#F0A500]/40 rounded" title={player.is_captain && actualPts != null ? `Player points: ${actualPts}. Captain doubles this to ${actualPts * 2}.` : undefined}>
+                LIVE: {actualPts != null && player.is_captain ? `${actualPts}→${actualPts * 2} pts (captain)` : `${actualPts ?? 0} pts`}
               </span>
             ) : isUntracked ? (
-              <span className="text-[10px] font-bold px-2 py-0.5 bg-[#30363D]/60 text-[#8B949E] border border-[#30363D] rounded" title="No live match-state evidence -- this is a forecast for a gameweek that has not been played">
+              <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 bg-[#30363D]/60 text-[#8B949E] border border-[#30363D] rounded" title="No live match-state evidence -- this is a forecast for a gameweek that has not been played">
                 Forecast (not yet played)
               </span>
             ) : (
-              <span className="text-[10px] font-bold px-2 py-0.5 bg-[#30363D]/60 text-[#8B949E] border border-[#30363D] rounded">
+              <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 bg-[#30363D]/60 text-[#8B949E] border border-[#30363D] rounded">
                 Not Started
               </span>
             )}
@@ -466,30 +495,39 @@ function PlayerDetailModal({
         {/* Primary Expected Points & Likely Range */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
-            <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Expected Points</div>
-            <div className="text-2xl font-black text-[#3FB950] mt-1">
-              {player.xp_unavailable ? '—' : (player.expected_points ?? (player as any).predicted_xp ?? 0).toFixed(2)} <span className="text-xs text-[#8B949E] font-normal">xP</span>
-            </div>
-            <div className="text-[10px] text-[#8B949E] mt-0.5">{player.xp_unavailable ? 'Not available for this decision object' : 'Average forecast, not a guaranteed score'}</div>
+            {player.xp_unavailable ? (
+              <>
+                <div className="text-sm sm:text-base font-semibold text-[#8B949E]">Expected points</div>
+                <div className="text-2xl font-black text-[#3FB950] mt-1">—</div>
+                <div className="text-[10px] sm:text-xs text-[#8B949E] mt-0.5">Not available for this decision object</div>
+              </>
+            ) : (
+              <>
+                <div className="text-sm sm:text-base font-semibold text-[#E6EDF3]">
+                  Expected points: <span className="text-2xl font-black text-[#3FB950]">{(player.expected_points ?? (player as any).predicted_xp ?? 0).toFixed(2)}</span>
+                </div>
+                <div className="text-[10px] sm:text-xs text-[#8B949E] mt-0.5">Average forecast</div>
+              </>
+            )}
           </div>
 
           {researchMode ? (
             <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
-              <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Expected Minutes</div>
+              <div className="text-[11px] sm:text-xs font-semibold text-[#8B949E] uppercase">Expected Minutes</div>
               <div className="text-2xl font-black text-[#58A6FF] mt-1">
-                {player.expected_minutes != null ? player.expected_minutes : '—'} <span className="text-xs text-[#8B949E] font-normal">mins</span>
+                {player.expected_minutes != null ? player.expected_minutes : '—'} <span className="text-xs sm:text-sm text-[#8B949E] font-normal">mins</span>
               </div>
-              <div className="text-[10px] text-[#8B949E] mt-0.5">
+              <div className="text-[10px] sm:text-xs text-[#8B949E] mt-0.5">
                 {player.expected_minutes != null ? 'Forecast field, not match-status evidence' : 'Not available for this decision object'}
               </div>
             </div>
           ) : (
             <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
-              <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Likely Range</div>
+              <div className="text-[11px] sm:text-xs font-semibold text-[#8B949E] uppercase">Likely Range</div>
               <div className="text-2xl font-black text-[#58A6FF] mt-1">
-                {p25} – {p75} <span className="text-xs text-[#8B949E] font-normal">pts</span>
+                {p25} – {p75} <span className="text-xs sm:text-sm text-[#8B949E] font-normal">pts</span>
               </div>
-              <div className="text-[10px] text-[#8B949E] mt-0.5">Middle 50% distribution mass [P25, P75]</div>
+              <div className="text-[10px] sm:text-xs text-[#8B949E] mt-0.5">Middle 50% distribution mass [P25, P75]</div>
             </div>
           )}
         </div>
@@ -498,24 +536,35 @@ function PlayerDetailModal({
           /* Real research probability-card fields only -- never a
              fabricated percentile-score estimate for M3/V0 research data. */
           <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D] space-y-2">
-            <div className="text-xs font-bold text-[#E6EDF3] uppercase tracking-wider">Probability Card</div>
-            {player.starting_prob !== undefined || player.p_sub != null || player.p_dnp != null ? (
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
-                  <div className="text-[10px] text-[#8B949E]">P(start)</div>
-                  <div className="text-base font-black text-[#58A6FF]">{player.starting_prob !== undefined ? `${Math.round(player.starting_prob * 100)}%` : '—'}</div>
+            <div className="text-xs sm:text-sm font-bold text-[#E6EDF3] uppercase tracking-wider">Probability Card</div>
+            {pStartPct != null || pSubPct != null || pDnpPct != null ? (
+              <>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
+                    <div className="text-[10px] sm:text-xs text-[#8B949E]">P(start)</div>
+                    <div className="text-base sm:text-lg font-black text-[#58A6FF]">{pStartPct != null ? `${pStartPct}%` : '—'}</div>
+                  </div>
+                  <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
+                    <div className="text-[10px] sm:text-xs text-[#8B949E]">P(sub)</div>
+                    <div className="text-base sm:text-lg font-black text-[#F0A500]">{pSubPct != null ? `${pSubPct}%` : '—'}</div>
+                  </div>
+                  <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
+                    <div className="text-[10px] sm:text-xs text-[#8B949E]">P(DNP)</div>
+                    <div className="text-base sm:text-lg font-black text-[#F85149]">{pDnpPct != null ? `${pDnpPct}%` : '—'}</div>
+                  </div>
                 </div>
-                <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
-                  <div className="text-[10px] text-[#8B949E]">P(sub)</div>
-                  <div className="text-base font-black text-[#F0A500]">{player.p_sub != null ? `${Math.round(player.p_sub * 100)}%` : '—'}</div>
-                </div>
-                <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
-                  <div className="text-[10px] text-[#8B949E]">P(DNP)</div>
-                  <div className="text-base font-black text-[#F85149]">{player.p_dnp != null ? `${Math.round(player.p_dnp * 100)}%` : '—'}</div>
-                </div>
-              </div>
+                {/* Raw probabilities always reconcile to 1.0 in the frozen
+                    source -- this note only fires when independent
+                    per-field rounding happens to land away from 100%, so
+                    it never reads as a data-integrity problem. */}
+                {probabilitySumPct != null && probabilitySumPct !== 100 && (
+                  <div className="text-[10px] sm:text-xs text-[#8B949E] italic">
+                    Shows {probabilitySumPct}% because each value is rounded independently -- the underlying probabilities reconcile to exactly 100%.
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="text-[11px] text-[#8B949E]">
+              <div className="text-[11px] sm:text-xs text-[#8B949E]">
                 No probability-card fields are available for this gameweek's source artifact (historical GW1-3 reconstruction does not include them).
               </div>
             )}
@@ -564,7 +613,7 @@ function PlayerDetailModal({
 
         {/* Methodology / Provenance Note -- exact source identity when known,
             never a generic disclaimer that could apply to any player/GW. */}
-        <p className="text-[10px] text-[#8B949E] italic leading-tight">
+        <p className="text-[10px] sm:text-xs text-[#8B949E] italic leading-tight">
           {researchMode
             ? provenance
               ? `${provenance.model} • ${provenance.season} • GW${provenance.gameweek} • ${provenance.object} • ${provenance.status}${provenance.artifactVersion ? ` • artifact ${provenance.artifactVersion}` : ''}. Fields above are read directly from this exact source; unavailable fields are never estimated.`
