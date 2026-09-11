@@ -46,6 +46,11 @@ interface PlayerRow {
   p_dnp?: number | null
   expected_minutes?: number | null
   probability_fields_available?: boolean
+  // Present only on Blank-Slate/Best-XI historical membership rows (a
+  // different source than Own-Start): real recorded minutes/points for an
+  // already-completed gameweek, and whether the name resolved to a stable ID.
+  minutes?: number
+  id_resolved?: boolean
 }
 
 interface OwnStartResponse {
@@ -249,16 +254,31 @@ function ObjectCard({ label, data }: { label: Model; data: ObjectResponse | null
           {data?.note && <div className="text-xs text-neutral-500">{data.note}</div>}
           {hasMembershipList ? (
             <div className="mt-2 text-xs">
-              <div className="text-neutral-500 mb-1">Starting XI ({(membership as PlayerRow[]).length}):</div>
-              <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-                {(membership as PlayerRow[]).map((p) => (
-                  <li key={p.stable_player_id} className="text-neutral-300 truncate">
-                    {p.name} <span className="text-neutral-500">({p.position})</span>
-                    {p.is_captain && <span className="text-amber-400"> C</span>}
-                    {p.is_vice && <span className="text-neutral-400"> V</span>}
-                  </li>
-                ))}
-              </ul>
+              {(['XI', 'BENCH'] as const).map((role) => {
+                const rows = (membership as PlayerRow[]).filter((p) => p.role === role)
+                if (rows.length === 0) return null
+                return (
+                  <div key={role} className="mb-2">
+                    <div className="text-neutral-500 mb-1">{role === 'XI' ? 'Starting XI' : 'Bench'} ({rows.length}):</div>
+                    <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                      {rows.map((p) => {
+                        const isCap = p.is_captain || (!!data?.captain && p.name === data.captain)
+                        const isVice = p.is_vice || (!!data?.vice && p.name === data.vice)
+                        return (
+                          <li key={p.stable_player_id ?? p.name} className="text-neutral-300 truncate">
+                            {p.name} <span className="text-neutral-500">({p.position})</span>
+                            {isCap && <span className="text-amber-400"> C</span>}
+                            {isVice && <span className="text-neutral-400"> V</span>}
+                            {p.minutes !== undefined && (
+                              <span className="text-neutral-500"> — {p.minutes}′, {p.actual_points ?? 0}pts</span>
+                            )}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
+                )
+              })}
             </div>
           ) : (
             <div className="text-xs text-neutral-500 mt-2">

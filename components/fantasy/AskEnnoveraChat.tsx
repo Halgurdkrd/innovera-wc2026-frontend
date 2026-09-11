@@ -14,6 +14,15 @@ interface ChatMessage {
   suggestedFollowups?: string[]
   loading?: boolean
   error?: boolean
+  // Deterministic, structurally-driven notices -- rendered from these
+  // fields directly, never inferred from what the LLM's prose says, so a
+  // model that forgets to mention its own vintage/status never leaves the
+  // user without the disclosure.
+  isHistoricalDemoSnapshot?: boolean
+  demoSnapshotLabel?: string
+  researchModel?: 'M3_SHRUNK' | 'V0_CONTROL'
+  researchGameweek?: number
+  researchArtifactStatus?: string
 }
 
 const SUGGESTIONS = {
@@ -164,6 +173,11 @@ export function AskEnnoveraChat({
               sourceBadge: data.sourceBadge,
               referencedPlayers: data.referencedPlayers,
               suggestedFollowups: data.suggestedFollowups,
+              isHistoricalDemoSnapshot: data.isHistoricalDemoSnapshot,
+              demoSnapshotLabel: data.demoSnapshotLabel,
+              researchModel: data.researchModel,
+              researchGameweek: data.researchGameweek,
+              researchArtifactStatus: data.researchArtifactStatus,
             },
           ])
         } else {
@@ -269,6 +283,24 @@ export function AskEnnoveraChat({
                 ) : (
                   <>
                     <div className="whitespace-pre-wrap">{msg.text}</div>
+
+                    {/* Deterministic historical-demo notice -- rendered from
+                        structured response fields, never left to the LLM's
+                        own prose to (re)state correctly. */}
+                    {msg.isHistoricalDemoSnapshot && (
+                      <div className="mt-1.5 px-2 py-1 rounded bg-[#F0A500]/10 border border-[#F0A500]/30 text-[10px] text-[#F0A500] font-semibold">
+                        Historical demo: this answer uses the archived {msg.demoSnapshotLabel || 'GW2/GW3 snapshot'}, not a current recommendation.
+                      </div>
+                    )}
+
+                    {/* Deterministic research-model context banner -- same
+                        principle: model/GW/status come from the API
+                        response, not from parsing the answer text. */}
+                    {msg.researchModel && (
+                      <div className="mt-1.5 px-2 py-1 rounded bg-[#58A6FF]/10 border border-[#58A6FF]/30 text-[10px] text-[#58A6FF] font-semibold">
+                        Research answer: {msg.researchModel} • GW{msg.researchGameweek ?? '—'} • {msg.researchArtifactStatus || 'STATUS_UNKNOWN'}
+                      </div>
+                    )}
 
                     {/* Source Badge */}
                     {msg.sourceBadge && (
