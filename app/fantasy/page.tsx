@@ -226,6 +226,71 @@ async function fetchStatus(): Promise<StatusResponse> {
   return res.json()
 }
 
+interface SquadOutlookObject {
+  status: string
+  reason?: string
+  mean?: number
+  p25?: number
+  p75?: number
+  p80?: number
+  definition?: string
+  definition_note?: string
+  bench_membership_available?: boolean
+  raw_starting_xi_total?: { mean: number; p25: number; p75: number; p80: number } | null
+}
+
+interface SquadOutlookResponse {
+  status: string
+  reason?: string
+  label?: string
+  method?: string
+  dependence_assumption?: string
+  objects?: Record<string, SquadOutlookObject>
+}
+
+async function fetchSquadOutlook(gw: number, model: string): Promise<SquadOutlookResponse> {
+  const res = await fetch(`/api/research-fpl/squad-outlook?gw=${gw}&model=${model}`, { cache: 'no-store' })
+  return res.json()
+}
+
+// Section 9: publish AND display the squad/XI-level outlook -- mean,
+// middle-50% likely range, and P80 upside for the currently viewed
+// decision object, computed from independent joint-scenario simulation
+// (never player-quantile summation). Always labelled SUPPLEMENTAL / NOT
+// CALIBRATED, and the dependence assumption is stated explicitly rather
+// than implied by aligned draw indices.
+function SquadOutlookPanel({ gw, tab, model, language }: { gw: number; tab: ObjectLabel; model: string; language: Language }) {
+  const [data, setData] = useState<SquadOutlookResponse | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    fetchSquadOutlook(gw, model).then((d) => { if (!cancelled) setData(d) }).catch(() => { if (!cancelled) setData(null) })
+    return () => { cancelled = true }
+  }, [gw, model])
+
+  if (!data || data.status !== 'AVAILABLE' || !data.objects) return null
+  const obj = data.objects[tab]
+  if (!obj || obj.status !== 'AVAILABLE') return null
+
+  return (
+    <div className="mb-4 p-3 rounded-lg border border-amber-700/40 bg-amber-950/20">
+      <div className="flex items-center gap-2 mb-1 flex-wrap">
+        <span className="text-sm font-bold text-amber-300">{tr('squad_outlook_title', language)}</span>
+        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-800/60 text-amber-200">{tr('pitch_supplemental', language)}</span>
+      </div>
+      <div className="text-xs text-neutral-300 mb-1">
+        {tr('squad_outlook_mean', language)}: <b><bdi style={{ unicodeBidi: 'isolate' }}>{obj.mean}</bdi></b>
+        {' • '}{tr('pitch_likely_range', language)}: <bdi style={{ unicodeBidi: 'isolate' }}>{obj.p25}-{obj.p75}</bdi>
+        {' • '}{tr('pitch_upside_p80', language)}: <bdi style={{ unicodeBidi: 'isolate' }}>{obj.p80}</bdi>
+      </div>
+      {obj.raw_starting_xi_total && (
+        <div className="text-[11px] text-neutral-400 mb-1">{tr('squad_outlook_raw_xi_note', language)}</div>
+      )}
+      <div className="text-[11px] text-amber-400/90">{tr('squad_outlook_not_calibrated', language)}</div>
+      <div className="text-[11px] text-neutral-500 mt-1">{tr('squad_outlook_dependence_note', language)}</div>
+    </div>
+  )
+}
+
 // Formation arrives as a "4-4-2"-style string, a {GK,DEF,MID,FWD} object, or
 // (for Blank-Slate specifically) that same object stringified with Python
 // single-quote repr syntax -- never render any of those raw. Always reduce
@@ -285,32 +350,36 @@ function OwnStartView({ data, onRetry, language }: { data: OwnStartResponse | nu
       <div className="flex items-center justify-between mb-2">
         <h2 className="font-semibold">{tabTitle('OWN_START', language)}</h2>
         <span className={`text-xs px-2 py-0.5 rounded ${isTemporaryFailure ? 'bg-orange-900 text-orange-200' : !isAvailable ? 'bg-red-900 text-red-200' : isForecast ? 'bg-emerald-900 text-emerald-200' : 'bg-amber-900 text-amber-200'}`}>
-          {isTemporaryFailure ? 'Connection issue' : !isAvailable ? 'Not available' : isForecast ? 'Final frozen forecast' : 'Historical reconstruction'}
+          {isTemporaryFailure ? tr('status_connection_issue', language) : !isAvailable ? tr('status_not_available', language) : isForecast ? tr('status_final_frozen', language) : tr('status_historical', language)}
         </span>
       </div>
       <p className="text-xs text-neutral-500 mb-3">{tabDescription('OWN_START', language)}</p>
       {isTemporaryFailure ? (
         <ErrorState message={language === 'KU' ? tr('fantasy_temp_unavailable', language) : 'Temporarily unable to load data. This is a connectivity issue, not a missing forecast.'} onRetry={onRetry} />
       ) : !isAvailable && (
-        <div className="text-neutral-400 text-sm py-8 text-center">Final forecast not available: {data?.reason}</div>
+        <div className="text-neutral-400 text-sm py-8 text-center">{tr('final_forecast_not_available', language)}: {data?.reason}</div>
       )}
       {isAvailable && data?.players && (
         <>
           <div className="text-sm text-neutral-400 mb-2">
             {isForecast ? (
               <>
-                Predicted XI total xP: <span className="text-white font-semibold">{data.predicted_xi_total_xp ?? '—'}</span>
-                {' '}(hit cost {data.hit_cost}, FT before {data.free_transfers_before ?? '—'})
-                <div className="text-amber-300 text-xs mt-1">This gameweek has not been played yet -- no actual/net points exist.</div>
+                {tr('own_start_predicted_xi', language)}: <span className="text-white font-semibold"><bdi style={{ unicodeBidi: 'isolate' }}>{data.predicted_xi_total_xp ?? '—'}</bdi></span>
+                {' '}{language === 'KU'
+                  ? <bdi style={{ unicodeBidi: 'isolate' }}>{`(خاڵی سزا ${data.hit_cost}، گواستنەوەی ئازاد پێش ${data.free_transfers_before ?? '—'})`}</bdi>
+                  : <bdi style={{ unicodeBidi: 'isolate' }}>{`(hit cost ${data.hit_cost}, FT before ${data.free_transfers_before ?? '—'})`}</bdi>}
+                <div className="text-amber-300 text-xs mt-1">{tr('own_start_not_played', language)}</div>
               </>
             ) : (
               <>
-                Net points: <span className="text-white font-semibold">{data.net_points}</span>
-                {' '}(gross {data.gross_points}, hit cost {data.hit_cost}, FT before {data.free_transfers_before ?? '—'})
+                {tr('own_start_net_points', language)}: <span className="text-white font-semibold"><bdi style={{ unicodeBidi: 'isolate' }}>{data.net_points}</bdi></span>
+                {' '}{language === 'KU'
+                  ? <bdi style={{ unicodeBidi: 'isolate' }}>{`(کۆی خاو ${data.gross_points}، خاڵی سزا ${data.hit_cost}، گواستنەوەی ئازاد پێش ${data.free_transfers_before ?? '—'})`}</bdi>
+                  : <bdi style={{ unicodeBidi: 'isolate' }}>{`(gross ${data.gross_points}, hit cost ${data.hit_cost}, FT before ${data.free_transfers_before ?? '—'})`}</bdi>}
               </>
             )}
             {data.transfer_event && (data.transfer_event.player_out || data.transfer_event.player_in) && (
-              <div>Transfer: {data.transfer_event.player_out ?? '—'} → {data.transfer_event.player_in ?? '—'}</div>
+              <div>{tr('own_start_transfer', language)}: <bdi style={{ unicodeBidi: 'isolate' }}>{data.transfer_event.player_out ?? '—'} → {data.transfer_event.player_in ?? '—'}</bdi></div>
             )}
           </div>
           <PitchVisualization
@@ -344,22 +413,22 @@ function ObjectView({ tabId, tabTitle, data, onRetry, language }: { tabId: Objec
       <div className="flex items-center justify-between mb-2">
         <h2 className="font-semibold">{tabTitle}</h2>
         <span className={`text-xs px-2 py-0.5 rounded ${isTemporaryFailure ? 'bg-orange-900 text-orange-200' : !isAvailable ? 'bg-red-900 text-red-200' : isForecast ? 'bg-emerald-900 text-emerald-200' : 'bg-amber-900 text-amber-200'}`}>
-          {isTemporaryFailure ? 'Connection issue' : !isAvailable ? 'Not available' : isForecast ? 'Final frozen forecast' : 'Historical reconstruction'}
+          {isTemporaryFailure ? tr('status_connection_issue', language) : !isAvailable ? tr('status_not_available', language) : isForecast ? tr('status_final_frozen', language) : tr('status_historical', language)}
         </span>
       </div>
       <p className="text-xs text-neutral-500 mb-3">{tabDescription(tabId, language)}</p>
       {isTemporaryFailure ? (
         <ErrorState message={language === 'KU' ? tr('fantasy_temp_unavailable', language) : 'Temporarily unable to load data. This is a connectivity issue, not a missing forecast.'} onRetry={onRetry} />
-      ) : !isAvailable && <div className="text-neutral-400 text-sm py-8 text-center">Final forecast not available: {data?.reason}</div>}
+      ) : !isAvailable && <div className="text-neutral-400 text-sm py-8 text-center">{tr('final_forecast_not_available', language)}: {data?.reason}</div>}
       {isAvailable && (
         <>
           <div className="text-sm text-neutral-300 space-y-1 mb-3">
-            {data?.formation && <div>Formation: <span className="font-semibold text-white">{formatFormation(data.formation)}</span></div>}
-            {data?.captain && <div>Captain: {data.captain} {data?.vice && `• Vice: ${data.vice}`}</div>}
+            {data?.formation && <div>{tr('object_formation', language)}: <span className="font-semibold text-white"><bdi style={{ unicodeBidi: 'isolate' }}>{formatFormation(data.formation)}</bdi></span></div>}
+            {data?.captain && <div>{tr('object_captain', language)}: <bdi style={{ unicodeBidi: 'isolate' }}>{data.captain}</bdi> {data?.vice && <><bdi style={{ unicodeBidi: 'isolate' }}>{`• ${tr('object_vice', language)}: ${data.vice}`}</bdi></>}</div>}
             <div>
-              Predicted XI xP: {data?.predicted_xi_xp ?? '—'}
+              {tr('object_predicted_xi_xp', language)}: <bdi style={{ unicodeBidi: 'isolate' }}>{data?.predicted_xi_xp ?? '—'}</bdi>
               {' • '}
-              Final points: {isForecast ? 'not played yet' : (data?.final_points ?? data?.corrected_points ?? '—')}
+              {tr('object_final_points', language)}: <bdi style={{ unicodeBidi: 'isolate' }}>{isForecast ? tr('object_not_played_yet', language) : (data?.final_points ?? data?.corrected_points ?? '—')}</bdi>
             </div>
             {data?.note && <div className="text-xs text-neutral-500">{formatNote(data.note)}</div>}
           </div>
@@ -377,7 +446,7 @@ function ObjectView({ tabId, tabTitle, data, onRetry, language }: { tabId: Objec
             />
           ) : (
             <div className="text-sm text-neutral-400 py-6 text-center border border-dashed border-neutral-700 rounded">
-              Player selections unavailable for this decision object at this gameweek. Score shown above is the verified aggregate.
+              {tr('object_selections_unavailable', language)}
             </div>
           )}
         </>
@@ -393,7 +462,8 @@ function FantasyPageInner() {
 
   const urlGw = parseInt(searchParams.get('gw') || '', 10)
   const urlTab = searchParams.get('tab') as ObjectLabel | null
-  const [gw, setGwState] = useState<number>(urlGw >= 1 && urlGw <= 4 ? urlGw : HISTORICAL_MAX_GW)
+  const hadExplicitGw = urlGw >= 1 && urlGw <= 4
+  const [gw, setGwState] = useState<number>(hadExplicitGw ? urlGw : HISTORICAL_MAX_GW)
   const [tab, setTabState] = useState<ObjectLabel>(urlTab && TAB_IDS.has(urlTab) ? urlTab : DEFAULT_TAB)
   const [status, setStatus] = useState<StatusResponse | null>(null)
   const [ownStart, setOwnStart] = useState<OwnStartResponse | null>(null)
@@ -404,6 +474,21 @@ function FantasyPageInner() {
   useEffect(() => {
     fetchStatus().then(setStatus).catch(() => setStatus(null))
   }, [])
+
+  // "This gameweek" (on the page and in chat) must resolve to the latest
+  // REGISTERED gameweek, not a hardcoded historical default -- a real bug
+  // traced to exactly this: with no `?gw=` in the URL, the page defaulted
+  // to GW3 (HISTORICAL_MAX_GW) even after GW4 was registered, which then
+  // fed a stale GW3 into pageContext and made chat questions like "best
+  // attackers" silently answer about GW3. Only auto-upgrades when the
+  // user did NOT explicitly choose a GW via the URL, so an explicit link
+  // to an older gameweek is still respected.
+  useEffect(() => {
+    if (!hadExplicitGw && status?.final_pair_gameweek && status.final_pair_gameweek !== gw) {
+      setGwState(status.final_pair_gameweek)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, hadExplicitGw])
 
   const setGw = useCallback((g: number) => {
     setGwState(g)
@@ -499,6 +584,8 @@ function FantasyPageInner() {
 
         {loading && <div className="text-neutral-400">{tr('fantasy_loading', language)}</div>}
         {error && <ErrorState message={error} onRetry={() => load(gw, tab)} />}
+
+        {!loading && !error && <SquadOutlookPanel gw={gw} tab={tab} model={MODEL} language={language} />}
 
         {!loading && !error && (
           tab === 'OWN_START'

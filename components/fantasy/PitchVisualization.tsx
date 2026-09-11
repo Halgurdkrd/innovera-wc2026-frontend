@@ -531,6 +531,16 @@ function PlayerDetailModal({
                   {tr('pitch_expected_points', language)}: <span className="text-2xl font-black text-[#3FB950]"><Num>{(player.expected_points ?? (player as any).predicted_xp ?? 0).toFixed(2)}</Num></span>
                 </div>
                 <div className="text-[10px] sm:text-xs text-[#8B949E] mt-0.5">{tr('pitch_average_forecast', language)}</div>
+                {player.is_captain && (
+                  // Forecast, not actual -- a separate FIELD from Player
+                  // expected points above, never merged into it, so a
+                  // captain's own xP is never silently shown pre-doubled.
+                  <div className="text-[10px] sm:text-xs text-[#F0A500] mt-1 font-semibold">
+                    {language === 'KU'
+                      ? `بەشداریی پێشبینیکراوی کاپتن (دوای دووبارەکردنەوە): ${((player.expected_points ?? (player as any).predicted_xp ?? 0) * 2).toFixed(2)}`
+                      : `Expected captain contribution after doubling: ${((player.expected_points ?? (player as any).predicted_xp ?? 0) * 2).toFixed(2)}`}
+                  </div>
+                )}
               </>
             )}
           </div>

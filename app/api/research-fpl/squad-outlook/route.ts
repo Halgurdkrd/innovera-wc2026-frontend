@@ -1,0 +1,30 @@
+import { NextResponse } from 'next/server'
+
+export const dynamic = 'force-dynamic'
+
+function upstreamBase(): string {
+  // See app/api/research-fpl/status/route.ts for why the fallback matches
+  // the existing FPL-03 proxy pattern (72.62.35.32, no port) rather than a
+  // localhost default that would only work from a same-machine backend.
+  return (process.env.BACKEND_INTERNAL_URL || process.env.VPS_BACKEND_URL || 'http://72.62.35.32').trim().replace(/\/+$/, '')
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const gw = searchParams.get('gw') || '1'
+  const model = searchParams.get('model') || 'M3_SHRUNK'
+  const upstreamUrl = `${upstreamBase()}/api/v1/research-fpl/gameweek/${gw}/squad-outlook?model=${encodeURIComponent(model)}`
+
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 2500)
+    const res = await fetch(upstreamUrl, { headers: { 'Content-Type': 'application/json' }, signal: controller.signal, cache: 'no-store' })
+    clearTimeout(timeoutId)
+    if (res.ok) {
+      return NextResponse.json(await res.json())
+    }
+    return NextResponse.json({ status: 'TEMPORARILY_UNAVAILABLE', reason: `Upstream returned HTTP ${res.status}`, model, gameweek: Number(gw) }, { status: 200 })
+  } catch (err) {
+    return NextResponse.json({ status: 'TEMPORARILY_UNAVAILABLE', reason: 'Research API unreachable.', model, gameweek: Number(gw) }, { status: 200 })
+  }
+}

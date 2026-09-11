@@ -30,6 +30,18 @@ interface OwnStartPlayer {
   actual_points: number | null
   counted_contribution: number | null
   was_transferred_in_this_gw: boolean
+  // MODEL FORECASTS -- never the official FPL percentage.
+  p_start?: number | null
+  p_sub?: number | null
+  p_dnp?: number | null
+  p_appearance?: number | null
+  // OFFICIAL FPL AVAILABILITY -- the raw acquisition's own fields, kept
+  // structurally separate from the model forecasts above.
+  official_chance_of_playing_this_round?: number | null
+  official_chance_of_playing_next_round?: number | null
+  official_news?: string | null
+  official_news_added?: string | null
+  official_fpl_status?: string | null
   // SUPPLEMENTAL outlook (see supplemental_outlook.py) -- present only
   // when outlook_is_supplemental is true; never part of the frozen xP.
   likely_range?: [number, number] | null
@@ -154,7 +166,16 @@ export interface FullPoolPlayer {
   p_start: number | null
   p_sub: number | null
   p_dnp: number | null
+  // Derived MODEL forecast (p_start + p_sub) -- not an official value.
+  p_appearance?: number | null
   expected_minutes: number | null
+  // OFFICIAL FPL AVAILABILITY -- the raw acquisition's own fields, kept
+  // structurally separate from the model forecast fields above. Missing
+  // stays null/undefined, never defaulted to "fully available".
+  official_chance_of_playing_this_round?: number | null
+  official_chance_of_playing_next_round?: number | null
+  official_news?: string | null
+  official_news_added?: string | null
   // SUPPLEMENTAL outlook (see supplemental_outlook.py) -- present only
   // when outlook_is_supplemental is true; never part of the frozen xP.
   likely_range?: [number, number] | null
@@ -264,7 +285,12 @@ function isNarrowingCorrection(q: string): boolean {
 // STATISTICAL relationship between the mean forecast and the supplemental
 // outlook, not about squad selection.
 function isAverageVsUpsideQuestion(q: string): boolean {
-  return /\baverage\b|\bmean\b/.test(q) && /\bupside\b|\brange\b|\bhigher\b|\bp80\b|\bp90\b|\bpercentile\b/.test(q)
+  // تێکڕا/مامناوەند = average/mean; بەرزبوونەوە/بەرزایی/مەودا = upside/range
+  // -- required Sorani acceptance phrase: "جیاوازی نێوان تێکڕا و
+  // بەرزبوونەوە چیە؟" ("what is the difference between average and upside?").
+  const hasAverageWord = /\baverage\b|\bmean\b/.test(q) || q.includes('تێکڕا') || q.includes('مامناوەند')
+  const hasUpsideWord = /\bupside\b|\brange\b|\bhigher\b|\bp80\b|\bp90\b|\bpercentile\b/.test(q) || q.includes('بەرزبوونەوە') || q.includes('بەرزایی') || q.includes('مەودا')
+  return hasAverageWord && hasUpsideWord
 }
 
 const NATURALIZE_SYSTEM_PROMPT_EN =
@@ -408,33 +434,44 @@ function isRankingQuestion(q: string): boolean {
 }
 
 type AlternativesIntent =
-  | { kind: 'PLAYER'; playerName: string }
+  | { kind: 'PLAYER'; playerName: string; stablePlayerId: number }
   | { kind: 'XI_OBJECTS' }
   | { kind: 'AMBIGUOUS' }
+  | { kind: 'AMBIGUOUS_PLAYER'; candidateNames: string[] }
 
 // Distinguishes three different things a user might mean by "alternatives"
 // -- (A) alternative individual players, (B) the site's stored Optional-XI
 // lineup objects, (C) a legally affordable transfer under budget/ownership
 // constraints (handled separately at the call site, not here, since it
 // needs the Own-Start squad/bank, not just text). Returns null if the
-// question isn't an alternatives-style question at all.
-function detectAlternativesQuery(q: string, players: OwnStartPlayer[]): AlternativesIntent | null {
+// question isn't an alternatives-style question at all. `pool` should be
+// the FULL eligible candidate pool (not just one object's own roster) --
+// "if I change Isak, what are the best alternatives?" must resolve Isak
+// even when he isn't a member of whichever object happens to be the
+// current page tab or the AI Manager squad.
+function detectAlternativesQuery<T extends NamedEntity>(q: string, pool: T[]): AlternativesIntent | null {
   // \baltern\w*tiv\w*\b tolerates the common letter-order/vowel-swap typos
   // seen in real messages (e.g. "alternetives") without hardcoding every
   // individual misspelling -- "altern" + anything + "tiv" + anything is
   // distinctive enough not to false-positive on unrelated words.
-  // جێگرەوە = "substitute/replacement" -- the Sorani word behind the
-  // acceptance test "جێگرەوەکانی کێن؟" ("who are the alternatives?").
-  const mentionsAlternative = /\baltern\w*tiv\w*\b/.test(q) || /\bsubstitutes?\s+for\b|\binstead\s+of\b/.test(q) || q.includes('جێگرەوە')
+  // جێگر = the Sorani stem for "substitute/replacement" -- matches both
+  // "جێگرەوە" ("substitute", the acceptance test "جێگرەوەکانی کێن؟") and
+  // "جێگرەکان" ("the alternatives", plural/definite -- found missing via
+  // paraphrase testing: "ئەگەر ئیساک بگۆڕم باشترین جێگرەکان چین؟" fell
+  // through to a generic explanation instead of the alternatives branch
+  // because the exact suffix "ەوە" wasn't present in this inflection).
+  const mentionsAlternative = /\baltern\w*tiv\w*\b/.test(q) || /\bsubstitutes?\s+for\b|\binstead\s+of\b/.test(q) || q.includes('جێگر')
   if (!mentionsAlternative) return null
+  // "alternative(s) to/for <player name>" -- checked BEFORE the bare
+  // team/squad wording below, since a real player name always wins over a
+  // generic "team" match (a name is stronger, more specific evidence).
+  const mention = resolvePlayerMention(q, pool)
+  if (mention.kind === 'FOUND') return { kind: 'PLAYER', playerName: mention.player.name, stablePlayerId: mention.player.stable_player_id }
+  if (mention.kind === 'AMBIGUOUS') return { kind: 'AMBIGUOUS_PLAYER', candidateNames: mention.candidates.map((c) => c.name) }
   // "alternative team(s)/squad(s)/xi(s)/lineup(s)" -> the stored Optional-XI objects.
   if (/\baltern\w*tiv\w*\s*(to|for)?\s*(the\s+)?(team|squad|xi|lineup|line[\s-]?up)s?\b/.test(q)) {
     return { kind: 'XI_OBJECTS' }
   }
-  // "alternative(s) to/for <player name>" -- match against the currently
-  // known squad so a real name (however the user typed it) resolves.
-  const named = findMentionedPlayer(q, players)
-  if (named) return { kind: 'PLAYER', playerName: named.name }
   // Bare "alternatives (for/this) (this) gameweek" with no name and no
   // explicit team/squad wording -- genuinely ambiguous per spec.
   return { kind: 'AMBIGUOUS' }
@@ -570,20 +607,39 @@ function transliterateToLatinSkeleton(text: string): string {
 const KNOWN_KURDISH_ALIASES: Record<string, string> = {
   'هالاند': 'Haaland',
   'فۆدن': 'Foden',
+  // Isak's transliterated skeleton ("سک"/"sk") is only 2 characters --
+  // below the 3-char minimum the heuristic fallback requires to avoid
+  // short-token false collisions (see resolvePlayerMention) -- so he can
+  // never resolve through that path alone. Added as a verified exact
+  // alias instead, per the explicit named-player support requirement.
+  'ئیساک': 'Isak',
+  'ساکا': 'Saka',
+  'برونۆ': 'Bruno Fernandes',
+  'بڕۆنۆ': 'Bruno Fernandes',
 }
 
-export type PlayerMentionResult =
-  | { kind: 'FOUND'; player: OwnStartPlayer }
-  | { kind: 'AMBIGUOUS'; candidates: OwnStartPlayer[] }
+interface NamedEntity {
+  stable_player_id: number
+  name: string
+}
+
+export type PlayerMentionResult<T extends NamedEntity = OwnStartPlayer> =
+  | { kind: 'FOUND'; player: T }
+  | { kind: 'AMBIGUOUS'; candidates: T[] }
   | { kind: 'NONE' }
 
-// Resolves a player mention to a stable ID (via the matched OwnStartPlayer,
-// which always carries stable_player_id), preferring exact Latin
-// substring matches and known aliases over the heuristic consonant-
+// Resolves a player mention to a stable ID (via the matched entity, which
+// always carries stable_player_id/name -- OwnStartPlayer, ObjectMember-like
+// records, and FullPoolPlayer all satisfy this shape), preferring exact
+// Latin substring matches and known aliases over the heuristic consonant-
 // skeleton matcher, and explicitly reporting a COLLISION (multiple
 // distinct players sharing the same matched skeleton) as ambiguous
-// rather than silently picking the first one found.
-function resolvePlayerMention(question: string, players: OwnStartPlayer[]): PlayerMentionResult {
+// rather than silently picking the first one found. Generic so the SAME
+// resolution logic (and its collision detection) is used whether matching
+// against one decision object's ~15 players or the full ~500-player pool
+// -- named-player questions must be resolvable regardless of which object
+// happens to be the current page tab.
+function resolvePlayerMention<T extends NamedEntity>(question: string, players: T[]): PlayerMentionResult<T> {
   const q = question.toLowerCase()
   const latinMatches = players.filter((p) => {
     const parts = p.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2)
@@ -617,7 +673,18 @@ function resolvePlayerMention(question: string, players: OwnStartPlayer[]): Play
   const skeletonMatches = players.filter((p) => {
     const nameParts = p.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2)
     const nameSkeletons = nameParts.map((w) => w.replace(/[aeiouwy]/g, ''))
-    return tokens.some((t) => nameSkeletons.some((ns) => ns.length >= 3 && (ns === t || ns.includes(t) || t.includes(ns))))
+    // EXACT skeleton equality only -- NOT ".includes()" substring
+    // containment. A real bug, found via testing against the full
+    // ~500-player pool (not just one ~15-player squad, where this had a
+    // much smaller collision surface): common Kurdish words transliterate
+    // to short skeletons that happen to be SUBSTRINGS of unrelated
+    // players' name skeletons purely by coincidence -- e.g. "باشترین"
+    // ("best/top") -> "bstrn", which CONTAINS "trn" (Tyrone) and "str"
+    // (Steur), producing a false multi-player collision for a completely
+    // unrelated ranking question. Exact equality does not have this
+    // failure mode and is the more conservative, defensible choice per
+    // the explicit instruction not to rely on skeleton matching alone.
+    return tokens.some((t) => nameSkeletons.some((ns) => ns.length >= 3 && ns === t))
   })
   const distinctSkeletonIds = new Set(skeletonMatches.map((p) => p.stable_player_id))
   if (distinctSkeletonIds.size === 1) return { kind: 'FOUND', player: skeletonMatches[0] }
@@ -625,15 +692,33 @@ function resolvePlayerMention(question: string, players: OwnStartPlayer[]): Play
   return { kind: 'NONE' }
 }
 
-function findMentionedPlayer(question: string, players: OwnStartPlayer[]): OwnStartPlayer | undefined {
-  const result = resolvePlayerMention(question, players)
-  // Existing callers (alternatives detection, average-vs-upside) keep
-  // their current behavior -- ambiguous collisions fall through to
-  // whatever they already do for "no player named" rather than every
-  // call site needing to handle a three-way result. The main named-
-  // player branch below uses resolvePlayerMention() directly so it CAN
-  // ask a clarifying question on a genuine collision.
-  return result.kind === 'FOUND' ? result.player : undefined
+// Explicitly separates "Official FPL availability" (the raw acquisition's
+// own status/chance/news, e.g. Gakpo's 75%) from the model's OWN P(start)
+// forecast -- never presents one as the other, and never claims a missing
+// official percentage means "fully available". Answers questions like "is
+// Gakpo's 75% official or predicted by Ennovera?" directly and correctly.
+function isAvailabilityQuestion(q: string): boolean {
+  return /\bavailab|\bchance\b|\bofficial\b|\binjur|\bfit(ness)?\b|\bdoubt/.test(q) || q.includes('ڕێژە') || q.includes('چانس') || q.includes('بەردەستبوون') || q.includes('فەرمی')
+}
+
+function availabilityClause(p: { p_start?: number | null; official_chance_of_playing_this_round?: number | null; official_chance_of_playing_next_round?: number | null; official_news?: string | null }, lang: 'en' | 'ku', force = false): string {
+  const officialPct = p.official_chance_of_playing_next_round ?? p.official_chance_of_playing_this_round
+  if (officialPct == null && p.p_start == null) return ''
+  if (officialPct == null && !force) return ''
+  const modelPct = p.p_start != null ? `${Math.round(p.p_start * 100)}%` : null
+  if (officialPct != null && modelPct != null) {
+    return lang === 'ku'
+      ? ` Official FPL availability (ڕێژەی فەرمی FPL) ${officialPct}%${p.official_news ? ` (${p.official_news})` : ''} یە -- ئەمە جیاوازە لە Model P(start) (پێشبینی مۆدێل) کە ${modelPct}ـە؛ مۆدێل ڕاستەوخۆ ڕێژەی فەرمی وەرناگرێت، بەڵکو خۆی ژمارە دەردەکات.`
+      : ` Official FPL availability is ${officialPct}%${p.official_news ? ` (${p.official_news})` : ''} -- this is separate from Ennovera's own Model P(start) forecast of ${modelPct}, which is not a direct copy of the official percentage.`
+  }
+  if (officialPct != null) {
+    return lang === 'ku'
+      ? ` Official FPL availability (ڕێژەی فەرمی) ${officialPct}%ـە${p.official_news ? ` (${p.official_news})` : ''}.`
+      : ` Official FPL availability is ${officialPct}%${p.official_news ? ` (${p.official_news})` : ''}.`
+  }
+  return lang === 'ku'
+    ? ` Model P(start) (پێشبینی مۆدێل) ${modelPct}ـە؛ ڕێژەی فەرمی FPL بۆ ئەم یاریزانە بەردەست نییە.`
+    : ` Model P(start) is ${modelPct}; an official FPL availability percentage is not available for this player.`
 }
 
 // Never surface the source export's internal technical codes verbatim.
@@ -801,7 +886,14 @@ export async function buildResearchGroundedAnswer(
 
   // RESEARCH_MODEL_QUERY
   const modelSel = pageContext && !detectModelMention(q) ? pageContext.model : parseModel(q, history)
+  // "This gameweek" (no explicit GW number in the message) resolves to the
+  // page's current gameweek, which itself now defaults to the latest
+  // REGISTERED gameweek (see app/fantasy/page.tsx) rather than a stale
+  // hardcoded value -- the answer states which GW was actually used
+  // (gwWasExplicit) whenever that resolution wasn't spelled out by the user.
+  const gwExplicitInMessage = /\bgw\s*([1-4])\b/.test(q) || /\bgame\s*[\s-]?\s*week\s*([1-4])\b/.test(q)
   const gw = parseGameweek(q, pageContext?.gameweek ?? 3)
+  const gwUsedNote = (lang: 'en' | 'ku') => gwExplicitInMessage ? '' : (lang === 'ku' ? '، دوایین هەفتەی تۆمارکراو' : ', the latest registered gameweek')
   const objectSel = parseObject(q, pageContext?.object ?? 'OWN_START')
 
   const POS_NAME: Record<Position, string> = { MID: 'midfielder', DEF: 'defender', FWD: 'forward', GK: 'goalkeeper' }
@@ -810,18 +902,65 @@ export async function buildResearchGroundedAnswer(
   // objects, and legal-transfer-under-constraints -- three different
   // things a bare "alternatives" question could mean. Checked before
   // position-ranking since neither pattern overlaps the ranking wording.
+  // The named player is resolved against the FULL eligible pool (not just
+  // the Own-Start squad or the current page tab) -- "if I change Isak,
+  // what are the best alternatives?" must resolve Isak even when he isn't
+  // a member of whichever object happens to be on screen; a real bug
+  // (Isak unresolved, falling back to "alternative lineups") was caused
+  // by searching only the Own-Start roster here.
   if (modelSel !== 'BOTH') {
     const model = modelSel as ResearchModel
-    const ownStartForAlts = await fetchOwnStart(gw, model)
-    const altsPlayers = ownStartForAlts.players || []
-    const altIntent = detectAlternativesQuery(q, altsPlayers)
+    const fullPoolForAlts = await fetchFullPool(gw, model, undefined, 500)
+    const altIntent = fullPoolForAlts.status === 'AVAILABLE' && fullPoolForAlts.players
+      ? detectAlternativesQuery(q, fullPoolForAlts.players)
+      : detectAlternativesQuery(q, [] as FullPoolPlayer[])
+    if (altIntent && altIntent.kind === 'AMBIGUOUS_PLAYER') {
+      return {
+        answer: lang === 'ku' ? `کامیان مەبەستتە: ${altIntent.candidateNames.join('، ')}؟` : `Which player did you mean: ${altIntent.candidateNames.join(', ')}?`,
+        intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+        sourceBadge: `${citation(model, gw)} • Clarification needed`, referencedPlayers: [],
+        suggestedFollowups: withoutUnsolicitedV0(altIntent.candidateNames.slice(0, 2).map((n) => `Alternatives to ${n}`), pageContext, `Show ${OBJECT_LABELS.OWN_START} GW${gw}`),
+        generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_CLARIFICATION_NEEDED',
+        llmUsed: false, responseTimeMs: Date.now() - t0, researchModel: model, researchGameweek: gw, researchArtifactStatus: 'AVAILABLE',
+      }
+    }
     if (altIntent) {
       if (detectLegalTransferQuery(q) && altIntent.kind === 'PLAYER') {
         // Legal-transfer-under-constraints: distinct from an unconstrained
         // player alternative -- must actually check bank/price/position
         // against the Own-Start squad, never just relabel a suggestion.
-        const target = altsPlayers.find((p) => p.name === altIntent.playerName)
-        if (!target) return na(`Could not resolve "${altIntent.playerName}" in the Own-Start squad.`, gw, model)
+        // The named player must actually be OWNED (in the Own-Start squad)
+        // for a "transfer" to make sense -- if he's only in the full pool
+        // (e.g. named from a Best XI/Optional-XI context), say so plainly
+        // and fall back to unconstrained alternatives instead of silently
+        // treating an unowned player as a legal-transfer target.
+        const ownStartForAlts = await fetchOwnStart(gw, model)
+        const altsPlayers = ownStartForAlts.players || []
+        const target = altsPlayers.find((p) => p.stable_player_id === altIntent.stablePlayerId)
+        if (!target) {
+          const poolTarget = fullPoolForAlts.players?.find((p) => p.stable_player_id === altIntent.stablePlayerId)
+          const nameForNote = poolTarget?.name ?? altIntent.playerName
+          const note = lang === 'ku'
+            ? `${nameForNote} لە تیمی AI Manager دا نییە، بۆیە گواستنەوەیەکی یاسایی بۆ ئەو بابەتی نییە. لێرەدا جێگرەوەکان بەپێی پێشبینی خاڵ نیشان دەدرێن (بەبێ پشکنینی بوودجە/ خاوەندارێتی):`
+            : `${nameForNote} is not currently in the AI Manager squad, so there's no legal transfer to evaluate for him. Showing unconstrained forecast alternatives instead (budget/ownership not checked):`
+          const posForAlt = poolTarget?.position
+          const altsPool = posForAlt ? (fullPoolForAlts.players || []).filter((p) => p.position === posForAlt && p.stable_player_id !== altIntent.stablePlayerId).slice(0, 5) : []
+          const lines = [note, ...altsPool.map((p) => `- ${p.name} (${p.club}): xP ${p.predicted_xp ?? 'n/a'}${p.price != null ? `, £${p.price.toFixed(1)}m` : ''}`)]
+          return {
+            answer: lines.join('\n'), intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+            sourceBadge: `${citation(model, gw)} • Full pool`,
+            referencedPlayers: altsPool.map((p) => ({
+              id: p.stable_player_id, name: p.name, webName: p.name, club: p.club, position: p.position,
+              price: p.price ?? 0, priceUnavailable: p.price == null,
+              predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
+              actualPoints: null, matchStatus: 'NOT_STARTED',
+            })),
+            suggestedFollowups: withoutUnsolicitedV0([`Show ${OBJECT_LABELS.OWN_START} GW${gw}`], pageContext, `Show ${OBJECT_LABELS.OWN_START} GW${gw}`),
+            generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_FULL_POOL',
+            llmUsed: false, responseTimeMs: Date.now() - t0,
+            researchModel: model, researchGameweek: gw, researchArtifactStatus: 'AVAILABLE',
+          }
+        }
         const bank = ownStartForAlts.bank_after ?? 0
         const budget = bank + (target.price ?? 0)
         const pool = await fetchFullPool(gw, model, target.position, 50)
@@ -849,7 +988,7 @@ export async function buildResearchGroundedAnswer(
         }
       }
       if (altIntent.kind === 'PLAYER') {
-        const target = altsPlayers.find((p) => p.name === altIntent.playerName)
+        const target = fullPoolForAlts.players?.find((p) => p.stable_player_id === altIntent.stablePlayerId)
         if (!target) return na(`Could not resolve "${altIntent.playerName}".`, gw, model)
         const pool = await fetchFullPool(gw, model, target.position, 30)
         if (pool.status !== 'AVAILABLE') return na(pool.reason || 'Full player pool unavailable.', gw, model, pool.status)
@@ -925,14 +1064,17 @@ export async function buildResearchGroundedAnswer(
     const allAvailable = poolResults.every((r) => r.status === 'AVAILABLE')
 
     if (allAvailable) {
-      const lines: string[] = [`Top ${count} by predicted xP for GW${gw} (full eligible player pool, not just one squad/lineup):`]
+      const lines: string[] = [`Top ${count} by predicted xP for GW${gw}${gwUsedNote(lang)} (full eligible player pool, not just one squad/lineup):`]
       const referencedPlayers: ReferencedPlayer[] = []
       positions.forEach((pos, i) => {
         const r = poolResults[i]
         lines.push(`\n${POS_NAME[pos].toUpperCase()}S (${r.total_matching_filter} eligible):`)
         for (const p of r.players || []) {
+          const officialPct = p.official_chance_of_playing_next_round ?? p.official_chance_of_playing_this_round
           lines.push(`- ${p.name} (${p.club}) vs ${p.opponent_resolved ?? 'unknown opponent'}${p.was_home === true ? ' (H)' : p.was_home === false ? ' (A)' : ''}: ` +
-            `xP ${p.predicted_xp ?? 'n/a'}${p.price != null ? `, £${p.price.toFixed(1)}m` : ''}${p.p_start != null ? `, P(start) ${(p.p_start * 100).toFixed(0)}%` : ''}`)
+            `xP ${p.predicted_xp ?? 'n/a'}${p.price != null ? `, £${p.price.toFixed(1)}m` : ''}${p.p_start != null ? `, model P(start) ${(p.p_start * 100).toFixed(0)}%` : ''}` +
+            `${officialPct != null ? `, Official FPL availability ${officialPct.toFixed(0)}%` : ''}` +
+            `${p.likely_range ? `, likely range ${p.likely_range[0]}-${p.likely_range[1]}, P80 upside ${p.upside_score ?? 'n/a'}` : ''}`)
           if (referencedPlayers.length < 15) {
             referencedPlayers.push({
               id: p.stable_player_id, name: p.name, webName: p.name, club: p.club, position: p.position,
@@ -1022,14 +1164,35 @@ export async function buildResearchGroundedAnswer(
     if (pool.status !== 'AVAILABLE' || !pool.players) {
       return na(pool.reason || 'Full player pool unavailable.', gw, model, pool.status)
     }
-    const qLower = question.toLowerCase()
-    const target = pool.players.find((p) => {
-      const parts = p.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2)
-      return parts.some((part) => qLower.includes(part))
-    })
-    if (!target) {
+    // Uses the same resolvePlayerMention as every other named-player path
+    // (Latin substring -> known Kurdish aliases -> exact-skeleton
+    // fallback, with real collision detection) instead of a Latin-only ad
+    // hoc matcher -- this branch previously could not resolve a Sorani-
+    // written player name at all.
+    const mention = resolvePlayerMention(question, pool.players)
+    if (mention.kind === 'AMBIGUOUS') {
+      const names = mention.candidates.map((p) => p.name).join(', ')
       return {
-        answer: `Which player did you mean? I can explain the average-vs-upside relationship for any GW${gw} player if you name them.`,
+        answer: lang === 'ku' ? `کامیان مەبەستتە: ${names}؟` : `Which player did you mean: ${names}?`,
+        intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+        sourceBadge: `${citation(model, gw)} • Clarification needed`,
+        referencedPlayers: mention.candidates.slice(0, 5).map((p) => ({
+          id: p.stable_player_id, name: p.name, webName: p.name, club: p.club, position: p.position,
+          price: p.price ?? 0, priceUnavailable: p.price == null, predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
+          actualPoints: null, matchStatus: 'NOT_STARTED',
+        })),
+        suggestedFollowups: withoutUnsolicitedV0(mention.candidates.slice(0, 2).map((p) => `Why was ${p.name} selected?`), pageContext, `Show ${OBJECT_LABELS.B_LEGAL_BEST_XI} GW${gw}`),
+        generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_CLARIFICATION_NEEDED',
+        llmUsed: false, responseTimeMs: Date.now() - t0, researchModel: model, researchGameweek: gw, researchArtifactStatus: 'AVAILABLE',
+      }
+    }
+    const target = mention.kind === 'FOUND' ? mention.player : undefined
+    if (!target) {
+      const clarify = lang === 'ku'
+        ? `کامیان یاریزانە؟ دەتوانم پەیوەندی نێوان تێکڕا و بەرزبوونەوە بۆ هەر یاریزانێکی GW${gw} ڕوون بکەمەوە ئەگەر ناوی بڵێیت.`
+        : `Which player did you mean? I can explain the average-vs-upside relationship for any GW${gw} player if you name them.`
+      return {
+        answer: clarify,
         intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
         sourceBadge: `${citation(model, gw)} • Clarification needed`, referencedPlayers: [],
         suggestedFollowups: withoutUnsolicitedV0([`Show ${OBJECT_LABELS.B_LEGAL_BEST_XI} GW${gw}`], pageContext, `Show ${OBJECT_LABELS.B_LEGAL_BEST_XI} GW${gw}`),
@@ -1118,6 +1281,144 @@ export async function buildResearchGroundedAnswer(
   }
 
   const model = modelSel
+
+  // Cross-object named-player resolution: search the full eligible pool
+  // for a named player, then check EVERY decision object (AI Manager,
+  // Best XI, Best £100m Squad, Optional XI Primary, Optional XI 1-4) for
+  // membership -- BEFORE assuming the question is about whichever object
+  // happens to be the current page tab. A real, reproduced bug: "Why was
+  // Foden selected for GW4?" asked while the Best XI tab was open
+  // returned the ENTIRE Best XI roster, because object-branching ran
+  // first and never checked whether a player was even named -- Foden
+  // isn't in Best XI at all (he's in the AI Manager XI). Player
+  // resolution now always runs first; the object-dump/summary fallback
+  // further below is reached only when no player is named in the message.
+  const fullPoolForMention = await fetchFullPool(gw, model, undefined, 500)
+  const poolPlayers = fullPoolForMention.status === 'AVAILABLE' ? (fullPoolForMention.players || []) : []
+  const globalMention: PlayerMentionResult<FullPoolPlayer> = poolPlayers.length > 0 ? resolvePlayerMention(question, poolPlayers) : { kind: 'NONE' }
+
+  if (globalMention.kind === 'AMBIGUOUS') {
+    const names = globalMention.candidates.map((p) => p.name).join(', ')
+    return {
+      answer: lang === 'ku' ? `کامیان مەبەستتە: ${names}؟` : `Which player did you mean: ${names}?`,
+      intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+      sourceBadge: `${citation(model, gw)} • Clarification needed`,
+      referencedPlayers: globalMention.candidates.slice(0, 5).map((p) => ({
+        id: p.stable_player_id, name: p.name, webName: p.name, club: p.club, position: p.position,
+        price: p.price ?? 0, priceUnavailable: p.price == null, predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
+        actualPoints: null, matchStatus: 'NOT_STARTED',
+      })),
+      suggestedFollowups: withoutUnsolicitedV0(globalMention.candidates.slice(0, 2).map((p) => `Why was ${p.name} selected?`), pageContext, `Show ${OBJECT_LABELS.OWN_START} GW${gw}`),
+      generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_CLARIFICATION_NEEDED',
+      llmUsed: false, responseTimeMs: Date.now() - t0, researchModel: model, researchGameweek: gw, researchArtifactStatus: 'AVAILABLE',
+    }
+  }
+
+  if (globalMention.kind === 'FOUND') {
+    const target = globalMention.player
+    const allLabels = Object.keys(OBJECT_LABELS) as ObjectLabel[]
+    const otherLabels = allLabels.filter((l) => l !== 'OWN_START')
+    const [ownStartResp, ...otherResps] = await Promise.all([
+      fetchOwnStart(gw, model),
+      ...otherLabels.map((l) => fetchObjectData(gw, model, l)),
+    ])
+
+    interface Membership { label: ObjectLabel; role: 'XI' | 'BENCH'; isCaptain: boolean; isVice: boolean; ownStart?: OwnStartPlayer }
+    const memberships: Membership[] = []
+    const ownStartAvailable = ownStartResp.status === 'HISTORICAL_RECONSTRUCTION' || ownStartResp.status === 'FINAL_FROZEN_FORECAST'
+    if (ownStartAvailable) {
+      const m = (ownStartResp.players || []).find((p) => p.stable_player_id === target.stable_player_id)
+      if (m) memberships.push({ label: 'OWN_START', role: m.role, isCaptain: m.is_captain, isVice: m.is_vice, ownStart: m })
+    }
+    otherLabels.forEach((label, i) => {
+      const r = otherResps[i]
+      if (r.status !== 'HISTORICAL_RECONSTRUCTION' && r.status !== 'FINAL_FROZEN_FORECAST') return
+      const membership = Array.isArray(r.player_membership) ? r.player_membership : null
+      const m = membership?.find((p) => (p.stable_player_id != null ? p.stable_player_id === target.stable_player_id : p.name === target.name))
+      if (m) memberships.push({ label, role: 'XI', isCaptain: !!m.is_captain || m.name === r.captain, isVice: !!m.is_vice || m.name === r.vice })
+    })
+
+    const isFutureForecast = ownStartAvailable
+      ? ownStartResp.status === 'FINAL_FROZEN_FORECAST'
+      : otherResps.some((r) => r.status === 'FINAL_FROZEN_FORECAST')
+    const isWhyQuestion = /\bwhy\b|\bselect/.test(q) || q.includes('بۆچی') || q.includes('هەڵبژار')
+    const leagueIdx = poolPlayers.findIndex((p) => p.stable_player_id === target.stable_player_id)
+    const leagueRankText = leagueIdx >= 0 ? `#${leagueIdx + 1} of ${fullPoolForMention.total_matching_filter} ${target.position}s league-wide by predicted xP` : ''
+    const priceText = target.price != null ? `£${target.price.toFixed(1)}m` : 'price unavailable'
+    const xpText = target.predicted_xp != null ? `${target.predicted_xp}` : 'not available'
+    const referencedPlayers: ReferencedPlayer[] = [{
+      id: target.stable_player_id, name: target.name, webName: target.name, club: target.club, position: target.position,
+      price: target.price ?? 0, priceUnavailable: target.price == null,
+      predictedXp: target.predicted_xp ?? 0, xpUnavailable: target.predicted_xp == null,
+      actualPoints: null, matchStatus: isFutureForecast ? 'NOT_STARTED' : 'NOT_STARTED',
+    }]
+
+    let factsText: string
+    if (memberships.length === 0) {
+      // Present only in the full eligible pool -- never invent a squad he
+      // wasn't part of, per spec ("if the player is only in the full pool
+      // and not selected, say that he was not selected").
+      factsText = lang === 'ku'
+        ? `${target.name} لە هیچ یەکێک لە پێکهاتەکانی GW${gw} دا هەڵنەبژێردراوە (AI Manager, Best XI, Best £100m Squad, یان Optional XI). لە کۆگای گشتیدا: خاڵی پێشبینیکراو ${xpText}, نرخ ${priceText}${leagueRankText ? `, پلە ${leagueRankText}` : ''}.`
+        : `${target.name} was not selected in any GW${gw} decision object (AI Manager, Best XI, Best £100m Squad, or the Optional XIs). In the full eligible pool: predicted xP ${xpText}, price ${priceText}${leagueRankText ? `, ranked ${leagueRankText}` : ''}.`
+    } else if (memberships.length === 1) {
+      const m = memberships[0]
+      const objLabel = OBJECT_LABELS[m.label]
+      const capText = m.isCaptain ? (lang === 'ku' ? ' وەک کاپتن' : ' as captain') : m.isVice ? (lang === 'ku' ? ' وەک جێگری کاپتن' : ' as vice-captain') : ''
+      if (m.label === 'OWN_START' && m.ownStart) {
+        const p = m.ownStart
+        const samePosition = [...(ownStartResp.players || [])].filter((x) => x.position === p.position).sort((a, b) => b.predicted_xp - a.predicted_xp)
+        const squadRank = samePosition.findIndex((x) => x.stable_player_id === p.stable_player_id) + 1
+        const roleTextEn = isFutureForecast ? (p.role === 'XI' ? 'was selected in the starting XI' : 'was placed on the bench') : (p.role === 'XI' ? 'started' : 'was on the bench (did not count)')
+        const roleTextKu = isFutureForecast ? (p.role === 'XI' ? 'هەڵبژێردراوە بۆ یاریی سەرەکی' : 'خرایە سەر یەدەگ') : (p.role === 'XI' ? 'دەستی پێکرد' : 'لەسەر یەدەگ بوو (نەژمێردرا)')
+        const transferText = p.was_transferred_in_this_gw
+          ? (lang === 'ku' ? ' ئەم یاریزانە لەم گەڕەدا گوازراوەتەوە ناو تیمەکە.' : ' He was transferred INTO the squad this gameweek.')
+          : (lang === 'ku' ? ' ئەم یاریزانە لە تیمی پێشوو پارێزراوە (گواستنەوە نییە لەم گەڕەدا).' : ' He was retained from the prior squad (no transfer this gameweek).')
+        factsText = lang === 'ku'
+          ? `${target.name} لە AI Manager (تیمی تایبەتی خۆت) بۆ GW${gw} دایە، نەک لە ${otherLabels.map((l) => OBJECT_LABELS[l]).join('، ')}.${transferText} ${roleTextKu}${capText}. خاڵی پێشبینیکراو ${xpText} (پلە #${squadRank} لە ${samePosition.length} یاریزانی ${p.position} لەم تیمەدا${leagueRankText ? `، ${leagueRankText}` : ''})، نرخ ${priceText}.`
+          : `${target.name} is in the AI Manager (your continuing squad) for GW${gw}, not in ${otherLabels.map((l) => OBJECT_LABELS[l]).join(', ')}.${transferText} He ${roleTextEn}${capText}, with a predicted xP of ${xpText} (ranked #${squadRank} of ${samePosition.length} ${p.position}s in this squad${leagueRankText ? `, ${leagueRankText}` : ''}), price ${priceText}.`
+      } else {
+        const otherObjectNames = allLabels.filter((l) => l !== m.label).map((l) => OBJECT_LABELS[l]).join(', ')
+        const roleTextEn = isFutureForecast ? 'was selected in the starting XI' : 'started'
+        const roleTextKu = isFutureForecast ? 'هەڵبژێردراوە بۆ یاریی سەرەکی' : 'دەستی پێکرد'
+        factsText = lang === 'ku'
+          ? `${target.name} لە ${objLabel} بۆ GW${gw} دایە، نەک لە ${otherObjectNames}. ${roleTextKu}${capText}. خاڵی پێشبینیکراو ${xpText}${leagueRankText ? `، ${leagueRankText}` : ''}، نرخ ${priceText}. تێبینی: ${objLabel} تەنها پێکهاتەی یاریی سەرەکییە (١١ یاریزان) -- زانیاری یەدەگ/گۆڕینی خۆکار بۆ ئەم بابەتە بەردەست نییە.`
+          : `${target.name} is in ${objLabel} for GW${gw}, not in ${otherObjectNames}. He ${roleTextEn}${capText}, with a predicted xP of ${xpText}${leagueRankText ? `, ${leagueRankText}` : ''}, price ${priceText}. Note: ${objLabel} is a starting-XI-only object (11 players) -- bench/autosub information isn't available for it.`
+      }
+    } else {
+      // Present in more than one object -- explain each briefly rather
+      // than guessing which one the user meant, per spec.
+      const perObjectLines = memberships.map((m) => {
+        const capText = m.isCaptain ? (lang === 'ku' ? ' (کاپتن)' : ' (captain)') : m.isVice ? (lang === 'ku' ? ' (جێگری کاپتن)' : ' (vice-captain)') : ''
+        const roleText = m.role === 'BENCH' ? (lang === 'ku' ? 'یەدەگ' : 'bench') : (lang === 'ku' ? 'یاریی سەرەکی' : 'starting XI')
+        return `- ${OBJECT_LABELS[m.label]}: ${roleText}${capText}`
+      })
+      factsText = lang === 'ku'
+        ? `${target.name} لە چەند پێکهاتەیەکی GW${gw} دا هەڵبژێردراوە:\n${perObjectLines.join('\n')}\nخاڵی پێشبینیکراو ${xpText}${leagueRankText ? `، ${leagueRankText}` : ''}، نرخ ${priceText}.`
+        : `${target.name} is selected in more than one GW${gw} decision object:\n${perObjectLines.join('\n')}\nPredicted xP ${xpText}${leagueRankText ? `, ${leagueRankText}` : ''}, price ${priceText}.`
+    }
+
+    // Official FPL availability vs. model P(start) -- always disclosed when
+    // an official chance-of-playing figure exists (a real doubt/injury
+    // flag is material context regardless of what was literally asked),
+    // and also whenever the question explicitly asks about availability/
+    // chance/injury (e.g. "Is Gakpo's 75% official or predicted?").
+    factsText += availabilityClause(target, lang, isAvailabilityQuestion(q))
+
+    const answerText = isWhyQuestion || memberships.length !== 1 ? await naturalize(factsText, lang, [target.name]) : factsText
+    return {
+      answer: answerText, intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+      sourceBadge: memberships.length === 1 ? `${citation(model, gw)} • ${OBJECT_LABELS[memberships[0].label]}` : `${citation(model, gw)} • Cross-object`,
+      referencedPlayers,
+      suggestedFollowups: withoutUnsolicitedV0([`Alternatives to ${target.name}`, `Show ${OBJECT_LABELS.OWN_START} GW${gw}`], pageContext, `Show ${OBJECT_LABELS.OWN_START} GW${gw}`),
+      generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_CROSS_OBJECT',
+      llmUsed: answerText !== factsText, responseTimeMs: Date.now() - t0,
+      researchModel: model, researchGameweek: gw, researchArtifactStatus: 'AVAILABLE',
+    }
+  }
+
+  // No player named in the message -- fall back to object-level summaries
+  // below, using the same object/tab precedence as before.
 
   // Non-Own-Start decision object (Best XI, Blank Slate, Optional XI 1-4 /
   // Primary): answer about THAT object specifically, using the same
@@ -1306,8 +1607,8 @@ export async function buildResearchGroundedAnswer(
       : `Net points: ${resp.net_points ?? 'not available'} (gross ${resp.gross_points ?? 'not available'}).`
     answer =
       lang === 'ku'
-        ? `${modelLabel}، GW${gw}: ${isFutureForecast ? 'هێشتا خاڵی ڕاستەقینە بەردەست نییە.' : `کۆی خاڵی نیشتەجێ ${resp.net_points ?? 'نەزانراو'}`}. کاپتن: ${captain?.name || 'نەزانراو'}. باشترین یاریزانان: ${list.join('; ')}.`
-        : `${modelLabel} for GW${gw}: ${pointsText} Captain: ${captain?.name || 'unknown'}. Top starters: ${list.join('; ')}.`
+        ? `${modelLabel}، ${OBJECT_LABELS.OWN_START}، GW${gw}${gwUsedNote('ku')}: ${isFutureForecast ? 'هێشتا خاڵی ڕاستەقینە بەردەست نییە.' : `کۆی خاڵی نیشتەجێ ${resp.net_points ?? 'نەزانراو'}`}. کاپتن: ${captain?.name || 'نەزانراو'}. باشترین یاریزانان: ${list.join('; ')}.`
+        : `${modelLabel} ${OBJECT_LABELS.OWN_START} for GW${gw}${gwUsedNote('en')}: ${pointsText} Captain: ${captain?.name || 'unknown'}. Top starters: ${list.join('; ')}.`
     referencedPlayers = xi.slice(0, 5).map(toReferencedPlayer)
   }
 
@@ -1317,7 +1618,7 @@ export async function buildResearchGroundedAnswer(
     requestedGameweek: gw,
     contextStatus: 'GENERAL',
     sourceTypes,
-    sourceBadge: citation(model, gw, resp.artifact_version),
+    sourceBadge: `${citation(model, gw, resp.artifact_version)} • ${OBJECT_LABELS.OWN_START}`,
     referencedPlayers,
     suggestedFollowups: withoutUnsolicitedV0(
       gw > 1
