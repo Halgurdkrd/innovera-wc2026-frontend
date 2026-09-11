@@ -3,10 +3,15 @@
 // /api/fantasy/chat route), so it fetches the backend directly rather than
 // through the client-facing /api/research-fpl/* proxy routes.
 //
-// Every number in the answers below comes straight from the fetched artifact.
-// The LLM is never used to produce these answers -- the governance rules for
-// this integration require deterministic numerical grounding for M3/V0
-// research-model queries, with no invented scores, rankings, or legality.
+// Every number in every answer comes straight from the fetched artifact --
+// retrieval, filtering, ranking, and all arithmetic stay 100% deterministic,
+// never delegated to the LLM. naturalize() (below) is the one, narrow,
+// optional use of an LLM in this file: given an ALREADY-COMPUTED, fact-
+// complete deterministic answer, it may rephrase it more conversationally --
+// it is explicitly forbidden (by its own system prompt) from adding,
+// removing, or changing any name/number/claim, and any failure/timeout/
+// refusal falls back to the deterministic text unchanged. It is never used
+// for retrieval, ranking, legality, or arithmetic.
 
 import type { ChatIntent, ConversationTurn, DataSourceType, FantasyChatResponse, ReferencedPlayer } from './types'
 
@@ -25,6 +30,14 @@ interface OwnStartPlayer {
   actual_points: number | null
   counted_contribution: number | null
   was_transferred_in_this_gw: boolean
+  // SUPPLEMENTAL outlook (see supplemental_outlook.py) -- present only
+  // when outlook_is_supplemental is true; never part of the frozen xP.
+  likely_range?: [number, number] | null
+  upside_score?: number | null
+  high_upside_score?: number | null
+  prob_10_plus?: number | null
+  prob_15_plus?: number | null
+  outlook_is_supplemental?: boolean | null
 }
 
 interface OwnStartResponse {
@@ -142,6 +155,15 @@ export interface FullPoolPlayer {
   p_sub: number | null
   p_dnp: number | null
   expected_minutes: number | null
+  // SUPPLEMENTAL outlook (see supplemental_outlook.py) -- present only
+  // when outlook_is_supplemental is true; never part of the frozen xP.
+  likely_range?: [number, number] | null
+  upside_score?: number | null
+  high_upside_score?: number | null
+  prob_10_plus?: number | null
+  prob_15_plus?: number | null
+  prob_20_plus?: number | null
+  outlook_is_supplemental?: boolean | null
 }
 
 interface FullPoolResponse {
@@ -211,6 +233,70 @@ function extractRequestedCount(q: string): number {
 // summary when the user is explicitly re-scoping a position request.
 function isNarrowingCorrection(q: string): boolean {
   return /\bnot\s+all\b|\bi\s+said\b|^no[,]?\s|\bonly\b|^just\b/.test(q)
+}
+
+// "why is Haaland's average 8 but upside higher" / "average vs range" /
+// "what's the difference between mean and upside" style questions --
+// distinct from a plain "why selected" question, this asks about the
+// STATISTICAL relationship between the mean forecast and the supplemental
+// outlook, not about squad selection.
+function isAverageVsUpsideQuestion(q: string): boolean {
+  return /\baverage\b|\bmean\b/.test(q) && /\bupside\b|\brange\b|\bhigher\b|\bp80\b|\bp90\b|\bpercentile\b/.test(q)
+}
+
+const NATURALIZE_SYSTEM_PROMPT_EN =
+  'You rephrase an already-correct, fact-complete answer about a fantasy football forecast to sound more natural and ' +
+  'conversational. You are NOT answering the question yourself and you have no other knowledge of football, players, ' +
+  'or this product. Rules, no exceptions: (1) Never add a name, number, team, statistic, or claim that is not already ' +
+  'present in the FACTS. (2) Never remove a number or caveat that is present in the FACTS -- especially phrases like ' +
+  '"not available", "supplemental", "not part of the original frozen forecast", or any percentage/xP/price value. ' +
+  '(3) Never invent a reason, cause, or explanation (e.g. budget or formation reasoning) that is not literally stated ' +
+  'in the FACTS. (4) Keep it to 2-4 short sentences. (5) If you cannot rephrase it faithfully, reply with exactly the ' +
+  'original FACTS text unchanged. Respond in English only.'
+
+const NATURALIZE_SYSTEM_PROMPT_KU =
+  'تۆ وەڵامێکی ڕاست و تەواو دەربارەی پێشبینی یاری فەنتازی دەگۆڕیت بۆ زمانێکی سروشتیتر و گفتوگۆیی بە کوردیی سۆرانی. تۆ ' +
+  'وەڵامی پرسیارەکە بە شێوەیەکی سەربەخۆ ناکەیتەوە و هیچ زانیارییەکی تر دەربارەی تۆپی پێ یان ئەم بەرهەمە نیت. یاساکان، ' +
+  'بەبێputیش: (١) هەرگیز ناوێک، ژمارەیەک، تیمێک، ئامارێک یان بانگەشەیەک زیاد مەکە کە لە زانیارییەکاندا (FACTS) نییە. ' +
+  '(٢) هەرگیز ژمارە یان ئاگادارییەک لاماکە کە لە زانیارییەکاندا هەیە -- بە تایبەت وشەکانی وەک "بەردەست نییە"، "تەواوکەر"، ' +
+  'یان هەر ڕێژەیەک/xP/نرخ. (٣) هەرگیز هۆکارێک مەربنووسە کە لە زانیارییەکاندا ڕاستەوخۆ نەهاتووە. (٤) وەڵامەکە کورت بێت ' +
+  '(٢-٤ ڕستە). (٥) ئەگەر نەتوانیت بە دڵنیاییەوە بیگۆڕیت، دەقی FACTS بە بێ گۆڕانکاری بگەڕێنەوە. تەنها بە کوردیی سۆرانی وەڵام بدەوە.'
+
+// The ONE narrow, optional use of an LLM in this file -- given an already-
+// computed, fact-complete deterministic answer, asks the existing Groq
+// provider to rephrase it more naturally. Bounded timeout; any failure,
+// timeout, empty response, or the model echoing back an obviously-truncated
+// reply falls back to the original deterministic text unchanged. Never
+// used for retrieval, ranking, legality, or arithmetic -- purely cosmetic
+// phrasing of facts already fully determined before this is called.
+async function naturalize(factsText: string, lang: 'en' | 'ku'): Promise<string> {
+  const groqKey = process.env.GROQ_API_KEY
+  if (!groqKey || !groqKey.trim()) return factsText
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 4000)
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'openai/gpt-oss-120b',
+        messages: [
+          { role: 'system', content: lang === 'ku' ? NATURALIZE_SYSTEM_PROMPT_KU : NATURALIZE_SYSTEM_PROMPT_EN },
+          { role: 'user', content: `FACTS:\n${factsText}` },
+        ],
+        temperature: 0.2,
+        max_tokens: 300,
+      }),
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
+    if (!res.ok) return factsText
+    const data = await res.json()
+    const rephrased = data.choices?.[0]?.message?.content?.trim()
+    return rephrased && rephrased.length > 10 ? rephrased : factsText
+  } catch {
+    return factsText
+  }
 }
 
 type Position = 'GK' | 'DEF' | 'MID' | 'FWD'
@@ -714,6 +800,64 @@ export async function buildResearchGroundedAnswer(
     }
   }
 
+  // "why is Haaland's average 8 but upside higher?" -- a question about
+  // the mean-vs-outlook relationship itself, not about squad selection.
+  // Looks the player up in the full pool (works regardless of which
+  // decision object is currently in view) so it isn't limited to whoever
+  // happens to be in the current squad/XI.
+  if (modelSel !== 'BOTH' && isAverageVsUpsideQuestion(q)) {
+    const model = modelSel as ResearchModel
+    const pool = await fetchFullPool(gw, model, undefined, 500)
+    if (pool.status !== 'AVAILABLE' || !pool.players) {
+      return na(pool.reason || 'Full player pool unavailable.', gw, model, pool.status)
+    }
+    const qLower = question.toLowerCase()
+    const target = pool.players.find((p) => {
+      const parts = p.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2)
+      return parts.some((part) => qLower.includes(part))
+    })
+    if (!target) {
+      return {
+        answer: `Which player did you mean? I can explain the average-vs-upside relationship for any GW${gw} player if you name them.`,
+        intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+        sourceBadge: `${citation(model, gw)} • Clarification needed`, referencedPlayers: [],
+        suggestedFollowups: withoutUnsolicitedV0([`Show ${OBJECT_LABELS.B_LEGAL_BEST_XI} GW${gw}`], pageContext, `Show ${OBJECT_LABELS.B_LEGAL_BEST_XI} GW${gw}`),
+        generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_CLARIFICATION_NEEDED',
+        llmUsed: false, responseTimeMs: Date.now() - t0, researchModel: model, researchGameweek: gw, researchArtifactStatus: 'AVAILABLE',
+      }
+    }
+    let factsText: string
+    if (target.outlook_is_supplemental && target.upside_score != null && target.likely_range) {
+      const [p25, p75] = [target.likely_range[0], target.likely_range[1]]
+      factsText =
+        `${target.name}'s average expected points for GW${gw} is ${target.predicted_xp}. This is the MEAN of a supplemental estimated points distribution ` +
+        `(not part of the original frozen forecast) -- the middle 50% of realistic outcomes falls between ${p25} and ${p75} points, and the 80th-percentile ` +
+        `upside is ${target.upside_score} points. The average is a single summary number that a genuinely uncertain outcome (whether he scores, plays 90 ` +
+        `minutes, gets a clean sheet, etc.) will often land above or below -- the upside figure describes a good-case scenario within that same distribution, ` +
+        `not a different or more likely prediction, and outcomes above the 80th percentile remain possible too.`
+    } else {
+      factsText =
+        `${target.name}'s average expected points for GW${gw} is ${target.predicted_xp}. A supplemental range/upside distribution has not been published ` +
+        `for this player yet, so I can't give you specific P25/P75/P80 numbers here -- but in general, an average (mean) forecast summarizes a whole range ` +
+        `of possible outcomes into one number, so higher scores above that average are always possible even without a calculated upside figure.`
+    }
+    const answerText = await naturalize(factsText, lang)
+    return {
+      answer: answerText, intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+      sourceBadge: `${citation(model, gw)} • Outlook explanation`,
+      referencedPlayers: [{
+        id: target.stable_player_id, name: target.name, webName: target.name, club: target.club, position: target.position,
+        price: target.price ?? 0, priceUnavailable: target.price == null,
+        predictedXp: target.predicted_xp ?? 0, xpUnavailable: target.predicted_xp == null,
+        actualPoints: null, matchStatus: 'NOT_STARTED',
+      }],
+      suggestedFollowups: withoutUnsolicitedV0([`Why was ${target.name} selected?`, `Show ${OBJECT_LABELS.B_LEGAL_BEST_XI} GW${gw}`], pageContext, `Show ${OBJECT_LABELS.B_LEGAL_BEST_XI} GW${gw}`),
+      generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_FULL_POOL',
+      llmUsed: answerText !== factsText, responseTimeMs: Date.now() - t0,
+      researchModel: model, researchGameweek: gw, researchArtifactStatus: 'AVAILABLE',
+    }
+  }
+
   if (modelSel === 'BOTH' || q.includes('compare') || q.includes(' vs ')) {
     const [m3, v0] = await Promise.all([fetchOwnStart(gw, 'M3_SHRUNK'), fetchOwnStart(gw, 'V0_CONTROL')])
     if (m3.status !== 'HISTORICAL_RECONSTRUCTION' && m3.status !== 'FINAL_FROZEN_FORECAST') {
@@ -838,6 +982,7 @@ export async function buildResearchGroundedAnswer(
 
   let answer: string
   let referencedPlayers: ReferencedPlayer[]
+  let llmUsedForAnswer = false
 
   const isFutureForecast = resp.status === 'FINAL_FROZEN_FORECAST'
   const modelLabel = PUBLIC_MODEL_LABEL[model]
@@ -872,12 +1017,14 @@ export async function buildResearchGroundedAnswer(
           leagueRankText = `, and #${leagueIdx + 1} of ${pool.total_matching_filter} ${mentioned.position}s league-wide by predicted xP`
         }
       }
-      answer =
+      const whyFacts =
         `In ${modelLabel} for GW${gw}, ${mentioned.name} ${roleText}${capText}. Predeadline evidence available: predicted xP ${mentioned.predicted_xp} ` +
         `(ranked #${squadRank} of ${samePosition.length} ${mentioned.position}s in this squad by predicted xP${leagueRankText}), price ${priceText}. ` +
         (mentioned.role === 'XI'
           ? `This shows he ranked well on predeadline forecast evidence -- it is not, by itself, the model's full selection rationale (budget/formation tradeoffs), which was not preserved in the exported artifact.`
           : `The detailed selection rationale beyond these predeadline numbers (e.g. exact formation/budget tradeoffs considered) was not preserved in the exported artifact.`)
+      answer = await naturalize(whyFacts, lang)
+      llmUsedForAnswer = answer !== whyFacts
     } else {
       const actualText = isFutureForecast
         ? ' (this gameweek has not been played yet, so no actual points exist)'
@@ -930,7 +1077,7 @@ export async function buildResearchGroundedAnswer(
     ),
     generatedAt: new Date().toISOString(),
     dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
-    llmUsed: false,
+    llmUsed: llmUsedForAnswer,
     responseTimeMs: Date.now() - t0,
     researchModel: model,
     researchGameweek: gw,
