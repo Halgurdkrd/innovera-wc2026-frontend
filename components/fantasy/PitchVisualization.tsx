@@ -470,7 +470,7 @@ function PlayerDetailModal({
             <div className="text-2xl font-black text-[#3FB950] mt-1">
               {player.xp_unavailable ? '—' : (player.expected_points ?? (player as any).predicted_xp ?? 0).toFixed(2)} <span className="text-xs text-[#8B949E] font-normal">xP</span>
             </div>
-            <div className="text-[10px] text-[#8B949E] mt-0.5">{player.xp_unavailable ? 'Not available for this decision object' : 'Central mean forecast'}</div>
+            <div className="text-[10px] text-[#8B949E] mt-0.5">{player.xp_unavailable ? 'Not available for this decision object' : 'Average forecast, not a guaranteed score'}</div>
           </div>
 
           {researchMode ? (
