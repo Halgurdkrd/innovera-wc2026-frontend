@@ -209,6 +209,13 @@ const PUBLIC_MODEL_LABEL: Record<ResearchModel, string> = {
   M3_SHRUNK: "Ennovera's forecast",
   V0_CONTROL: 'the baseline comparison model',
 }
+const PUBLIC_MODEL_LABEL_KU: Record<ResearchModel, string> = {
+  M3_SHRUNK: 'پێشبینی ئینۆڤێرا',
+  V0_CONTROL: 'مۆدێلی بەراوردی بنەڕەت',
+}
+function publicModelLabel(model: ResearchModel, lang: 'en' | 'ku'): string {
+  return lang === 'ku' ? PUBLIC_MODEL_LABEL_KU[model] : PUBLIC_MODEL_LABEL[model]
+}
 
 function parseGameweek(q: string, fallback: number): number {
   const m = q.match(/\bgw\s*([1-4])\b/) || q.match(/\bgame\s*[\s-]?\s*week\s*([1-4])\b/)
@@ -217,12 +224,21 @@ function parseGameweek(q: string, fallback: number): number {
 
 // "top 10" / "ten" / bare "top" (defaults to 5) -- deterministic, never
 // asks the LLM to count.
-const WORD_NUMBERS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
+const WORD_NUMBERS: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  // Sorani number words (یەک=1 ... دە=10).
+  'یەک': 1, 'دوو': 2, 'سێ': 3, 'چوار': 4, 'پێنج': 5, 'شەش': 6, 'حەوت': 7, 'هەشت': 8, 'نۆ': 9, 'دە': 10,
+}
 function extractRequestedCount(q: string): number {
   const digit = q.match(/\btop\s*(\d{1,2})\b/) || q.match(/\b(\d{1,2})\s+(?:midfielders?|defenders?|forwards?|attackers?|strikers?|goalkeepers?|players?|mids?|defs?|fwds?|gks?|diffeders?|atatckers?)\b/)
   if (digit) return Math.min(50, Math.max(1, parseInt(digit[1], 10)))
+  // \b is defined over ASCII word characters only -- it does not detect a
+  // boundary around Arabic-script text (Kurdish letters aren't \w), so
+  // Sorani number words are matched by whitespace-split containment
+  // instead of a \b-anchored regex.
+  const qWords = q.split(/\s+/)
   for (const [word, n] of Object.entries(WORD_NUMBERS)) {
-    if (new RegExp(`\\b${word}\\b`).test(q)) return n
+    if (/^[a-z]+$/.test(word) ? new RegExp(`\\b${word}\\b`).test(q) : qWords.includes(word)) return n
   }
   return 5
 }
@@ -307,6 +323,17 @@ type Position = 'GK' | 'DEF' | 'MID' | 'FWD'
 // misspellings observed in real user messages (diffeders, atatckers),
 // plus a few common variants; this is pattern-based typo tolerance for
 // known shapes, not a general spellchecker/fuzzy-match.
+// Sorani football position words -- confirmed against the acceptance test
+// "باشترین دە هێرشبەر..." for FWD (هێرشبەر). DEF/GK are common, reasonably
+// confident Sorani football vocabulary; MID (ناوەڕاست, literally "middle")
+// is the least certain of the four -- no Sorani test phrase exercises it,
+// so its translation quality has not been independently verified.
+const KURDISH_POSITION_WORDS: [Position, string[]][] = [
+  ['FWD', ['هێرشبەر']],
+  ['DEF', ['بەرگریکار', 'بەرگری']],
+  ['GK', ['دەروازەوان']],
+  ['MID', ['ناوەڕاست']],
+]
 function matchAllPositions(q: string): Position[] {
   const patterns: [Position, RegExp][] = [
     ['MID', /\bmds?\b|\bmids?\b|\bmidfield(er)?s?\b|\bmidfeilders?\b/],
@@ -318,6 +345,9 @@ function matchAllPositions(q: string): Position[] {
   for (const [pos, re] of patterns) {
     if (re.test(q) && !found.includes(pos)) found.push(pos)
   }
+  for (const [pos, words] of KURDISH_POSITION_WORDS) {
+    if (!found.includes(pos) && words.some((w) => q.includes(w))) found.push(pos)
+  }
   return found
 }
 
@@ -327,7 +357,7 @@ function matchAllPositions(q: string): Position[] {
 // (e.g. "tell me about defenders" as part of a different question) doesn't
 // misfire into the ranking branch.
 function isRankingQuestion(q: string): boolean {
-  return /\bbest\b|\bhighest\b|\btop\b|\bgood\s+choices?\b/.test(q)
+  return /\bbest\b|\bhighest\b|\btop\b|\bgood\s+choices?\b/.test(q) || q.includes('باشترین') || q.includes('بەرزترین')
 }
 
 type AlternativesIntent =
@@ -346,7 +376,9 @@ function detectAlternativesQuery(q: string, players: OwnStartPlayer[]): Alternat
   // seen in real messages (e.g. "alternetives") without hardcoding every
   // individual misspelling -- "altern" + anything + "tiv" + anything is
   // distinctive enough not to false-positive on unrelated words.
-  const mentionsAlternative = /\baltern\w*tiv\w*\b/.test(q) || /\bsubstitutes?\s+for\b|\binstead\s+of\b/.test(q)
+  // جێگرەوە = "substitute/replacement" -- the Sorani word behind the
+  // acceptance test "جێگرەوەکانی کێن؟" ("who are the alternatives?").
+  const mentionsAlternative = /\baltern\w*tiv\w*\b/.test(q) || /\bsubstitutes?\s+for\b|\binstead\s+of\b/.test(q) || q.includes('جێگرەوە')
   if (!mentionsAlternative) return null
   // "alternative team(s)/squad(s)/xi(s)/lineup(s)" -> the stored Optional-XI objects.
   if (/\baltern\w*tiv\w*\s*(to|for)?\s*(the\s+)?(team|squad|xi|lineup|line[\s-]?up)s?\b/.test(q)) {
@@ -430,11 +462,78 @@ function toReferencedPlayer(p: OwnStartPlayer): ReferencedPlayer {
   }
 }
 
+// Kurdish (Sorani) uses several Arabic-script letters not present in
+// standard Arabic (پ چ ژ ڵ ڕ گ ڤ ە) -- their presence is a strong, cheap
+// signal this text is Kurdish, not Arabic, without needing a full
+// language-ID model. This is a heuristic, not a linguistic guarantee: pure
+// Arabic-script text using ONLY letters shared with Arabic (e.g. a short
+// message using common words) cannot be distinguished from Arabic by this
+// check alone -- since this product supports no Arabic UI/chat at all,
+// defaulting any Arabic-script input to Kurdish in that ambiguous case is
+// the correct choice for this product, not a claim that the heuristic
+// itself can tell the two languages apart in general.
+const KURDISH_SPECIFIC_CHARS = /[پچژڵڕگڤە]/
+const ARABIC_SCRIPT = /[؀-ۿ]/
+function isSoraniScript(text: string): boolean {
+  return ARABIC_SCRIPT.test(text)
+}
+
+// Normalizes the handful of letter variants Kurdish/Arabic typists mix up
+// interchangeably (Arabic ي vs Kurdish ی, Arabic ك vs Kurdish ک, plus the
+// standalone/final hamza forms of alef) so matching doesn't silently fail
+// over a keyboard-layout difference. Comparison-only -- never mutates what
+// is shown back to the user or any stable player identity.
+function normalizeKurdishArabic(text: string): string {
+  return text
+    .replace(/[يی]/g, 'ی') // ي/ی -> ی (Kurdish yeh)
+    .replace(/[ك]/g, 'ک') // ك -> ک (Kurdish kaf)
+    .replace(/[آأإ]/g, 'ا') // أ/إ/آ -> ا
+}
+
+// Best-effort phonetic transliteration from Arabic-script Kurdish into a
+// rough Latin consonant skeleton, for matching a Kurdish-written player
+// name (e.g. "فۆدن") against the Latin source name ("Foden") when no
+// Kurdish name dictionary exists. This is a heuristic approximation, not a
+// verified transliteration table -- it will not correctly match every
+// name, particularly ones with sounds Kurdish script represents ambiguously.
+const KURDISH_TO_LATIN: Record<string, string> = {
+  'ا': '', 'ب': 'b', 'پ': 'p', 'ت': 't', 'ج': 'j', 'چ': 'c',
+  'ح': 'h', 'خ': 'x', 'د': 'd', 'ر': 'r', 'ڕ': 'r', 'ز': 'z',
+  'ژ': 'j', 'س': 's', 'ش': 's', 'ع': '', 'غ': 'g', 'ف': 'f',
+  'ڤ': 'v', 'ق': 'q', 'ک': 'k', 'گ': 'g', 'ل': 'l', 'ڵ': 'l',
+  'م': 'm', 'ن': 'n', 'و': 'w', 'ۆ': 'o', 'ه': 'h', 'ە': 'e',
+  'ی': 'y', 'ێ': 'i',
+}
+function transliterateToLatinSkeleton(text: string): string {
+  const normalized = normalizeKurdishArabic(text)
+  let out = ''
+  for (const ch of normalized) {
+    out += KURDISH_TO_LATIN[ch] ?? ''
+  }
+  // Consonant skeleton: drop vowel-ish letters so e.g. "foden"/"fodn" both
+  // reduce to "fdn", tolerant of exactly which vowel Kurdish script implied.
+  return out.replace(/[aeiouwy]/g, '')
+}
+
 function findMentionedPlayer(question: string, players: OwnStartPlayer[]): OwnStartPlayer | undefined {
   const q = question.toLowerCase()
-  return players.find((p) => {
+  const latinMatch = players.find((p) => {
     const parts = p.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2)
     return parts.some((part) => q.includes(part))
+  })
+  if (latinMatch) return latinMatch
+  if (!isSoraniScript(question)) return undefined
+  // Fall back to phonetic transliteration matching for a Kurdish-script
+  // player reference (e.g. "فۆدن" for "Foden") -- try each whitespace-
+  // separated token in the question against each player's surname/first
+  // name skeleton, requiring a reasonably long, non-trivial match to avoid
+  // false positives on short/common skeletons.
+  const tokens = question.split(/\s+/).map(transliterateToLatinSkeleton).filter((t) => t.length >= 3)
+  if (tokens.length === 0) return undefined
+  return players.find((p) => {
+    const nameParts = p.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2)
+    const nameSkeletons = nameParts.map((w) => w.replace(/[aeiouwy]/g, ''))
+    return tokens.some((t) => nameSkeletons.some((ns) => ns.length >= 3 && (ns === t || ns.includes(t) || t.includes(ns))))
   })
 }
 
@@ -498,6 +597,19 @@ export async function buildResearchGroundedAnswer(
   const q = question.toLowerCase()
   const sourceTypes: DataSourceType[] = ['ENNOVERA_RESEARCH_ARTIFACT']
 
+  // Language precedence: (1) an explicit in-message request for a specific
+  // reply language wins outright; (2) otherwise a clearly Sorani-script
+  // question overrides an English UI default -- typing a Kurdish question
+  // should get a Kurdish answer even if the UI toggle still says English;
+  // (3) otherwise the UI-toggle language passed in by the caller is used
+  // as-is, which is the right default for a short/ambiguous message that
+  // gives no language signal of its own.
+  if (/\banswer in english\b|\bin english please\b/.test(q)) {
+    lang = 'en'
+  } else if (/بە\s*کوردی|بە\s*سۆرانی/.test(question) || (lang !== 'ku' && isSoraniScript(question))) {
+    lang = 'ku'
+  }
+
   const na = (reason: string, gw: number, model: ResearchModel, sourceStatus: string = 'NOT_AVAILABLE'): FantasyChatResponse => {
     // TEMPORARILY_UNAVAILABLE (network/server failure) must never be
     // phrased as "this forecast doesn't exist" -- that would turn a
@@ -551,8 +663,8 @@ export async function buildResearchGroundedAnswer(
     const lines: string[] = []
     lines.push(
       lang === 'ku'
-        ? `گۆڕانکارییەکانی ${PUBLIC_MODEL_LABEL[model]} لە GW${gwA} بۆ GW${gwB}:`
-        : `Changes in ${PUBLIC_MODEL_LABEL[model]} from GW${gwA} to GW${gwB}:`
+        ? `گۆڕانکارییەکانی ${publicModelLabel(model, 'ku')} لە GW${gwA} بۆ GW${gwB}:`
+        : `Changes in ${publicModelLabel(model, 'en')} from GW${gwA} to GW${gwB}:`
     )
     if (transfer && transfer.player_out && transfer.player_in) {
       lines.push(`- Transfer: ${transfer.player_out} → ${transfer.player_in}`)
@@ -985,7 +1097,7 @@ export async function buildResearchGroundedAnswer(
   let llmUsedForAnswer = false
 
   const isFutureForecast = resp.status === 'FINAL_FROZEN_FORECAST'
-  const modelLabel = PUBLIC_MODEL_LABEL[model]
+  const modelLabel = publicModelLabel(model, lang)
 
   if (mentioned) {
     // Selection-explanation style answer for one named player. Predeadline
@@ -1000,7 +1112,9 @@ export async function buildResearchGroundedAnswer(
       ? (mentioned.role === 'XI' ? 'was selected in the starting XI' : 'was placed on the bench')
       : (mentioned.role === 'XI' ? 'started' : 'was on the bench (did not count)')
     const capText = mentioned.is_captain ? ' as captain' : mentioned.is_vice ? ' as vice-captain' : ''
-    const isWhyQuestion = /\bwhy\b|\bselect/.test(q)
+    // بۆچی = "why" (Sorani), هەڵبژێردراوە/هەڵبژاردن = "selected" -- from
+    // the acceptance test "بۆچی فۆدن بۆ هەفتەی چوارەم هەڵبژێردراوە؟".
+    const isWhyQuestion = /\bwhy\b|\bselect/.test(q) || q.includes('بۆچی') || q.includes('هەڵبژار')
     const samePosition = [...players].filter((p) => p.position === mentioned.position).sort((a, b) => b.predicted_xp - a.predicted_xp)
     const squadRank = samePosition.findIndex((p) => p.stable_player_id === mentioned.stable_player_id) + 1
     const priceText = mentioned.price != null ? `£${mentioned.price.toFixed(1)}m` : 'price unavailable'
@@ -1017,12 +1131,30 @@ export async function buildResearchGroundedAnswer(
           leagueRankText = `, and #${leagueIdx + 1} of ${pool.total_matching_filter} ${mentioned.position}s league-wide by predicted xP`
         }
       }
-      const whyFacts =
-        `In ${modelLabel} for GW${gw}, ${mentioned.name} ${roleText}${capText}. Predeadline evidence available: predicted xP ${mentioned.predicted_xp} ` +
-        `(ranked #${squadRank} of ${samePosition.length} ${mentioned.position}s in this squad by predicted xP${leagueRankText}), price ${priceText}. ` +
-        (mentioned.role === 'XI'
-          ? `This shows he ranked well on predeadline forecast evidence -- it is not, by itself, the model's full selection rationale (budget/formation tradeoffs), which was not preserved in the exported artifact.`
-          : `The detailed selection rationale beyond these predeadline numbers (e.g. exact formation/budget tradeoffs considered) was not preserved in the exported artifact.`)
+      // Built directly in the resolved answer language -- correct even if
+      // the naturalize() LLM call fails/times out, not solely dependent on
+      // the LLM to also perform translation (matches how every other
+      // dual-language branch in this file works).
+      let whyFacts: string
+      if (lang === 'ku') {
+        const roleTextKu = isFutureForecast
+          ? (mentioned.role === 'XI' ? 'هەڵبژێردراوە بۆ یاریی سەرەکی' : 'خرایە سەر یەدەگ')
+          : (mentioned.role === 'XI' ? 'دەستی پێکرد' : 'لەسەر یەدەگ بوو (نەژمێردرا)')
+        const capTextKu = mentioned.is_captain ? ' وەک کاپتن' : mentioned.is_vice ? ' وەک جێگری کاپتن' : ''
+        whyFacts =
+          `لە ${modelLabel} بۆ GW${gw} دا، ${mentioned.name} ${roleTextKu}${capTextKu}. بەڵگەی پێش کۆتایی بەردەستە: خاڵی پێشبینیکراو ${mentioned.predicted_xp} ` +
+          `(پلە #${squadRank} لە ${samePosition.length} یاریزانی ${mentioned.position} لەم تیمەدا بەپێی خاڵی پێشبینیکراو${leagueRankText ? `، و پلە لە ئاستی هەموو لیگدا بەردەستە` : ''})، نرخ ${priceText}. ` +
+          (mentioned.role === 'XI'
+            ? `ئەمە نیشان دەدات کە بەپێی بەڵگەی پێشبینی پێش کۆتایی باش بووە -- بەخۆیەوە هۆکاری تەواوی هەڵبژاردن نییە (وەک بوودجە/پێکهاتە)، کە لە کۆکراوەکەدا نەپاراستراوە.`
+            : `هۆکاری وردی هەڵبژاردن جگە لەم ژمارانە (وەک بوودجە/پێکهاتە) لە کۆکراوەکەدا نەپاراستراوە.`)
+      } else {
+        whyFacts =
+          `In ${modelLabel} for GW${gw}, ${mentioned.name} ${roleText}${capText}. Predeadline evidence available: predicted xP ${mentioned.predicted_xp} ` +
+          `(ranked #${squadRank} of ${samePosition.length} ${mentioned.position}s in this squad by predicted xP${leagueRankText}), price ${priceText}. ` +
+          (mentioned.role === 'XI'
+            ? `This shows he ranked well on predeadline forecast evidence -- it is not, by itself, the model's full selection rationale (budget/formation tradeoffs), which was not preserved in the exported artifact.`
+            : `The detailed selection rationale beyond these predeadline numbers (e.g. exact formation/budget tradeoffs considered) was not preserved in the exported artifact.`)
+      }
       answer = await naturalize(whyFacts, lang)
       llmUsedForAnswer = answer !== whyFacts
     } else {

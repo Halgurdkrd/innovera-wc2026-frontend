@@ -7,6 +7,7 @@ import { PitchVisualization } from '@/components/fantasy/PitchVisualization'
 import { AskEnnoveraChat } from '@/components/fantasy/AskEnnoveraChat'
 import ErrorState from '@/components/ui/ErrorState'
 import { useLanguage } from '@/hooks/useLanguage'
+import { tr, type Language, type TranslationKey } from '@/lib/translations'
 import type { FPLPlayer } from '@/lib/api/types'
 
 // Ennovera Fantasy -- the M3_SHRUNK-backed public fantasy experience.
@@ -21,24 +22,32 @@ const MODEL = 'M3_SHRUNK' as const
 type ObjectLabel = 'B_LEGAL_BEST_XI' | 'OWN_START' | 'A_BLANK_SLATE' | 'PRIMARY' | 'OPTIONAL_XI_1' | 'OPTIONAL_XI_2' | 'OPTIONAL_XI_3' | 'OPTIONAL_XI_4'
 
 // Exact required order -- Best XI first and default.
-const TABS: { id: ObjectLabel; title: string }[] = [
-  { id: 'B_LEGAL_BEST_XI', title: 'Best XI' },
-  { id: 'OWN_START', title: 'AI Manager' },
-  { id: 'A_BLANK_SLATE', title: 'Best £100m Squad' },
-  { id: 'PRIMARY', title: 'Optional XI: Primary' },
-  { id: 'OPTIONAL_XI_1', title: 'Optional XI 1' },
-  { id: 'OPTIONAL_XI_2', title: 'Optional XI 2' },
-  { id: 'OPTIONAL_XI_3', title: 'Optional XI 3' },
-  { id: 'OPTIONAL_XI_4', title: 'Optional XI 4' },
+const TABS: { id: ObjectLabel; title: string; titleKey: TranslationKey }[] = [
+  { id: 'B_LEGAL_BEST_XI', title: 'Best XI', titleKey: 'fantasy_tab_best_xi' },
+  { id: 'OWN_START', title: 'AI Manager', titleKey: 'fantasy_tab_ai_manager' },
+  { id: 'A_BLANK_SLATE', title: 'Best £100m Squad', titleKey: 'fantasy_tab_blank_slate' },
+  { id: 'PRIMARY', title: 'Optional XI: Primary', titleKey: 'fantasy_tab_primary' },
+  { id: 'OPTIONAL_XI_1', title: 'Optional XI 1', titleKey: 'fantasy_tab_opt1' },
+  { id: 'OPTIONAL_XI_2', title: 'Optional XI 2', titleKey: 'fantasy_tab_opt2' },
+  { id: 'OPTIONAL_XI_3', title: 'Optional XI 3', titleKey: 'fantasy_tab_opt3' },
+  { id: 'OPTIONAL_XI_4', title: 'Optional XI 4', titleKey: 'fantasy_tab_opt4' },
 ]
 const TAB_IDS = new Set(TABS.map((t) => t.id))
 const DEFAULT_TAB: ObjectLabel = 'B_LEGAL_BEST_XI'
 const HISTORICAL_MAX_GW = 3
 
+function tabTitle(id: ObjectLabel, lang: Language): string {
+  const tab = TABS.find((t) => t.id === id)
+  return tab ? tr(tab.titleKey, lang) : id
+}
+
 // Short, honest description of each object's real constraints -- these are
 // genuinely different selections with different rules, never a claim that
-// one is "better" than another.
-const TAB_DESCRIPTIONS: Record<ObjectLabel, string> = {
+// one is "better" than another. English kept verbatim (unchanged copy);
+// Kurdish falls back to the shared "alternative XI" phrasing already
+// translated for the equivalent English text, since the underlying
+// constraint (no bench/autosub) is the same across every non-Own-Start tab.
+const TAB_DESCRIPTIONS_EN: Record<ObjectLabel, string> = {
   B_LEGAL_BEST_XI: 'An alternative starting XI: the highest-xP legal XI for this gameweek. No reserve bench or automatic substitutions.',
   OWN_START: 'Persistent season-long manager: carried squad, bank, free transfers, and one real transfer decision per gameweek.',
   A_BLANK_SLATE: 'A fresh 15-player squad for this gameweek, including starters and substitutes.',
@@ -47,6 +56,19 @@ const TAB_DESCRIPTIONS: Record<ObjectLabel, string> = {
   OPTIONAL_XI_2: 'An alternative starting XI for this gameweek. No reserve bench or automatic substitutions.',
   OPTIONAL_XI_3: 'An alternative starting XI for this gameweek. No reserve bench or automatic substitutions.',
   OPTIONAL_XI_4: 'An alternative starting XI for this gameweek. No reserve bench or automatic substitutions.',
+}
+const TAB_DESCRIPTIONS_KU: Record<ObjectLabel, string> = {
+  B_LEGAL_BEST_XI: tr('fantasy_desc_best_xi', 'KU'),
+  OWN_START: tr('fantasy_desc_ai_manager', 'KU'),
+  A_BLANK_SLATE: tr('fantasy_desc_blank_slate', 'KU'),
+  PRIMARY: tr('fantasy_desc_optional', 'KU'),
+  OPTIONAL_XI_1: tr('fantasy_desc_optional', 'KU'),
+  OPTIONAL_XI_2: tr('fantasy_desc_optional', 'KU'),
+  OPTIONAL_XI_3: tr('fantasy_desc_optional', 'KU'),
+  OPTIONAL_XI_4: tr('fantasy_desc_optional', 'KU'),
+}
+function tabDescription(id: ObjectLabel, lang: Language): string {
+  return lang === 'KU' ? TAB_DESCRIPTIONS_KU[id] : TAB_DESCRIPTIONS_EN[id]
 }
 
 interface PlayerRow {
@@ -256,19 +278,19 @@ function statusBadge(status: string | undefined) {
   return { isForecast, isEvaluated, isAvailable, isTemporaryFailure }
 }
 
-function OwnStartView({ data, onRetry }: { data: OwnStartResponse | null; onRetry: () => void }) {
+function OwnStartView({ data, onRetry, language }: { data: OwnStartResponse | null; onRetry: () => void; language: Language }) {
   const { isForecast, isAvailable, isTemporaryFailure } = statusBadge(data?.status)
   return (
     <div className="bg-neutral-900 rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
-        <h2 className="font-semibold">AI Manager</h2>
+        <h2 className="font-semibold">{tabTitle('OWN_START', language)}</h2>
         <span className={`text-xs px-2 py-0.5 rounded ${isTemporaryFailure ? 'bg-orange-900 text-orange-200' : !isAvailable ? 'bg-red-900 text-red-200' : isForecast ? 'bg-emerald-900 text-emerald-200' : 'bg-amber-900 text-amber-200'}`}>
           {isTemporaryFailure ? 'Connection issue' : !isAvailable ? 'Not available' : isForecast ? 'Final frozen forecast' : 'Historical reconstruction'}
         </span>
       </div>
-      <p className="text-xs text-neutral-500 mb-3">{TAB_DESCRIPTIONS.OWN_START}</p>
+      <p className="text-xs text-neutral-500 mb-3">{tabDescription('OWN_START', language)}</p>
       {isTemporaryFailure ? (
-        <ErrorState message="Temporarily unable to load data. This is a connectivity issue, not a missing forecast." onRetry={onRetry} />
+        <ErrorState message={language === 'KU' ? tr('fantasy_temp_unavailable', language) : 'Temporarily unable to load data. This is a connectivity issue, not a missing forecast.'} onRetry={onRetry} />
       ) : !isAvailable && (
         <div className="text-neutral-400 text-sm py-8 text-center">Final forecast not available: {data?.reason}</div>
       )}
@@ -296,6 +318,7 @@ function OwnStartView({ data, onRetry }: { data: OwnStartResponse | null; onRetr
             startingXI={data.players.filter((p) => p.role === 'XI').map((p) => toFplPlayer(p))}
             bench={benchWithPriorities(data.players.filter((p) => p.role === 'BENCH'))}
             researchMode
+            language={language}
             provenance={{
               model: MODEL, season: '2026-27', gameweek: data.gameweek ?? 0, object: 'AI Manager',
               status: data.status ?? 'UNKNOWN', artifactVersion: data.artifact_version,
@@ -312,7 +335,7 @@ function OwnStartView({ data, onRetry }: { data: OwnStartResponse | null; onRetr
   )
 }
 
-function ObjectView({ tabId, tabTitle, data, onRetry }: { tabId: ObjectLabel; tabTitle: string; data: ObjectResponse | null; onRetry: () => void }) {
+function ObjectView({ tabId, tabTitle, data, onRetry, language }: { tabId: ObjectLabel; tabTitle: string; data: ObjectResponse | null; onRetry: () => void; language: Language }) {
   const { isForecast, isAvailable, isTemporaryFailure } = statusBadge(data?.status)
   const membership = data?.player_membership
   const hasMembershipList = Array.isArray(membership)
@@ -324,9 +347,9 @@ function ObjectView({ tabId, tabTitle, data, onRetry }: { tabId: ObjectLabel; ta
           {isTemporaryFailure ? 'Connection issue' : !isAvailable ? 'Not available' : isForecast ? 'Final frozen forecast' : 'Historical reconstruction'}
         </span>
       </div>
-      <p className="text-xs text-neutral-500 mb-3">{TAB_DESCRIPTIONS[tabId]}</p>
+      <p className="text-xs text-neutral-500 mb-3">{tabDescription(tabId, language)}</p>
       {isTemporaryFailure ? (
-        <ErrorState message="Temporarily unable to load data. This is a connectivity issue, not a missing forecast." onRetry={onRetry} />
+        <ErrorState message={language === 'KU' ? tr('fantasy_temp_unavailable', language) : 'Temporarily unable to load data. This is a connectivity issue, not a missing forecast.'} onRetry={onRetry} />
       ) : !isAvailable && <div className="text-neutral-400 text-sm py-8 text-center">Final forecast not available: {data?.reason}</div>}
       {isAvailable && (
         <>
@@ -346,6 +369,7 @@ function ObjectView({ tabId, tabTitle, data, onRetry }: { tabId: ObjectLabel; ta
               startingXI={(membership as PlayerRow[]).filter((p) => p.role !== 'BENCH').map((p) => toFplPlayer(p))}
               bench={benchWithPriorities((membership as PlayerRow[]).filter((p) => p.role === 'BENCH'))}
               researchMode
+              language={language}
               provenance={{
                 model: MODEL, season: '2026-27', gameweek: data?.gameweek ?? 0, object: tabTitle,
                 status: data?.status ?? 'UNKNOWN',
@@ -424,19 +448,28 @@ function FantasyPageInner() {
     return base.sort((a, b) => a - b)
   }, [status])
 
-  const activeTabTitle = TABS.find((t) => t.id === tab)?.title || tab
+  const activeTabTitle = tabTitle(tab, language)
 
   return (
-    <div className="min-h-screen bg-[#0D1117] text-[#E6EDF3]">
+    <div className="min-h-screen bg-[#0D1117] text-[#E6EDF3]" dir={language === 'KU' ? 'rtl' : 'ltr'}>
       <Navbar language={language} onLanguageChange={changeLanguage} />
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="mb-4">
-          <h1 className="text-2xl font-bold">Ennovera Fantasy</h1>
+          <h1 className="text-2xl font-bold">{language === 'KU' ? 'ئینۆڤێرا فەنتازی' : 'Ennovera Fantasy'}</h1>
           <p className="text-neutral-400 text-sm">
-            Powered by the M3_SHRUNK model. GW1-{HISTORICAL_MAX_GW} is a historical reconstruction of already-completed gameweeks.
-            {status?.final_pair_registered
-              ? ` GW${status.final_pair_gameweek} is a registered final frozen forecast, not yet played.`
-              : ' No further gameweek has a registered final forecast yet.'}
+            {language === 'KU' ? (
+              <>بە هوشی دەستکردی مۆدێلی <bdi style={{ unicodeBidi: 'isolate' }}>Ennovera</bdi> کاردەکات. GW١-<bdi style={{ unicodeBidi: 'isolate' }}>{HISTORICAL_MAX_GW}</bdi> بازسازیکردنەوەی مێژووییە بۆ هەفتانەی تەواوبووە.
+                {status?.final_pair_registered
+                  ? <> GW<bdi style={{ unicodeBidi: 'isolate' }}>{status.final_pair_gameweek}</bdi> پێشبینییەکی جێگیرکراوی تۆمارکراوە، هێشتا یاری نەکراوە.</>
+                  : ' هیچ هەفتەیەکی تر پێشبینیی جێگیرکراوی تۆمارکراوی نییە.'}
+              </>
+            ) : (
+              <>Powered by the M3_SHRUNK model. GW1-{HISTORICAL_MAX_GW} is a historical reconstruction of already-completed gameweeks.
+                {status?.final_pair_registered
+                  ? ` GW${status.final_pair_gameweek} is a registered final frozen forecast, not yet played.`
+                  : ' No further gameweek has a registered final forecast yet.'}
+              </>
+            )}
           </p>
         </div>
 
@@ -447,7 +480,7 @@ function FantasyPageInner() {
               onClick={() => setGw(g)}
               className={`px-3 py-1 rounded text-sm ${gw === g ? 'bg-emerald-600' : 'bg-neutral-800'}`}
             >
-              GW{g}{status?.final_pair_gameweek === g ? ' (Forecast)' : ''}
+              <bdi style={{ unicodeBidi: 'isolate' }}>GW{g}{status?.final_pair_gameweek === g ? (language === 'KU' ? ' (پێشبینی)' : ' (Forecast)') : ''}</bdi>
             </button>
           ))}
         </div>
@@ -459,18 +492,18 @@ function FantasyPageInner() {
               onClick={() => setTab(t.id)}
               className={`px-2.5 py-1.5 rounded text-xs font-semibold whitespace-nowrap ${tab === t.id ? 'bg-sky-700' : 'bg-neutral-800 text-neutral-300'}`}
             >
-              {t.title}
+              {tabTitle(t.id, language)}
             </button>
           ))}
         </div>
 
-        {loading && <div className="text-neutral-400">Loading…</div>}
+        {loading && <div className="text-neutral-400">{tr('fantasy_loading', language)}</div>}
         {error && <ErrorState message={error} onRetry={() => load(gw, tab)} />}
 
         {!loading && !error && (
           tab === 'OWN_START'
-            ? <OwnStartView data={ownStart} onRetry={() => load(gw, tab)} />
-            : <ObjectView tabId={tab} tabTitle={activeTabTitle} data={objectData} onRetry={() => load(gw, tab)} />
+            ? <OwnStartView data={ownStart} onRetry={() => load(gw, tab)} language={language} />
+            : <ObjectView tabId={tab} tabTitle={activeTabTitle} data={objectData} onRetry={() => load(gw, tab)} language={language} />
         )}
       </div>
 

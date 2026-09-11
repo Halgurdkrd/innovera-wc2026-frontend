@@ -2,7 +2,15 @@
 
 import React from 'react'
 import type { FPLPlayer } from '@/lib/api/types'
-import type { Language } from '@/lib/translations'
+import { tr, type Language } from '@/lib/translations'
+
+// Wraps a number/name/price value in a bidirectional isolate so it always
+// renders left-to-right even inside an RTL (Kurdish) sentence -- exactly
+// what <bdi> is for, per the task's "use bidirectional isolation where
+// needed" requirement. Never changes the value itself.
+function Num({ children }: { children: React.ReactNode }) {
+  return <bdi style={{ unicodeBidi: 'isolate' }}>{children}</bdi>
+}
 
 export interface PitchVisualizationProps {
   formation: string
@@ -148,10 +156,10 @@ export function PitchVisualization({
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-[#8B949E] uppercase tracking-wider">
-            {language === 'KU' ? 'پێکهاتە' : 'Formation'}
+            {tr('pitch_formation', language)}
           </span>
           <span className="text-xs font-bold text-[#58A6FF] bg-[#58A6FF]/10 border border-[#58A6FF]/30 px-2 py-0.5 rounded">
-            {formation}
+            <Num>{formation}</Num>
           </span>
           {!researchMode && (
             <span className="text-xs font-bold text-[#3FB950] bg-[#3FB950]/10 border border-[#3FB950]/30 px-2 py-0.5 rounded">
@@ -160,7 +168,7 @@ export function PitchVisualization({
           )}
         </div>
         <span className="text-xs text-[#8B949E]">
-          {startingXI.length} {language === 'KU' ? 'یاریزانی سەرەکی' : 'Starters'} • Click player for details
+          <Num>{startingXI.length}</Num> {tr('pitch_starters', language)} • {tr('pitch_click_details', language)}
         </span>
       </div>
 
@@ -178,28 +186,28 @@ export function PitchVisualization({
         {/* Row 1: Goalkeeper */}
         <div className="relative z-10 flex justify-center items-center py-1">
           {gks.map((p) => (
-            <PlayerPitchCard key={p.player_id} player={p} onClick={() => setSelectedPlayer(p)} researchMode={researchMode} />
+            <PlayerPitchCard key={p.player_id} player={p} onClick={() => setSelectedPlayer(p)} researchMode={researchMode} language={language} />
           ))}
         </div>
 
         {/* Row 2: Defenders */}
         <div className="relative z-10 flex justify-around items-center py-1 px-2">
           {defs.map((p) => (
-            <PlayerPitchCard key={p.player_id} player={p} onClick={() => setSelectedPlayer(p)} researchMode={researchMode} />
+            <PlayerPitchCard key={p.player_id} player={p} onClick={() => setSelectedPlayer(p)} researchMode={researchMode} language={language} />
           ))}
         </div>
 
         {/* Row 3: Midfielders */}
         <div className="relative z-10 flex justify-around items-center py-1 px-2">
           {mids.map((p) => (
-            <PlayerPitchCard key={p.player_id} player={p} onClick={() => setSelectedPlayer(p)} researchMode={researchMode} />
+            <PlayerPitchCard key={p.player_id} player={p} onClick={() => setSelectedPlayer(p)} researchMode={researchMode} language={language} />
           ))}
         </div>
 
         {/* Row 4: Forwards */}
         <div className="relative z-10 flex justify-around items-center py-1 px-2">
           {fwds.map((p) => (
-            <PlayerPitchCard key={p.player_id} player={p} onClick={() => setSelectedPlayer(p)} researchMode={researchMode} />
+            <PlayerPitchCard key={p.player_id} player={p} onClick={() => setSelectedPlayer(p)} researchMode={researchMode} language={language} />
           ))}
         </div>
       </div>
@@ -209,7 +217,7 @@ export function PitchVisualization({
         <div className="bg-[#161B22] border border-[#30363D] rounded-xl p-4 shadow-lg space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-[#8B949E] uppercase tracking-wider">
-              {language === 'KU' ? 'یاریزانانی یەدەگ' : 'Substitutes Bench (Ordered Priority)'}
+              {language === 'KU' ? 'یاریزانانی یەدەگ (ڕیزبەندی)' : 'Substitutes Bench (Ordered Priority)'}
             </span>
             <span className="text-xs text-[#8B949E]">{bench.length} {language === 'KU' ? 'یاریزان' : 'Players'}</span>
           </div>
@@ -247,10 +255,10 @@ export function PitchVisualization({
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-2 pt-1 border-t border-[#30363D]/40 text-[10px]">
-                    <span className="text-[#8B949E]">{player.price_unavailable ? 'Price unavailable' : `£${(player.price ?? 5.0).toFixed(1)}m`}</span>
+                    <span className="text-[#8B949E]">{player.price_unavailable ? tr('pitch_price_unavailable', language) : <Num>{`£${(player.price ?? 5.0).toFixed(1)}m`}</Num>}</span>
                     <div className="flex items-center gap-1.5">
                       <span className="font-bold text-[#3FB950]">
-                        {player.xp_unavailable ? 'xP —' : `${(player.expected_points ?? (player as any).predicted_xp ?? 0).toFixed(2)} xP`}
+                        {player.xp_unavailable ? 'xP —' : <Num>{`${(player.expected_points ?? (player as any).predicted_xp ?? 0).toFixed(2)} xP`}</Num>}
                       </span>
                       {isFT && actualPts !== null && actualPts !== undefined ? (
                         <span className="font-black px-1 rounded bg-[#58A6FF]/20 text-[#58A6FF]">
@@ -282,7 +290,7 @@ export function PitchVisualization({
   )
 }
 
-function PlayerPitchCard({ player, onClick, researchMode = false }: { player: FPLPlayer; onClick?: () => void; researchMode?: boolean }) {
+function PlayerPitchCard({ player, onClick, researchMode = false, language = 'EN' }: { player: FPLPlayer; onClick?: () => void; researchMode?: boolean; language?: Language }) {
   const isCap = player.is_captain
   const isVice = player.is_vice_captain
   const rangeText = player.likely_range ? `${player.likely_range[0]}–${player.likely_range[1]} pts` : '—'
@@ -351,30 +359,30 @@ function PlayerPitchCard({ player, onClick, researchMode = false }: { player: FP
         </div>
         <div className="flex items-center justify-center gap-1 mt-0.5">
           <span className="text-[10px] sm:text-[11px] font-extrabold text-[#3FB950]" title={player.xp_unavailable ? 'Per-player xP not available for this decision object' : undefined}>
-            {player.xp_unavailable ? 'xP —' : `${expPoints.toFixed(2)} xP`}
+            {player.xp_unavailable ? 'xP —' : <Num>{`${expPoints.toFixed(2)} xP`}</Num>}
           </span>
           {isFinished && actualPoints !== null && actualPoints !== undefined ? (
             <span className="text-[9px] font-black px-1 rounded bg-[#58A6FF]/20 text-[#58A6FF]" title={isCap ? `Player points: ${actualPoints}. Captain doubles this to ${actualPoints * 2}.` : 'Match Finished'}>
-              {isCap ? `${actualPoints}→${actualPoints * 2} pts` : `${actualPoints} pts`}
+              <Num>{isCap ? `${actualPoints}→${actualPoints * 2} pts` : `${actualPoints} pts`}</Num>
             </span>
           ) : isLive && actualPoints !== null && actualPoints !== undefined ? (
             <span className="text-[9px] font-black px-1 rounded bg-[#F0A500]/20 text-[#F0A500]" title={isCap ? `Player points: ${actualPoints}. Captain doubles this to ${actualPoints * 2}.` : 'Match Live'}>
-              {isCap ? `${actualPoints}→${actualPoints * 2} pts` : `${actualPoints} pts`}
+              <Num>{isCap ? `${actualPoints}→${actualPoints * 2} pts` : `${actualPoints} pts`}</Num>
             </span>
           ) : isUntracked ? (
             <span className="text-[9px] font-bold px-1 rounded bg-[#30363D]/60 text-[#8B949E]" title="No live match-state evidence -- this is a forecast for a gameweek that has not been played">
-              Forecast
+              {tr('pitch_forecast_badge', language)}
             </span>
           ) : (
             <span className="text-[9px] font-bold px-1 rounded bg-[#30363D]/60 text-[#8B949E]" title="Not Started">
-              Not Started
+              {tr('pitch_not_started', language)}
             </span>
           )}
         </div>
         <div className="flex justify-between items-center text-[8px] text-[#8B949E] px-0.5 mt-0.5 border-t border-[#30363D]/60 pt-0.5">
           {researchMode ? (
             <span className="text-[#58A6FF] font-semibold">
-              {player.starting_prob !== undefined ? `P(start): ${Math.round(player.starting_prob * 100)}%` : 'No probability data'}
+              {player.starting_prob !== undefined ? <><Num>{`${Math.round(player.starting_prob * 100)}%`}</Num> {tr('pitch_p_start', language)}</> : 'No probability data'}
             </span>
           ) : (
             <>
@@ -430,7 +438,10 @@ function PlayerDetailModal({
           it never exceeds the viewport) + max-h/overflow-y-auto so content
           scrolls within the modal instead of overflowing off-screen on
           short viewports. */}
-      <div className="bg-[#161B22] border border-[#30363D] rounded-2xl w-full max-w-lg sm:max-w-xl lg:max-w-2xl max-h-[90vh] overflow-y-auto p-5 sm:p-6 space-y-4 shadow-2xl relative text-[#E6EDF3] text-sm sm:text-base">
+      <div
+        dir={language === 'KU' ? 'rtl' : 'ltr'}
+        className="bg-[#161B22] border border-[#30363D] rounded-2xl w-full max-w-lg sm:max-w-xl lg:max-w-2xl max-h-[90vh] overflow-y-auto p-5 sm:p-6 space-y-4 shadow-2xl relative text-[#E6EDF3] text-sm sm:text-base"
+      >
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -453,8 +464,8 @@ function PlayerDetailModal({
             </div>
             <p className="text-xs sm:text-sm text-[#8B949E]">
               {player.club} • {player.position}
-              {' • '}{player.price_unavailable ? 'Price unavailable' : `£${(player.price ?? 5.0).toFixed(1)}m`}
-              {' • '}{player.expected_minutes != null ? `${player.expected_minutes} mins (forecast)` : 'Expected minutes unavailable'}
+              {' • '}{player.price_unavailable ? tr('pitch_price_unavailable', language) : <Num>{`£${(player.price ?? 5.0).toFixed(1)}m`}</Num>}
+              {' • '}{player.expected_minutes != null ? <><Num>{player.expected_minutes}</Num> {language === 'KU' ? 'خولەک (پێشبینی)' : 'mins (forecast)'}</> : (language === 'KU' ? 'خولەکی پێشبینیکراو بەردەست نییە' : 'Expected minutes unavailable')}
             </p>
           </div>
         </div>
@@ -462,31 +473,31 @@ function PlayerDetailModal({
         {/* Fixture & Match Status Banner */}
         <div className="bg-[#0D1117] p-2.5 rounded-lg border border-[#30363D] flex justify-between items-center text-xs sm:text-sm">
           <div>
-            <span className="text-[#8B949E]">Fixture: </span>
+            <span className="text-[#8B949E]">{tr('pitch_fixture', language)}: </span>
             <span className="font-semibold text-[#58A6FF]">
               {player.opponent
-                ? `${player.club} vs ${player.opponent}${modalVenueLabel ? ` (${modalVenueLabel})` : ''}`
-                : researchMode ? 'Fixture data not available for this decision object' : 'Gameweek Fixture'}
+                ? <Num>{`${player.club} vs ${player.opponent}${modalVenueLabel ? ` (${modalVenueLabel === 'Home' ? tr('pitch_home', language) : tr('pitch_away', language)})` : ''}`}</Num>
+                : researchMode ? tr('pitch_fixture_not_avail', language) : 'Gameweek Fixture'}
             </span>
           </div>
           <div>
             {isFT ? (
               <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 bg-[#3FB950]/20 text-[#3FB950] border border-[#3FB950]/40 rounded" title={player.is_captain && actualPts != null ? `Player points: ${actualPts}. Captain doubles this to ${actualPts * 2}.` : undefined}>
-                FT: {actualPts !== null && actualPts !== undefined
+                FT: <Num>{actualPts !== null && actualPts !== undefined
                   ? (player.is_captain ? `${actualPts}→${actualPts * 2} pts (captain)` : `${actualPts} pts`)
-                  : 'Finished'}
+                  : 'Finished'}</Num>
               </span>
             ) : matchStatus === 'LIVE' ? (
               <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 bg-[#F0A500]/20 text-[#F0A500] border border-[#F0A500]/40 rounded" title={player.is_captain && actualPts != null ? `Player points: ${actualPts}. Captain doubles this to ${actualPts * 2}.` : undefined}>
-                LIVE: {actualPts != null && player.is_captain ? `${actualPts}→${actualPts * 2} pts (captain)` : `${actualPts ?? 0} pts`}
+                LIVE: <Num>{actualPts != null && player.is_captain ? `${actualPts}→${actualPts * 2} pts (captain)` : `${actualPts ?? 0} pts`}</Num>
               </span>
             ) : isUntracked ? (
               <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 bg-[#30363D]/60 text-[#8B949E] border border-[#30363D] rounded" title="No live match-state evidence -- this is a forecast for a gameweek that has not been played">
-                Forecast (not yet played)
+                {tr('pitch_forecast_badge', language)} {language === 'KU' ? '(هێشتا یاری نەکراوە)' : '(not yet played)'}
               </span>
             ) : (
               <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 bg-[#30363D]/60 text-[#8B949E] border border-[#30363D] rounded">
-                Not Started
+                {tr('pitch_not_started', language)}
               </span>
             )}
           </div>
@@ -497,35 +508,37 @@ function PlayerDetailModal({
           <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
             {player.xp_unavailable ? (
               <>
-                <div className="text-sm sm:text-base font-semibold text-[#8B949E]">Expected points</div>
+                <div className="text-sm sm:text-base font-semibold text-[#8B949E]">{tr('pitch_expected_points', language)}</div>
                 <div className="text-2xl font-black text-[#3FB950] mt-1">—</div>
-                <div className="text-[10px] sm:text-xs text-[#8B949E] mt-0.5">Not available for this decision object</div>
+                <div className="text-[10px] sm:text-xs text-[#8B949E] mt-0.5">{tr('pitch_not_avail_obj', language)}</div>
               </>
             ) : (
               <>
                 <div className="text-sm sm:text-base font-semibold text-[#E6EDF3]">
-                  Expected points: <span className="text-2xl font-black text-[#3FB950]">{(player.expected_points ?? (player as any).predicted_xp ?? 0).toFixed(2)}</span>
+                  {tr('pitch_expected_points', language)}: <span className="text-2xl font-black text-[#3FB950]"><Num>{(player.expected_points ?? (player as any).predicted_xp ?? 0).toFixed(2)}</Num></span>
                 </div>
-                <div className="text-[10px] sm:text-xs text-[#8B949E] mt-0.5">Average forecast</div>
+                <div className="text-[10px] sm:text-xs text-[#8B949E] mt-0.5">{tr('pitch_average_forecast', language)}</div>
               </>
             )}
           </div>
 
           {researchMode ? (
             <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
-              <div className="text-[11px] sm:text-xs font-semibold text-[#8B949E] uppercase">Expected Minutes</div>
+              <div className="text-[11px] sm:text-xs font-semibold text-[#8B949E] uppercase">{tr('pitch_expected_minutes', language)}</div>
               <div className="text-2xl font-black text-[#58A6FF] mt-1">
-                {player.expected_minutes != null ? player.expected_minutes : '—'} <span className="text-xs sm:text-sm text-[#8B949E] font-normal">mins</span>
+                <Num>{player.expected_minutes != null ? player.expected_minutes : '—'}</Num> <span className="text-xs sm:text-sm text-[#8B949E] font-normal">{language === 'KU' ? 'خولەک' : 'mins'}</span>
               </div>
               <div className="text-[10px] sm:text-xs text-[#8B949E] mt-0.5">
-                {player.expected_minutes != null ? 'Forecast field, not match-status evidence' : 'Not available for this decision object'}
+                {player.expected_minutes != null
+                  ? (language === 'KU' ? 'خانەی پێشبینی، نەک بەڵگەی دۆخی یاری' : 'Forecast field, not match-status evidence')
+                  : tr('pitch_not_avail_obj', language)}
               </div>
             </div>
           ) : (
             <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
-              <div className="text-[11px] sm:text-xs font-semibold text-[#8B949E] uppercase">Likely Range</div>
+              <div className="text-[11px] sm:text-xs font-semibold text-[#8B949E] uppercase">{tr('pitch_likely_range', language)}</div>
               <div className="text-2xl font-black text-[#58A6FF] mt-1">
-                {p25} – {p75} <span className="text-xs sm:text-sm text-[#8B949E] font-normal">pts</span>
+                <Num>{`${p25} – ${p75}`}</Num> <span className="text-xs sm:text-sm text-[#8B949E] font-normal">pts</span>
               </div>
               <div className="text-[10px] sm:text-xs text-[#8B949E] mt-0.5">Middle 50% distribution mass [P25, P75]</div>
             </div>
@@ -536,21 +549,21 @@ function PlayerDetailModal({
           /* Real research probability-card fields only -- never a
              fabricated percentile-score estimate for M3/V0 research data. */
           <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D] space-y-2">
-            <div className="text-xs sm:text-sm font-bold text-[#E6EDF3] uppercase tracking-wider">Probability Card</div>
+            <div className="text-xs sm:text-sm font-bold text-[#E6EDF3] uppercase tracking-wider">{tr('pitch_probability_card', language)}</div>
             {pStartPct != null || pSubPct != null || pDnpPct != null ? (
               <>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
-                    <div className="text-[10px] sm:text-xs text-[#8B949E]">P(start)</div>
-                    <div className="text-base sm:text-lg font-black text-[#58A6FF]">{pStartPct != null ? `${pStartPct}%` : '—'}</div>
+                    <div className="text-[10px] sm:text-xs text-[#8B949E]">{tr('pitch_p_start', language)}</div>
+                    <div className="text-base sm:text-lg font-black text-[#58A6FF]"><Num>{pStartPct != null ? `${pStartPct}%` : '—'}</Num></div>
                   </div>
                   <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
-                    <div className="text-[10px] sm:text-xs text-[#8B949E]">P(sub)</div>
-                    <div className="text-base sm:text-lg font-black text-[#F0A500]">{pSubPct != null ? `${pSubPct}%` : '—'}</div>
+                    <div className="text-[10px] sm:text-xs text-[#8B949E]">{tr('pitch_p_sub', language)}</div>
+                    <div className="text-base sm:text-lg font-black text-[#F0A500]"><Num>{pSubPct != null ? `${pSubPct}%` : '—'}</Num></div>
                   </div>
                   <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
-                    <div className="text-[10px] sm:text-xs text-[#8B949E]">P(DNP)</div>
-                    <div className="text-base sm:text-lg font-black text-[#F85149]">{pDnpPct != null ? `${pDnpPct}%` : '—'}</div>
+                    <div className="text-[10px] sm:text-xs text-[#8B949E]">{tr('pitch_p_dnp', language)}</div>
+                    <div className="text-base sm:text-lg font-black text-[#F85149]"><Num>{pDnpPct != null ? `${pDnpPct}%` : '—'}</Num></div>
                   </div>
                 </div>
                 {/* Raw probabilities always reconcile to 1.0 in the frozen
@@ -559,13 +572,15 @@ function PlayerDetailModal({
                     it never reads as a data-integrity problem. */}
                 {probabilitySumPct != null && probabilitySumPct !== 100 && (
                   <div className="text-[10px] sm:text-xs text-[#8B949E] italic">
-                    Shows {probabilitySumPct}% because each value is rounded independently -- the underlying probabilities reconcile to exactly 100%.
+                    {language === 'KU'
+                      ? <>نیشانی <Num>{probabilitySumPct}%</Num> دەدات چونکە هەر بەها بە جیاواز خڕ کراوەتەوە -- بەهای ڕاستەقینە بە تەواوی %١٠٠ دەبێت.</>
+                      : <>Shows <Num>{probabilitySumPct}%</Num> because each value is rounded independently -- the underlying probabilities reconcile to exactly 100%.</>}
                   </div>
                 )}
               </>
             ) : (
               <div className="text-[11px] sm:text-xs text-[#8B949E]">
-                No probability-card fields are available for this gameweek's source artifact (historical GW1-3 reconstruction does not include them).
+                {tr('pitch_no_prob_fields', language)}
               </div>
             )}
           </div>
@@ -580,50 +595,52 @@ function PlayerDetailModal({
           player.outlook_is_supplemental && player.likely_range && player.upside_score != null ? (
             <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D] space-y-2">
               <div className="flex items-center justify-between">
-                <div className="text-xs sm:text-sm font-bold text-[#E6EDF3] uppercase tracking-wider">Points Outlook</div>
+                <div className="text-xs sm:text-sm font-bold text-[#E6EDF3] uppercase tracking-wider">{tr('pitch_points_outlook', language)}</div>
                 <span className="text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#F0A500]/15 text-[#F0A500] border border-[#F0A500]/30">
-                  SUPPLEMENTAL
+                  {tr('pitch_supplemental', language)}
                 </span>
               </div>
               <div className="text-[10px] sm:text-xs text-[#8B949E]">
-                Supplemental estimated outlook -- not part of the original frozen forecast.
+                {tr('pitch_supplemental_note', language)}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
-                  <div className="text-[10px] sm:text-xs text-[#8B949E]">Likely range (middle 50%)</div>
-                  <div className="text-base sm:text-lg font-black text-[#58A6FF]">{player.likely_range[0]}–{player.likely_range[1]} <span className="text-[10px] sm:text-xs text-[#8B949E] font-normal">pts</span></div>
+                  <div className="text-[10px] sm:text-xs text-[#8B949E]">{tr('pitch_likely_range', language)}</div>
+                  <div className="text-base sm:text-lg font-black text-[#58A6FF]"><Num>{`${player.likely_range[0]}–${player.likely_range[1]}`}</Num> <span className="text-[10px] sm:text-xs text-[#8B949E] font-normal">pts</span></div>
                 </div>
                 <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
-                  <div className="text-[10px] sm:text-xs text-[#8B949E]">Upside (80th percentile)</div>
-                  <div className="text-base sm:text-lg font-black text-[#F0A500]">{player.upside_score} <span className="text-[10px] sm:text-xs text-[#8B949E] font-normal">pts</span></div>
+                  <div className="text-[10px] sm:text-xs text-[#8B949E]">{tr('pitch_upside_p80', language)}</div>
+                  <div className="text-base sm:text-lg font-black text-[#F0A500]"><Num>{player.upside_score}</Num> <span className="text-[10px] sm:text-xs text-[#8B949E] font-normal">pts</span></div>
                 </div>
               </div>
               <div className="text-[10px] sm:text-xs text-[#8B949E] italic">
-                Outcomes outside this range remain possible -- P80 is not a maximum or a "most likely score."
+                {tr('pitch_outside_range', language)}
               </div>
               <details className="text-[10px] sm:text-xs text-[#8B949E]">
-                <summary className="cursor-pointer font-semibold text-[#58A6FF] select-none">More detail &amp; methodology</summary>
+                <summary className="cursor-pointer font-semibold text-[#58A6FF] select-none">{tr('pitch_more_detail', language)}</summary>
                 <div className="mt-2 space-y-1.5 pl-1">
-                  {player.high_upside_score != null && <div>90th percentile: <span className="font-semibold text-[#E6EDF3]">{player.high_upside_score} pts</span></div>}
-                  {player.prob_10_plus != null && <div>Chance of 10+ points: <span className="font-semibold text-[#E6EDF3]">{Math.round(player.prob_10_plus * 100)}%</span></div>}
-                  {player.prob_15_plus != null && <div>Chance of 15+ points: <span className="font-semibold text-[#E6EDF3]">{Math.round(player.prob_15_plus * 100)}%</span></div>}
+                  {player.high_upside_score != null && <div>{language === 'KU' ? 'لقی ٩٠' : '90th percentile'}: <span className="font-semibold text-[#E6EDF3]"><Num>{player.high_upside_score}</Num> pts</span></div>}
+                  {player.prob_10_plus != null && <div>{language === 'KU' ? 'ئەگەری ١٠+ خاڵ' : 'Chance of 10+ points'}: <span className="font-semibold text-[#E6EDF3]"><Num>{Math.round(player.prob_10_plus * 100)}%</Num></span></div>}
+                  {player.prob_15_plus != null && <div>{language === 'KU' ? 'ئەگەری ١٥+ خاڵ' : 'Chance of 15+ points'}: <span className="font-semibold text-[#E6EDF3]"><Num>{Math.round(player.prob_15_plus * 100)}%</Num></span></div>}
                   <div className="pt-1 border-t border-[#30363D]/60 mt-1.5">
-                    Estimated by an independent Monte Carlo simulation built from this player&apos;s already-frozen
+                    {language === 'KU'
+                      ? 'خەمڵێنراوە لەڕێگەی خۆشکردنەوەی مۆنتی کارلۆی سەربەخۆوە کە لەسەر خانە پێشبینیکراوەکانی ئامادەبوون/گۆڵ/یارمەتی/بێ‌گۆڵ‌بوونی تیمی بەرامبەر/بەدەستهێنانی جێگیرکراو دروستکراوە (١٠٬٠٠٠ هەفتەی خۆشکردنەوە) -- بەشێک نییە لە پێشبینیی سەرەکیی M3، هێشتا بەراورد نەکراوە لەگەڵ ئەنجامی ڕاستەقینە، و هەر خانەیەکی خاڵبەندی وەک سەربەخۆ دادەنرێت (پەیوەندی ڕاستەقینەی نێوان مەیلی گۆڵ و یارمەتی لە یارییەکی بەهێزدا لەوانەیە مەودای ڕاستەقینە لەوەی نیشانکراو فراوانتر بکات).'
+                      : <>Estimated by an independent Monte Carlo simulation built from this player&apos;s already-frozen
                     appearance/goal/assist/clean-sheet/save expected-points components (10,000 simulated
                     gameweeks) -- not part of the original M3 forecast, not calibrated against real outcomes
                     yet, and assumes each scoring component is independent (real correlation between e.g. a
                     striker&apos;s goal and assist chances in the same match would likely widen the true range
-                    further than shown here).
+                    further than shown here).</>}
                   </div>
                 </div>
               </details>
             </div>
           ) : (
             <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
-              <div className="text-xs sm:text-sm font-bold text-[#E6EDF3] uppercase tracking-wider">Points Outlook</div>
-              <div className="text-base sm:text-lg font-black text-[#8B949E] mt-1">Range not available</div>
+              <div className="text-xs sm:text-sm font-bold text-[#E6EDF3] uppercase tracking-wider">{tr('pitch_points_outlook', language)}</div>
+              <div className="text-base sm:text-lg font-black text-[#8B949E] mt-1">{tr('pitch_range_not_avail', language)}</div>
               <div className="text-[10px] sm:text-xs text-[#8B949E] mt-0.5">
-                No supplemental outlook has been published for this player/gameweek yet.
+                {tr('pitch_range_not_avail_note', language)}
               </div>
             </div>
           )
