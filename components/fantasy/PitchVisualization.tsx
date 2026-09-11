@@ -347,17 +347,30 @@ function PlayerPitchCard({ player, onClick, researchMode = false, language = 'EN
         <ClubJerseySvg club={player.club} position={player.position} isCaptain={isCap} />
       </div>
 
-      {/* Name and Metric Plate */}
-      <div className="mt-1 w-full bg-[#0D1117]/95 backdrop-blur-sm border border-white/20 rounded-lg p-1 text-center shadow-lg hover:border-[#58A6FF] transition-colors">
-        <div className="text-[10px] sm:text-xs font-bold text-[#E6EDF3] truncate" title={player.name}>
+      {/* Name and Metric Plate -- every row is its own full-width,
+          text-center block (or a flex-wrap row that still centers via
+          justify-center regardless of how many lines it wraps to), so
+          content is centered relative to the CARD, never relative to
+          whatever the truncated name/xP text's own natural width happens
+          to be. Nothing here is centered relative to a sibling element --
+          each row centers within the full width of this wrapper, which
+          itself is w-full of the (already fixed) equal-width card. */}
+      <div className="mt-1 w-full bg-[#0D1117]/95 backdrop-blur-sm border border-white/20 rounded-lg p-1 shadow-lg hover:border-[#58A6FF] transition-colors">
+        <div className="w-full text-center text-[10px] sm:text-xs font-bold text-[#E6EDF3] truncate" title={player.name}>
           {player.web_name || player.name}
         </div>
-        <div className="text-[8px] sm:text-[9px] text-[#8B949E] truncate">
+        <div className="w-full text-center text-[8px] sm:text-[9px] text-[#8B949E] truncate">
           {player.opponent
             ? `${player.club.slice(0, 3).toUpperCase()} vs ${player.opponent.slice(0, 3).toUpperCase()}${venueLabel ? ` (${venueLabel})` : ''}`
             : player.club}
         </div>
-        <div className="flex items-center justify-center gap-1 mt-0.5">
+        {/* flex-wrap (not nowrap) is the actual fix: on a narrow card the
+            xP text + points/status badge together are often wider than
+            the card itself -- with nowrap the overflow spills mostly to
+            one side, which is what looked like a left shift; wrapping
+            keeps each line short enough to stay genuinely centered via
+            justify-center instead of overflowing asymmetrically. */}
+        <div className="w-full flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 mt-0.5">
           <span className="text-[10px] sm:text-[11px] font-extrabold text-[#3FB950]" title={player.xp_unavailable ? 'Per-player xP not available for this decision object' : undefined}>
             {player.xp_unavailable ? 'xP —' : <Num>{`${expPoints.toFixed(2)} xP`}</Num>}
           </span>
@@ -379,7 +392,7 @@ function PlayerPitchCard({ player, onClick, researchMode = false, language = 'EN
             </span>
           )}
         </div>
-        <div className="flex justify-between items-center text-[8px] text-[#8B949E] px-0.5 mt-0.5 border-t border-[#30363D]/60 pt-0.5">
+        <div className="w-full flex flex-wrap justify-center items-center gap-x-1 text-[8px] text-[#8B949E] px-0.5 mt-0.5 border-t border-[#30363D]/60 pt-0.5">
           {researchMode ? (
             <span className="text-[#58A6FF] font-semibold">
               {player.starting_prob !== undefined ? <><Num>{`${Math.round(player.starting_prob * 100)}%`}</Num> {tr('pitch_p_start', language)}</> : 'No probability data'}
