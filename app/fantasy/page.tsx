@@ -73,6 +73,13 @@ interface PlayerRow {
   opponent_resolved?: string | null
   was_home?: boolean | null
   fixture_id?: string | null
+  likely_range?: [number, number] | null
+  upside_score?: number | null
+  high_upside_score?: number | null
+  prob_10_plus?: number | null
+  prob_15_plus?: number | null
+  prob_20_plus?: number | null
+  outlook_is_supplemental?: boolean | null
 }
 
 interface OwnStartResponse {
@@ -155,6 +162,17 @@ function toFplPlayer(p: PlayerRow, benchIndex?: { outfield: number; isReserveGk:
     // genuinely has none, e.g. an unresolved transferred-out player row.
     opponent: p.opponent_resolved ?? undefined,
     home_away: p.was_home === true ? 'H' : p.was_home === false ? 'A' : undefined,
+    // SUPPLEMENTAL outlook (Monte Carlo, separate from the frozen xP
+    // above) -- only ever set when the source explicitly flagged it as
+    // such; left undefined otherwise so the modal's "Range not available"
+    // path renders instead of a fabricated range.
+    likely_range: p.outlook_is_supplemental && p.likely_range ? p.likely_range : undefined,
+    upside_score: p.outlook_is_supplemental && p.upside_score != null ? p.upside_score : undefined,
+    high_upside_score: p.outlook_is_supplemental && p.high_upside_score != null ? p.high_upside_score : undefined,
+    prob_10_plus: p.outlook_is_supplemental && p.prob_10_plus != null ? p.prob_10_plus : undefined,
+    prob_15_plus: p.outlook_is_supplemental && p.prob_15_plus != null ? p.prob_15_plus : undefined,
+    prob_20_plus: p.outlook_is_supplemental && p.prob_20_plus != null ? p.prob_20_plus : undefined,
+    outlook_is_supplemental: p.outlook_is_supplemental ?? undefined,
   }
 }
 

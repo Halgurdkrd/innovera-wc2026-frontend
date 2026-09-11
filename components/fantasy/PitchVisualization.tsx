@@ -569,7 +569,67 @@ function PlayerDetailModal({
               </div>
             )}
           </div>
-        ) : (
+        ) : null}
+
+        {/* SUPPLEMENTAL points-outlook (separate Monte Carlo artifact, see
+            research/.../supplemental_outlook/) -- never the original
+            frozen forecast, always labelled as such, never merged into
+            predicted_xp above. Never invents a range/upside when the
+            source has none -- shows "Range not available" instead. */}
+        {researchMode && (
+          player.outlook_is_supplemental && player.likely_range && player.upside_score != null ? (
+            <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D] space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="text-xs sm:text-sm font-bold text-[#E6EDF3] uppercase tracking-wider">Points Outlook</div>
+                <span className="text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#F0A500]/15 text-[#F0A500] border border-[#F0A500]/30">
+                  SUPPLEMENTAL
+                </span>
+              </div>
+              <div className="text-[10px] sm:text-xs text-[#8B949E]">
+                Supplemental estimated outlook -- not part of the original frozen forecast.
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
+                  <div className="text-[10px] sm:text-xs text-[#8B949E]">Likely range (middle 50%)</div>
+                  <div className="text-base sm:text-lg font-black text-[#58A6FF]">{player.likely_range[0]}–{player.likely_range[1]} <span className="text-[10px] sm:text-xs text-[#8B949E] font-normal">pts</span></div>
+                </div>
+                <div className="p-2 bg-[#161B22] rounded-lg border border-[#30363D]/60">
+                  <div className="text-[10px] sm:text-xs text-[#8B949E]">Upside (80th percentile)</div>
+                  <div className="text-base sm:text-lg font-black text-[#F0A500]">{player.upside_score} <span className="text-[10px] sm:text-xs text-[#8B949E] font-normal">pts</span></div>
+                </div>
+              </div>
+              <div className="text-[10px] sm:text-xs text-[#8B949E] italic">
+                Outcomes outside this range remain possible -- P80 is not a maximum or a "most likely score."
+              </div>
+              <details className="text-[10px] sm:text-xs text-[#8B949E]">
+                <summary className="cursor-pointer font-semibold text-[#58A6FF] select-none">More detail &amp; methodology</summary>
+                <div className="mt-2 space-y-1.5 pl-1">
+                  {player.high_upside_score != null && <div>90th percentile: <span className="font-semibold text-[#E6EDF3]">{player.high_upside_score} pts</span></div>}
+                  {player.prob_10_plus != null && <div>Chance of 10+ points: <span className="font-semibold text-[#E6EDF3]">{Math.round(player.prob_10_plus * 100)}%</span></div>}
+                  {player.prob_15_plus != null && <div>Chance of 15+ points: <span className="font-semibold text-[#E6EDF3]">{Math.round(player.prob_15_plus * 100)}%</span></div>}
+                  <div className="pt-1 border-t border-[#30363D]/60 mt-1.5">
+                    Estimated by an independent Monte Carlo simulation built from this player&apos;s already-frozen
+                    appearance/goal/assist/clean-sheet/save expected-points components (10,000 simulated
+                    gameweeks) -- not part of the original M3 forecast, not calibrated against real outcomes
+                    yet, and assumes each scoring component is independent (real correlation between e.g. a
+                    striker&apos;s goal and assist chances in the same match would likely widen the true range
+                    further than shown here).
+                  </div>
+                </div>
+              </details>
+            </div>
+          ) : (
+            <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
+              <div className="text-xs sm:text-sm font-bold text-[#E6EDF3] uppercase tracking-wider">Points Outlook</div>
+              <div className="text-base sm:text-lg font-black text-[#8B949E] mt-1">Range not available</div>
+              <div className="text-[10px] sm:text-xs text-[#8B949E] mt-0.5">
+                No supplemental outlook has been published for this player/gameweek yet.
+              </div>
+            </div>
+          )
+        )}
+
+        {!researchMode && (
           <>
             {/* Upside Percentiles */}
             <div className="grid grid-cols-2 gap-3">

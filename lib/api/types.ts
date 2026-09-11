@@ -94,6 +94,12 @@ export interface FPLPlayer {
   prob_10_plus?: number
   prob_15_plus?: number
   prob_20_plus?: number
+  // True only when these five fields came from the SEPARATE, supplemental
+  // Monte Carlo outlook artifact (research/.../supplemental_outlook/) --
+  // never set for the legacy FPL-03 page's own fields, and must always be
+  // rendered with an explicit "supplemental, not part of the original
+  // frozen forecast" label, never merged silently into the frozen xP.
+  outlook_is_supplemental?: boolean
   actual_points?: number | null
   // 'NOT_TRACKED' means no live match-state evidence exists for this
   // player at all (e.g. a frozen research forecast for an unplayed
