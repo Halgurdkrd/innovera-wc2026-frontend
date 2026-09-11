@@ -38,14 +38,27 @@ export class IntentRouter {
     const mentionsM3 = q.includes('m3_shrunk') || q.includes('m3 shrunk') || /\bm3\b/.test(q)
     const mentionsV0 = q.includes('v0_control') || q.includes('v0 control') || /\bv0\b/.test(q)
     const mentionsResearchModel = mentionsM3 || mentionsV0 || q.includes('research model') || q.includes('research view')
+
+    // A two-gameweek delta question ("what changed between GW3 and GW4?")
+    // is a real, common phrasing that never mentions "m3"/"v0"/"research
+    // model" explicitly -- a real bug found via testing: this check was
+    // previously nested INSIDE the mentionsResearchModel branch, so it was
+    // unreachable for any ordinary user phrasing and silently fell through
+    // to a single-gameweek object summary instead. Checked independently,
+    // and requires actual evidence of TWO distinct gameweek numbers (not
+    // just the word "gameweek") so it doesn't misfire on an unrelated
+    // "what changed" question that only names one GW.
+    const gwNumbers = new Set(Array.from(q.matchAll(/\bgw\s*([1-4])\b|\bgameweek\s*([1-4])\b/g)).map((m) => m[1] || m[2]))
+    const mentionsTwoGameweeks = gwNumbers.size >= 2
+    if (
+      mentionsTwoGameweeks &&
+      (q.includes('change') || q.includes('different') || q.includes('difference')) &&
+      (q.includes('between') || q.includes('from') || q.includes('to'))
+    ) {
+      return 'GAMEWEEK_DELTA'
+    }
+
     if (mentionsResearchModel) {
-      if (
-        (q.includes('change') || q.includes('different') || q.includes('difference')) &&
-        (q.includes('gameweek') || q.includes('gw')) &&
-        (q.includes('between') || q.includes('from') || q.includes('to'))
-      ) {
-        return 'GAMEWEEK_DELTA'
-      }
       return 'RESEARCH_MODEL_QUERY'
     }
 

@@ -176,7 +176,7 @@ const translations = {
   squad_outlook_title:    { EN: 'Squad Outlook',            KU: 'پێشبینی مەودای تیم' },
   squad_outlook_mean:     { EN: 'Average expected scored total', KU: 'تێکڕای کۆی خاڵی چاوەڕوانکراو' },
   squad_outlook_not_calibrated: { EN: 'Experimental estimated outlook -- not calibrated. Supplemental analysis, created after the original freeze.', KU: 'پێشبینیکراوی تاقیکارییە -- هێشتا ڕێکنەخراوە (calibrated نییە). شیکارییەکی تەواوکەرە، دروستکراوە دوای جێگیرکردنی سەرەتایی.' },
-  squad_outlook_dependence_note: { EN: 'Assumes players score independently of each other -- likely understates real squad-total variance (teammates share the same match outcomes).', KU: 'وا دادەنرێت یاریزانان بە سەربەخۆیی خاڵ وەردەگرن -- لەوانەیە جیاوازی ڕاستەقینەی کۆی تیم کەمتر لە ڕاستی نیشان بدات.' },
+  squad_outlook_dependence_note: { EN: 'This simulation assumes independent player scores; real match relationships may change the estimated range.', KU: 'ئەم پێشبینیکراوە وا دادەنرێت یاریزانان بە سەربەخۆیی خاڵ وەردەگرن؛ پەیوەندییە ڕاستەقینەکانی یاری لەوانەیە مەودای خەمڵێنراو بگۆڕن.' },
   squad_outlook_autosub_note: { EN: 'Includes automatic substitutions for a non-playing starter and a fixed transfer-hit deduction, where applicable.', KU: 'گۆڕینی خۆکار بۆ یاریزانی سەرەکی کە یاری ناکات و کەمکردنەوەی خاڵی گواستنەوەی جێگیر (ئەگەر پەیوەستبێت) لەخۆدەگرێت.' },
   squad_outlook_raw_xi_note: { EN: "This object's own frozen score does not include captain-doubling -- see raw starting-XI total for the directly comparable figure.", KU: 'خاڵی جێگیری خۆی ئەم بژاردەیە دووبارەکردنەوەی کاپتنی لەخۆناگرێت -- کۆی خاو یاریی سەرەکی بۆ بەراوردی ڕاستەوخۆ ببینە.' },
   own_start_predicted_xi:  { EN: 'Predicted XI total xP',   KU: 'کۆی خاڵی پێشبینیکراوی یاریی سەرەکی' },

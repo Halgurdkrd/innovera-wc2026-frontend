@@ -226,6 +226,14 @@ async function fetchStatus(): Promise<StatusResponse> {
   return res.json()
 }
 
+interface RosterPlayer { stable_player_id: number; name: string; position: string; club: string; price_tenths?: number }
+interface BenchReconstruction {
+  status: string
+  artifact_version?: string
+  starting_players?: RosterPlayer[]
+  bench_players?: RosterPlayer[]
+  bench_uniqueness_note?: string
+}
 interface SquadOutlookObject {
   status: string
   reason?: string
@@ -236,6 +244,8 @@ interface SquadOutlookObject {
   definition?: string
   definition_note?: string
   bench_membership_available?: boolean
+  formation?: string | null
+  bench_reconstruction?: BenchReconstruction
   raw_starting_xi_total?: { mean: number; p25: number; p75: number; p80: number } | null
 }
 
@@ -284,6 +294,25 @@ function SquadOutlookPanel({ gw, tab, model, language }: { gw: number; tab: Obje
       </div>
       {obj.raw_starting_xi_total && (
         <div className="text-[11px] text-neutral-400 mb-1">{tr('squad_outlook_raw_xi_note', language)}</div>
+      )}
+      {obj.bench_reconstruction?.status === 'VERIFIED_MATCH' && (
+        <div className="mt-2 mb-2 p-2 rounded border border-neutral-700 bg-neutral-900/60">
+          <div className="text-[11px] font-semibold text-neutral-300 mb-1">
+            {language === 'KU' ? `دانانی یاریزانان: ${obj.formation ?? '—'}` : `Formation: ${obj.formation ?? '—'}`}
+            {' • '}{language === 'KU' ? 'یەدەگی بنیادنراوەتەوە' : 'Reconstructed bench'}
+          </div>
+          <div className="text-[11px] text-neutral-400">
+            {language === 'KU' ? 'یاریزانانی سەرەکی: ' : 'Starters: '}
+            {(obj.bench_reconstruction.starting_players ?? []).map((p) => p.name).join(', ')}
+          </div>
+          <div className="text-[11px] text-neutral-400 mt-0.5">
+            {language === 'KU' ? 'یەدەگ (بە ڕیزبەندی): ' : 'Bench (in order): '}
+            {(obj.bench_reconstruction.bench_players ?? []).map((p) => `${p.name} (${p.position})`).join(', ')}
+          </div>
+          {obj.bench_reconstruction.bench_uniqueness_note && (
+            <div className="text-[10px] text-amber-500/80 mt-1">{obj.bench_reconstruction.bench_uniqueness_note}</div>
+          )}
+        </div>
       )}
       <div className="text-[11px] text-amber-400/90">{tr('squad_outlook_not_calibrated', language)}</div>
       <div className="text-[11px] text-neutral-500 mt-1">{tr('squad_outlook_dependence_note', language)}</div>

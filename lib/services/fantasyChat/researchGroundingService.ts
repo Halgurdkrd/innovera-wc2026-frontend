@@ -65,6 +65,7 @@ interface OwnStartResponse {
   net_points?: number
   artifact_version?: string
   bank_after?: number | null
+  predicted_xi_total_xp?: number | null
 }
 
 export type ObjectLabel = 'OWN_START' | 'A_BLANK_SLATE' | 'B_LEGAL_BEST_XI' | 'PRIMARY' | 'OPTIONAL_XI_1' | 'OPTIONAL_XI_2' | 'OPTIONAL_XI_3' | 'OPTIONAL_XI_4'
@@ -241,6 +242,40 @@ function publicModelLabel(model: ResearchModel, lang: 'en' | 'ku'): string {
 function parseGameweek(q: string, fallback: number): number {
   const m = q.match(/\bgw\s*([1-4])\b/) || q.match(/\bgame\s*[\s-]?\s*week\s*([1-4])\b/)
   return m ? parseInt(m[1], 10) : fallback
+}
+
+// Gameweek resolution with conversational stickiness -- an explicit GW in
+// the CURRENT message always wins; otherwise, a GW explicitly established
+// earlier in THIS conversation (by either party) persists into a later
+// bare follow-up, taking precedence over the page's own (unchanged, still
+// passive) starting gameweek. A real bug this fixes: page starts on GW3,
+// user explicitly asks about "GW4 AI Manager", then asks a bare "why
+// Martin Ødegaard?" -- without this, the bare follow-up silently reverted
+// to the page's original GW3 (where the full candidate pool required to
+// resolve a named player doesn't even exist for the historical
+// reconstruction range), instead of staying on the GW4 the conversation
+// had already moved to. Falls back to the page context (the initial
+// context supplied by the page/tab), then the function's own final
+// default, exactly matching the required precedence order.
+function lastGwMentionIn(text: string): number | null {
+  // The LAST occurrence within one message, not the first -- a reply like
+  // "changed between GW3 and GW4" or "GW3=62.16, GW4=60.39" names the
+  // gameweek the conversation is now newly focused on LAST, and a plain
+  // first-match regex was picking up the earlier, now-superseded GW3
+  // mention instead, defeating stickiness entirely.
+  const matches = Array.from(text.matchAll(/\bgw\s*([1-4])\b|\bgame\s*[\s-]?\s*week\s*([1-4])\b/gi))
+  if (matches.length === 0) return null
+  const last = matches[matches.length - 1]
+  return parseInt(last[1] || last[2], 10)
+}
+function parseGameweekSticky(q: string, pageContextGw: number | undefined, history: ConversationTurn[], fallback: number): number {
+  const current = lastGwMentionIn(q)
+  if (current != null) return current
+  for (let i = history.length - 1; i >= 0; i--) {
+    const m = lastGwMentionIn(history[i].content)
+    if (m != null) return m
+  }
+  return pageContextGw ?? fallback
 }
 
 // "top 10" / "ten" / bare "top" (defaults to 5) -- deterministic, never
@@ -639,23 +674,80 @@ export type PlayerMentionResult<T extends NamedEntity = OwnStartPlayer> =
 // against one decision object's ~15 players or the full ~500-player pool
 // -- named-player questions must be resolvable regardless of which object
 // happens to be the current page tab.
-function resolvePlayerMention<T extends NamedEntity>(question: string, players: T[]): PlayerMentionResult<T> {
-  const q = question.toLowerCase()
-  const latinMatches = players.filter((p) => {
-    const parts = p.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2)
-    return parts.some((part) => q.includes(part))
-  })
-  if (latinMatches.length === 1) return { kind: 'FOUND', player: latinMatches[0] }
-  if (latinMatches.length > 1) {
-    // Multiple players share a substring of their name (e.g. two "Silva"s)
-    // -- a real collision, not resolved by guessing the first.
-    const distinctIds = new Set(latinMatches.map((p) => p.stable_player_id))
-    if (distinctIds.size > 1) return { kind: 'AMBIGUOUS', candidates: latinMatches }
-    return { kind: 'FOUND', player: latinMatches[0] }
-  }
-  if (!isSoraniScript(question)) return { kind: 'NONE' }
+// Diacritic/special-letter normalization for matching only -- the ORIGINAL
+// name is always what's returned/displayed (via the matched player object
+// itself), never this normalized form. NFKD + combining-mark stripping
+// handles ordinary accents (é, ü, ñ, ç); the explicit map covers the
+// Latin letters that decomposition does NOT reduce to a plain letter+mark
+// (Ø, Å, Æ, ß are their own code points, not "O with a diacritic").
+const SPECIAL_LETTER_MAP: Record<string, string> = { 'ø': 'o', 'å': 'a', 'æ': 'ae', 'ß': 'ss', 'đ': 'd', 'ł': 'l' }
+function normalizeForMatch(s: string): string {
+  const lower = s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+  return lower.replace(/[øåæßđł]/g, (c) => SPECIAL_LETTER_MAP[c] ?? c).trim()
+}
 
-  // Known-alias check (exact, verified) before the heuristic fallback.
+// True only if `needle` appears in `haystack` as a whole word (Unicode-
+// letter/digit-aware boundaries) -- NOT bare substring containment. A real
+// bug this fixes: "why Martin Ødegaard is good CHOICE" matched a player
+// named "Mohamed-Ali Cho" purely because the English word "choice"
+// contains "cho" as a substring, with no word boundary check at all.
+function isWordChar(ch: string | undefined): boolean {
+  if (!ch) return false
+  if (/[0-9]/.test(ch)) return true
+  // Any cased Unicode letter (Latin incl. Ø/Å/é/etc.) differs between its
+  // lower/upper forms -- avoids needing the regex \p{L} Unicode property
+  // escape, which requires the 'u' flag (unavailable at this project's
+  // configured TS compile target).
+  return ch.toLowerCase() !== ch.toUpperCase()
+}
+function wordBoundaryIncludes(haystack: string, needle: string): boolean {
+  if (!needle) return false
+  let idx = haystack.indexOf(needle)
+  while (idx !== -1) {
+    if (!isWordChar(haystack[idx - 1]) && !isWordChar(haystack[idx + needle.length])) return true
+    idx = haystack.indexOf(needle, idx + 1)
+  }
+  return false
+}
+
+// Matching precedence (weakest evidence only ever used when everything
+// stronger is silent): (1) exact normalized FULL name as a whole phrase --
+// "Martin Ødegaard" typed in full must resolve directly to him, never
+// become ambiguous merely because another player also happens to share
+// his first name ("Martin Dubravka"); (2) a single distinctive surname
+// (>=4 letters, to avoid short/common-word collisions) as a whole word;
+// (3) verified Kurdish aliases; (4) a constrained Sorani phonetic-skeleton
+// fallback, exact-equality only. Ordinary words ("choice", "good", "best")
+// can never match at any tier because every tier requires a real word-
+// boundary match against an actual (multi-letter) name token, not a raw
+// substring. Collisions at any tier are reported AMBIGUOUS, never guessed.
+function resolvePlayerMention<T extends NamedEntity>(question: string, players: T[]): PlayerMentionResult<T> {
+  const qNorm = normalizeForMatch(question)
+
+  // Precedence 1: exact normalized full name, present verbatim as a phrase.
+  const fullNameMatches = players.filter((p) => wordBoundaryIncludes(qNorm, normalizeForMatch(p.name)))
+  if (fullNameMatches.length > 0) {
+    const distinctIds = new Set(fullNameMatches.map((p) => p.stable_player_id))
+    if (distinctIds.size === 1) return { kind: 'FOUND', player: fullNameMatches[0] }
+    return { kind: 'AMBIGUOUS', candidates: fullNameMatches }
+  }
+
+  // Precedence 2: one distinctive name part (surname, or any sufficiently
+  // long name token) present as a whole word -- e.g. bare "Foden" or "Isak".
+  const surnameMatches = players.filter((p) => {
+    const parts = normalizeForMatch(p.name).split(/\s+/).filter((w) => w.length >= 4)
+    return parts.some((part) => wordBoundaryIncludes(qNorm, part))
+  })
+  if (surnameMatches.length > 0) {
+    const distinctIds = new Set(surnameMatches.map((p) => p.stable_player_id))
+    if (distinctIds.size === 1) return { kind: 'FOUND', player: surnameMatches[0] }
+    return { kind: 'AMBIGUOUS', candidates: surnameMatches }
+  }
+
+  if (!isSoraniScript(question)) return { kind: 'NONE' }
+  const q = question.toLowerCase()
+
+  // Precedence 3: known-alias check (exact, verified) before the heuristic fallback.
   for (const [alias, englishFragment] of Object.entries(KNOWN_KURDISH_ALIASES)) {
     if (q.includes(alias)) {
       const matches = players.filter((p) => p.name.toLowerCase().includes(englishFragment.toLowerCase()))
@@ -664,26 +756,19 @@ function resolvePlayerMention<T extends NamedEntity>(question: string, players: 
     }
   }
 
-  // Heuristic phonetic transliteration fallback (e.g. "فۆدن" for "Foden"
-  // when no known alias/full name matched) -- NOT relied on alone: any
-  // skeleton collision across multiple distinct players is reported as
-  // ambiguous rather than picking whichever happens to be first in the array.
+  // Precedence 4: heuristic phonetic transliteration fallback (e.g.
+  // "فۆدن" for "Foden" when no known alias/full name matched) -- NOT
+  // relied on alone: any skeleton collision across multiple distinct
+  // players is reported as ambiguous rather than picking whichever
+  // happens to be first in the array. EXACT skeleton equality only --
+  // NOT ".includes()" substring containment, which was a confirmed real
+  // bug (a common Kurdish word's transliterated skeleton was a substring
+  // of unrelated players' skeletons purely by coincidence).
   const tokens = question.split(/\s+/).map(transliterateToLatinSkeleton).filter((t) => t.length >= 3)
   if (tokens.length === 0) return { kind: 'NONE' }
   const skeletonMatches = players.filter((p) => {
     const nameParts = p.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2)
     const nameSkeletons = nameParts.map((w) => w.replace(/[aeiouwy]/g, ''))
-    // EXACT skeleton equality only -- NOT ".includes()" substring
-    // containment. A real bug, found via testing against the full
-    // ~500-player pool (not just one ~15-player squad, where this had a
-    // much smaller collision surface): common Kurdish words transliterate
-    // to short skeletons that happen to be SUBSTRINGS of unrelated
-    // players' name skeletons purely by coincidence -- e.g. "باشترین"
-    // ("best/top") -> "bstrn", which CONTAINS "trn" (Tyrone) and "str"
-    // (Steur), producing a false multi-player collision for a completely
-    // unrelated ranking question. Exact equality does not have this
-    // failure mode and is the more conservative, defensible choice per
-    // the explicit instruction not to rely on skeleton matching alone.
     return tokens.some((t) => nameSkeletons.some((ns) => ns.length >= 3 && ns === t))
   })
   const distinctSkeletonIds = new Set(skeletonMatches.map((p) => p.stable_player_id))
@@ -771,15 +856,38 @@ function withoutUnsolicitedV0(suggestions: string[], pageContext: FantasyPageCon
 }
 
 export async function buildResearchGroundedAnswer(
-  question: string,
+  rawQuestion: string,
   intent: ChatIntent,
   lang: 'en' | 'ku',
   history: ConversationTurn[] = [],
   pageContext?: FantasyPageContext
 ): Promise<FantasyChatResponse> {
   const t0 = Date.now()
-  const q = question.toLowerCase()
   const sourceTypes: DataSourceType[] = ['ENNOVERA_RESEARCH_ARTIFACT']
+
+  // Resolved-clarification carryover: if the immediately preceding
+  // assistant turn was a "Which player did you mean: ..." clarification
+  // and this message is now short and unambiguous (a bare full name, or a
+  // click-through), the ORIGINAL question's intent (e.g. "why is X a good
+  // choice?") must still be answered -- not just a bare fact-dump for
+  // whichever name was typed, and never another round of clarification. A
+  // real, required behavior: "A full-name response or card click must
+  // resolve it and answer the original question, rather than restart
+  // clarification." Reconstructed by combining the prior user question's
+  // wording with the newly-disambiguated name so both the original intent
+  // ("why"/"select"/etc.) and the now-specific name are present together.
+  let question = rawQuestion
+  const lastAssistant = history.length > 0 ? history[history.length - 1] : null
+  const priorUser = history.length > 1 ? history[history.length - 2] : null
+  const looksLikeClarificationReply = rawQuestion.trim().split(/\s+/).length <= 5
+  if (
+    lastAssistant?.role === 'assistant' && priorUser?.role === 'user' &&
+    /which player did you mean|کامیان مەبەستتە/i.test(lastAssistant.content) &&
+    looksLikeClarificationReply
+  ) {
+    question = `${priorUser.content} (${rawQuestion})`
+  }
+  const q = question.toLowerCase()
 
   // Language precedence: (1) an explicit in-message request for a specific
   // reply language wins outright; (2) otherwise a clearly Sorani-script
@@ -828,59 +936,129 @@ export async function buildResearchGroundedAnswer(
   if (intent === 'GAMEWEEK_DELTA') {
     const model = parseModel(q, history) === 'BOTH' ? 'M3_SHRUNK' : (parseModel(q, history) as ResearchModel)
     const [gwA, gwB] = parseTwoGameweeks(q, 3)
-    const [respA, respB] = await Promise.all([fetchOwnStart(gwA, model), fetchOwnStart(gwB, model)])
+    // Keeps the active decision object from the page/conversation unless
+    // the question names a different one explicitly -- a two-GW question
+    // about Best XI must compare Best XI, not silently substitute the AI
+    // Manager (a real bug: this branch previously always used Own-Start).
+    const deltaObject = parseObject(q, pageContext?.object ?? 'OWN_START')
 
-    if (respA.status !== 'HISTORICAL_RECONSTRUCTION' && respA.status !== 'FINAL_FROZEN_FORECAST') {
-      return na(respA.reason || `${model} GW${gwA} is not available.`, gwA, model, respA.status)
+    if (deltaObject === 'OWN_START') {
+      const [respA, respB] = await Promise.all([fetchOwnStart(gwA, model), fetchOwnStart(gwB, model)])
+      if (respA.status !== 'HISTORICAL_RECONSTRUCTION' && respA.status !== 'FINAL_FROZEN_FORECAST') {
+        return na(respA.reason || `${model} GW${gwA} is not available.`, gwA, model, respA.status)
+      }
+      if (respB.status !== 'HISTORICAL_RECONSTRUCTION' && respB.status !== 'FINAL_FROZEN_FORECAST') {
+        return na(respB.reason || `${model} GW${gwB} is not available.`, gwB, model, respB.status)
+      }
+
+      const xiA = new Set((respA.players || []).filter((p) => p.role === 'XI').map((p) => p.stable_player_id))
+      const xiB = new Set((respB.players || []).filter((p) => p.role === 'XI').map((p) => p.stable_player_id))
+      const squadA = new Set((respA.players || []).map((p) => p.stable_player_id))
+      const squadB = new Set((respB.players || []).map((p) => p.stable_player_id))
+      const droppedOut = (respA.players || []).filter((p) => !squadB.has(p.stable_player_id))
+      const broughtIn = (respB.players || []).filter((p) => !squadA.has(p.stable_player_id))
+      const xiOut = (respA.players || []).filter((p) => xiA.has(p.stable_player_id) && squadB.has(p.stable_player_id) && !xiB.has(p.stable_player_id))
+      const xiIn = (respB.players || []).filter((p) => xiB.has(p.stable_player_id) && squadA.has(p.stable_player_id) && !xiA.has(p.stable_player_id))
+      const transfer = respB.transfer_event
+      const capA = respA.players?.find((p) => p.is_captain)
+      const capB = respB.players?.find((p) => p.is_captain)
+      const viceA = respA.players?.find((p) => p.is_vice)
+      const viceB = respB.players?.find((p) => p.is_vice)
+      const isFutureB = respB.status === 'FINAL_FROZEN_FORECAST'
+      const isFutureA = respA.status === 'FINAL_FROZEN_FORECAST'
+
+      const lines: string[] = [lang === 'ku'
+        ? `گۆڕانکارییەکانی ${publicModelLabel(model, 'ku')} (AI Manager) لە GW${gwA} بۆ GW${gwB}:`
+        : `Changes in ${publicModelLabel(model, 'en')}'s AI Manager from GW${gwA} to GW${gwB}:`]
+      if (transfer && transfer.player_out && transfer.player_in) {
+        lines.push(`- Transfer: ${transfer.player_out} → ${transfer.player_in}`)
+      } else if (broughtIn.length > 0 || droppedOut.length > 0) {
+        lines.push(`- Squad changes: out ${droppedOut.map((p) => p.name).join(', ') || 'none'}; in ${broughtIn.map((p) => p.name).join(', ') || 'none'}`)
+      } else {
+        lines.push('- No squad transfer recorded between these gameweeks.')
+      }
+      if (xiOut.length > 0 || xiIn.length > 0) {
+        lines.push(`- Starting XI changes (same squad, different role): benched ${xiOut.map((p) => p.name).join(', ') || 'none'}; promoted to XI ${xiIn.map((p) => p.name).join(', ') || 'none'}`)
+      }
+      if (capA?.name !== capB?.name || viceA?.name !== viceB?.name) {
+        lines.push(`- Captain: ${capA?.name ?? 'unknown'} → ${capB?.name ?? 'unknown'}; Vice: ${viceA?.name ?? 'unknown'} → ${viceB?.name ?? 'unknown'}`)
+      }
+      if (respA.hit_cost != null || respB.hit_cost != null || respA.free_transfers_before != null || respB.free_transfers_before != null) {
+        lines.push(`- Hit cost: ${respA.hit_cost ?? 'n/a'} → ${respB.hit_cost ?? 'n/a'}; Free transfers before: ${respA.free_transfers_before ?? 'n/a'} → ${respB.free_transfers_before ?? 'n/a'}; Bank after: ${respA.bank_after ?? 'n/a'} → ${respB.bank_after ?? 'n/a'}`)
+      }
+      // Never present a forecast-vs-actual gap as a "measured improvement" --
+      // only compares two like-for-like quantities, and states plainly
+      // when one or both sides are still a forecast.
+      if (!isFutureA && !isFutureB) {
+        const netDelta = (respB.net_points ?? 0) - (respA.net_points ?? 0)
+        lines.push(`- Net points (both actual): GW${gwA}=${respA.net_points} → GW${gwB}=${respB.net_points} (${netDelta >= 0 ? '+' : ''}${netDelta.toFixed(1)})`)
+      } else {
+        lines.push(`- Net points: GW${gwA}=${isFutureA ? 'forecast only, gameweek not yet played' : (respA.net_points ?? 'not available')}; GW${gwB}=${isFutureB ? 'forecast only, gameweek not yet played' : (respB.net_points ?? 'not available')}. Predicted XI xP: GW${gwA}=${respA.predicted_xi_total_xp ?? 'n/a'}, GW${gwB}=${respB.predicted_xi_total_xp ?? 'n/a'} (a forecast total, not comparable to a realized net-points total).`)
+      }
+
+      return {
+        answer: lines.join('\n'), intent, requestedGameweek: gwB, contextStatus: 'GENERAL', sourceTypes,
+        sourceBadge: `${citation(model, gwA, respA.artifact_version)} vs ${citation(model, gwB, respB.artifact_version)} • AI Manager`,
+        referencedPlayers: [...droppedOut, ...broughtIn, ...xiOut, ...xiIn].map(toReferencedPlayer),
+        suggestedFollowups: withoutUnsolicitedV0([`Show GW${gwB} AI Manager`, `Who was the captain in GW${gwB}?`], pageContext, `Who was the captain in GW${gwB}?`),
+        generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
+        llmUsed: false, responseTimeMs: Date.now() - t0,
+        researchModel: model, researchGameweek: gwB, researchArtifactVersion: respB.artifact_version, researchArtifactStatus: respB.status,
+      }
     }
-    if (respB.status !== 'HISTORICAL_RECONSTRUCTION' && respB.status !== 'FINAL_FROZEN_FORECAST') {
-      return na(respB.reason || `${model} GW${gwB} is not available.`, gwB, model, respB.status)
+
+    // A fresh-selection object (Best XI, Blank-Slate, Optional XI) has no
+    // ownership/transfer history -- differences between two gameweeks are
+    // "selection changes" (each gameweek's forecast independently re-
+    // selecting the best players under that object's rule), never called
+    // a "transfer", which only applies to the continuing AI Manager squad.
+    const objLabel = OBJECT_LABELS[deltaObject]
+    const [objA, objB] = await Promise.all([fetchObjectData(gwA, model, deltaObject), fetchObjectData(gwB, model, deltaObject)])
+    if (objA.status !== 'HISTORICAL_RECONSTRUCTION' && objA.status !== 'FINAL_FROZEN_FORECAST') {
+      return na(objA.reason || `${model} GW${gwA} ${objLabel} is not available.`, gwA, model, objA.status)
     }
+    if (objB.status !== 'HISTORICAL_RECONSTRUCTION' && objB.status !== 'FINAL_FROZEN_FORECAST') {
+      return na(objB.reason || `${model} GW${gwB} ${objLabel} is not available.`, gwB, model, objB.status)
+    }
+    const memA = Array.isArray(objA.player_membership) ? objA.player_membership : []
+    const memB = Array.isArray(objB.player_membership) ? objB.player_membership : []
+    const namesA = new Set(memA.map((p) => p.name))
+    const namesB = new Set(memB.map((p) => p.name))
+    const outNames = memA.filter((p) => !namesB.has(p.name))
+    const inNames = memB.filter((p) => !namesA.has(p.name))
+    const isFutureB = objB.status === 'FINAL_FROZEN_FORECAST'
+    const isFutureA = objA.status === 'FINAL_FROZEN_FORECAST'
 
-    const inA = new Set((respA.players || []).map((p) => p.stable_player_id))
-    const inB = new Set((respB.players || []).map((p) => p.stable_player_id))
-    const droppedOut = (respA.players || []).filter((p) => !inB.has(p.stable_player_id))
-    const broughtIn = (respB.players || []).filter((p) => !inA.has(p.stable_player_id))
-    const transfer = respB.transfer_event
-    const bothPlayed = respA.net_points != null && respB.net_points != null
-
-    const lines: string[] = []
-    lines.push(
-      lang === 'ku'
-        ? `گۆڕانکارییەکانی ${publicModelLabel(model, 'ku')} لە GW${gwA} بۆ GW${gwB}:`
-        : `Changes in ${publicModelLabel(model, 'en')} from GW${gwA} to GW${gwB}:`
-    )
-    if (transfer && transfer.player_out && transfer.player_in) {
-      lines.push(`- Transfer: ${transfer.player_out} → ${transfer.player_in}`)
-    } else if (broughtIn.length > 0 || droppedOut.length > 0) {
-      lines.push(`- Squad changes: out ${droppedOut.map((p) => p.name).join(', ') || 'none'}; in ${broughtIn.map((p) => p.name).join(', ') || 'none'}`)
+    const lines: string[] = [`Selection changes in ${objLabel} (${model}) from GW${gwA} to GW${gwB} -- a fresh independent selection each gameweek, not a manager's transfers:`]
+    lines.push(`- Formation: ${formatFormation(objA.formation)} → ${formatFormation(objB.formation)}`)
+    if (objA.captain !== objB.captain || objA.vice !== objB.vice) {
+      lines.push(`- Captain: ${objA.captain ?? 'unknown'} → ${objB.captain ?? 'unknown'}; Vice: ${objA.vice ?? 'unknown'} → ${objB.vice ?? 'unknown'}`)
+    }
+    if (outNames.length > 0 || inNames.length > 0) {
+      lines.push(`- Selection changes: out ${outNames.map((p) => p.name).join(', ') || 'none'}; in ${inNames.map((p) => p.name).join(', ') || 'none'}`)
     } else {
-      lines.push('- No squad transfer recorded between these gameweeks.')
+      lines.push('- No selection changes between these gameweeks (same 11 players).')
     }
-    if (bothPlayed) {
-      const netDelta = (respB.net_points ?? 0) - (respA.net_points ?? 0)
-      lines.push(`- Net points: GW${gwA}=${respA.net_points} → GW${gwB}=${respB.net_points} (${netDelta >= 0 ? '+' : ''}${netDelta.toFixed(1)})`)
+    if (!isFutureA && !isFutureB) {
+      const finalA = objA.final_points ?? objA.corrected_points
+      const finalB = objB.final_points ?? objB.corrected_points
+      lines.push(`- Final points (both actual): GW${gwA}=${finalA ?? 'n/a'} → GW${gwB}=${finalB ?? 'n/a'}`)
     } else {
-      lines.push(`- Net points: GW${gwA}=${respA.net_points ?? 'not available'}, GW${gwB}=${respB.net_points ?? 'actual points not available yet (not played)'}.`)
+      lines.push(`- Predicted XI xP: GW${gwA}=${objA.predicted_xi_xp ?? 'n/a'}${isFutureA ? ' (forecast, not played)' : ''}, GW${gwB}=${objB.predicted_xi_xp ?? 'n/a'}${isFutureB ? ' (forecast, not played)' : ''} -- not comparable to a realized points total when either side is still a forecast.`)
     }
 
     return {
-      answer: lines.join('\n'),
-      intent,
-      requestedGameweek: gwB,
-      contextStatus: 'GENERAL',
-      sourceTypes,
-      sourceBadge: `${citation(model, gwA, respA.artifact_version)} vs ${citation(model, gwB, respB.artifact_version)}`,
-      referencedPlayers: [...droppedOut, ...broughtIn].map(toReferencedPlayer),
-      suggestedFollowups: withoutUnsolicitedV0([`Compare M3_SHRUNK and V0_CONTROL for GW${gwB}`, `Who was the captain in GW${gwB}?`], pageContext, `Who was the captain in GW${gwB}?`),
-      generatedAt: new Date().toISOString(),
-      dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
-      llmUsed: false,
-      responseTimeMs: Date.now() - t0,
-      researchModel: model,
-      researchGameweek: gwB,
-      researchArtifactVersion: respB.artifact_version,
-      researchArtifactStatus: respB.status,
+      answer: lines.join('\n'), intent, requestedGameweek: gwB, contextStatus: 'GENERAL', sourceTypes,
+      sourceBadge: `${citation(model, gwA)} vs ${citation(model, gwB)} • ${objLabel}`,
+      referencedPlayers: [...outNames, ...inNames].slice(0, 10).map((p) => ({
+        id: p.stable_player_id ?? -1, name: p.name, webName: p.name, club: '', position: p.position as any,
+        price: p.price ?? 0, priceUnavailable: p.price == null, predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
+        actualPoints: p.actual_points ?? null, matchStatus: p.actual_points != null ? 'FT' : 'NOT_STARTED',
+      })),
+      suggestedFollowups: withoutUnsolicitedV0([`Show GW${gwB} ${objLabel}`], pageContext, `Show GW${gwB} ${objLabel}`),
+      generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
+      llmUsed: false, responseTimeMs: Date.now() - t0,
+      researchModel: model, researchGameweek: gwB, researchArtifactStatus: objB.status,
     }
   }
 
@@ -892,11 +1070,64 @@ export async function buildResearchGroundedAnswer(
   // hardcoded value -- the answer states which GW was actually used
   // (gwWasExplicit) whenever that resolution wasn't spelled out by the user.
   const gwExplicitInMessage = /\bgw\s*([1-4])\b/.test(q) || /\bgame\s*[\s-]?\s*week\s*([1-4])\b/.test(q)
-  const gw = parseGameweek(q, pageContext?.gameweek ?? 3)
+  const gw = parseGameweekSticky(q, pageContext?.gameweek, history, 3)
   const gwUsedNote = (lang: 'en' | 'ku') => gwExplicitInMessage ? '' : (lang === 'ku' ? '، دوایین هەفتەی تۆمارکراو' : ', the latest registered gameweek')
   const objectSel = parseObject(q, pageContext?.object ?? 'OWN_START')
 
   const POS_NAME: Record<Position, string> = { MID: 'midfielder', DEF: 'defender', FWD: 'forward', GK: 'goalkeeper' }
+
+  // Object-DEFINITION comparison questions ("why is Best £100m different
+  // from AI Manager?") -- a real bug: buildResearchGroundedAnswer had no
+  // branch at all for this intent (it was only ever handled by the old
+  // FPL-03 legacy demo path, which is bypassed whenever pageContext is
+  // set, i.e. on the real Fantasy page), so it fell through every other
+  // branch and dumped a generic single-object summary instead of ever
+  // explaining the actual structural difference. Answers with the real
+  // definitional distinction plus a source-backed example from THIS
+  // gameweek's own recorded data -- never a bare player list, and never a
+  // claim about the manager's transfer policy beyond what its own
+  // recorded fields (hit_cost/free_transfers_before) actually show.
+  if (intent === 'TEAM_OBJECT_QUERY' && modelSel !== 'BOTH') {
+    const model = modelSel as ResearchModel
+    const mentionsBestXI = /\bbest\s*[-]?\s*xi\b/.test(q)
+    const otherObject: ObjectLabel = mentionsBestXI ? 'B_LEGAL_BEST_XI' : (objectSel !== 'OWN_START' ? objectSel : 'A_BLANK_SLATE')
+    const otherLabel = OBJECT_LABELS[otherObject]
+    const [ownStartResp, otherResp] = await Promise.all([fetchOwnStart(gw, model), fetchObjectData(gw, model, otherObject)])
+
+    const defLines: string[] = [
+      lang === 'ku'
+        ? `${otherLabel} و AI Manager دەتوانن جیاواز بن تەنانەت ئەگەر پێشبینی هەمان یاریزانیش بەکاربهێنن، چونکە هەریەکەیان وەڵامی پرسیارێکی جیاواز دەدەنەوە:`
+        : `${otherLabel} and AI Manager can differ even when built from the same player forecasts, because they answer different questions:`,
+      lang === 'ku'
+        ? `- ${otherLabel} تیمێکی نوێی یاسایی ١٥ یاریزانە کە بۆ ئەم هەفتەیە دروستکراوە تەنها لەژێر مەرجی بوودجە (هەتا ١٠٠ ملیۆن پاوەند) و پێکهاتەی تیم -- هیچ مێژووی گواستنەوە یان خاوەندارێتی نییە.`
+        : `- ${otherLabel} is a fresh legal 15-player squad selected for this gameweek under budget (up to £100m) and squad-composition constraints only -- it carries no transfer or ownership history.`,
+      lang === 'ku'
+        ? `- AI Manager خاوەندارێتی، باڵانس، نرخی کڕین/فرۆشتن، و گواستنەوە ئازادەکان لە گەڕی پێشوو دەگوازێتەوە؛ هەڵبژاردنەکانی ئەم گەڕە سنووردارە بەوەی چ گواستنەوەیەک یاسایی دەتوانێت بکات (و نرخی سزای خاڵ، ئەگەر هەبێت)، نەک تەنها خاڵی پێشبینیکراو.`
+        : `- AI Manager carries ownership, bank, purchase/selling prices, and free transfers forward from the previous gameweek; its choices this gameweek are constrained by which transfer(s) it can legally make (and any point-hit cost), not just raw forecast xP.`,
+    ]
+    const ownAvailable = ownStartResp.status === 'HISTORICAL_RECONSTRUCTION' || ownStartResp.status === 'FINAL_FROZEN_FORECAST'
+    const otherAvailable = otherResp.status === 'HISTORICAL_RECONSTRUCTION' || otherResp.status === 'FINAL_FROZEN_FORECAST'
+    if (ownAvailable) {
+      const t = ownStartResp.transfer_event
+      const transferDesc = t && (t.player_out || t.player_in)
+        ? `transferred ${t.player_out ?? 'nobody'} out and ${t.player_in ?? 'nobody'} in`
+        : 'made no transfer'
+      defLines.push(`For GW${gw}: AI Manager ${transferDesc} (hit cost ${ownStartResp.hit_cost ?? 'n/a'}, ${ownStartResp.free_transfers_before ?? 'n/a'} free transfer(s) before this gameweek) -- ${otherLabel} is a fresh selection unconstrained by any of that.`)
+      const ownCap = ownStartResp.players?.find((p) => p.is_captain)?.name
+      if (otherAvailable) {
+        defLines.push(`Captain for GW${gw}: AI Manager = ${ownCap ?? 'n/a'}, ${otherLabel} = ${otherResp.captain ?? 'n/a'}.`)
+      }
+    }
+    return {
+      answer: defLines.join('\n'), intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+      sourceBadge: `${citation(model, gw)} • ${OBJECT_LABELS.OWN_START} vs ${otherLabel}`,
+      referencedPlayers: [],
+      suggestedFollowups: withoutUnsolicitedV0([`Show GW${gw} AI Manager`, `Show GW${gw} ${otherLabel}`], pageContext, `Show GW${gw} ${otherLabel}`),
+      generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
+      llmUsed: false, responseTimeMs: Date.now() - t0,
+      researchModel: model, researchGameweek: gw, researchArtifactStatus: ownStartResp.status,
+    }
+  }
 
   // Alternatives: distinguish player alternatives, stored Optional-XI
   // objects, and legal-transfer-under-constraints -- three different
@@ -968,9 +1199,15 @@ export async function buildResearchGroundedAnswer(
         const ownedIds = new Set(altsPlayers.map((p) => p.stable_player_id))
         const affordable = (pool.players || [])
           .filter((p) => !ownedIds.has(p.stable_player_id) && (p.price ?? Infinity) <= budget)
-        const answer = `Checking against the Own-Start squad's bank (£${bank.toFixed(1)}m) and ${target.name}'s price (£${(target.price ?? 0).toFixed(1)}m) gives a budget of £${budget.toFixed(1)}m for a same-position (${target.position}) replacement. ` +
+        const affordableListText = affordable.slice(0, 5).map((p) => `${p.name} (£${(p.price ?? 0).toFixed(1)}m, xP ${p.predicted_xp ?? 'n/a'})`).join(', ')
+        const answer = lang === 'ku'
+          ? `بەپێی باڵانسی تیمی AI Manager (£${bank.toFixed(1)}m) و نرخی ${target.name} (£${(target.price ?? 0).toFixed(1)}m)، بوودجەیەکی £${budget.toFixed(1)}m بۆ گۆڕینەوەیەکی هاوپۆزیشن (${target.position}) بەردەستە. ` +
+            `${affordable.length} یاریزانی ${target.position} گونجاون لەم بوودجەیەدا و لە تیمەکەدا نین: ` +
+            `${affordableListText || (lang === 'ku' ? 'هیچ نەدۆزرایەوە' : 'none found')}. ` +
+            `ئەمە تەنها نرخ و پۆزیشن دەپشکنێت -- سنووری خاوەندارێتی یانە (زۆرترین ٣ یاریزان بۆ هەر یانەیەک) یان یاساکانی گواستنەوەی ئازاد/سزای خاڵ ناپشکنێت، تکایە ئەوانە بە جیا دڵنیایان بکەرەوە پێش ئەوەی بڵێیت گۆڕینەوەکە بە تەواوی یاسایی یە.`
+          : `Checking against the Own-Start squad's bank (£${bank.toFixed(1)}m) and ${target.name}'s price (£${(target.price ?? 0).toFixed(1)}m) gives a budget of £${budget.toFixed(1)}m for a same-position (${target.position}) replacement. ` +
           `${affordable.length} eligible ${POS_NAME[target.position]}(s) fit that budget and aren't already in the squad: ` +
-          `${affordable.slice(0, 5).map((p) => `${p.name} (£${(p.price ?? 0).toFixed(1)}m, xP ${p.predicted_xp ?? 'n/a'})`).join(', ') || 'none found'}. ` +
+          `${affordableListText || 'none found'}. ` +
           `This checks price and position only -- it does not check per-club ownership limits (max 3 per real-world club) or the free-transfer/hit-cost rules, so confirm those separately before calling a specific swap fully legal.`
         return {
           answer, intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
@@ -1342,8 +1579,15 @@ export async function buildResearchGroundedAnswer(
       ? ownStartResp.status === 'FINAL_FROZEN_FORECAST'
       : otherResps.some((r) => r.status === 'FINAL_FROZEN_FORECAST')
     const isWhyQuestion = /\bwhy\b|\bselect/.test(q) || q.includes('بۆچی') || q.includes('هەڵبژار')
-    const leagueIdx = poolPlayers.findIndex((p) => p.stable_player_id === target.stable_player_id)
-    const leagueRankText = leagueIdx >= 0 ? `#${leagueIdx + 1} of ${fullPoolForMention.total_matching_filter} ${target.position}s league-wide by predicted xP` : ''
+    // Positional rank/count, not the whole (all-positions) pool -- a real
+    // bug: "#81 of 494 MIDs" previously paired an OVERALL rank/count
+    // (poolPlayers has every position) with a positional label, when 494
+    // is the size of the ENTIRE candidate pool, not the MID-only count.
+    // poolPlayers is already sorted by predicted xP descending, so
+    // filtering to one position preserves that relative order.
+    const samePositionLeaguePool = poolPlayers.filter((p) => p.position === target.position)
+    const leagueIdx = samePositionLeaguePool.findIndex((p) => p.stable_player_id === target.stable_player_id)
+    const leagueRankText = leagueIdx >= 0 ? `#${leagueIdx + 1} of ${samePositionLeaguePool.length} ${target.position}s league-wide by predicted xP` : ''
     const priceText = target.price != null ? `£${target.price.toFixed(1)}m` : 'price unavailable'
     const xpText = target.predicted_xp != null ? `${target.predicted_xp}` : 'not available'
     const referencedPlayers: ReferencedPlayer[] = [{
@@ -1396,6 +1640,33 @@ export async function buildResearchGroundedAnswer(
       factsText = lang === 'ku'
         ? `${target.name} لە چەند پێکهاتەیەکی GW${gw} دا هەڵبژێردراوە:\n${perObjectLines.join('\n')}\nخاڵی پێشبینیکراو ${xpText}${leagueRankText ? `، ${leagueRankText}` : ''}، نرخ ${priceText}.`
         : `${target.name} is selected in more than one GW${gw} decision object:\n${perObjectLines.join('\n')}\nPredicted xP ${xpText}${leagueRankText ? `, ${leagueRankText}` : ''}, price ${priceText}.`
+    }
+
+    // For an explicit "why" question, add the tradeoff/context evidence a
+    // useful explanation needs beyond bare xP/rank -- fixture, expected
+    // minutes, and the nearest same-position alternative by forecast --
+    // rather than only ever a list of numbers. Never invents a tactical
+    // role, injury assessment, or optimizer reasoning not present in the
+    // retrieved data.
+    if (isWhyQuestion) {
+      const fixtureBit = target.opponent_resolved
+        ? `${lang === 'ku' ? 'یاری بەرامبەر' : 'fixture: vs'} ${target.opponent_resolved}${target.was_home === true ? (lang === 'ku' ? ' (ماڵەوە)' : ' (home)') : target.was_home === false ? (lang === 'ku' ? ' (دەرەوە)' : ' (away)') : ''}`
+        : null
+      const minutesBit = target.expected_minutes != null
+        ? (lang === 'ku' ? `خولەکی پێشبینیکراو ${target.expected_minutes}` : `expected minutes ${target.expected_minutes}`)
+        : null
+      const extras = [fixtureBit, minutesBit].filter(Boolean).join(lang === 'ku' ? '، ' : ', ')
+      if (extras) factsText += lang === 'ku' ? ` ${extras}.` : ` ${extras}.`
+
+      const altAbove = leagueIdx > 0 ? samePositionLeaguePool[leagueIdx - 1] : null
+      const altBelow = leagueIdx >= 0 && leagueIdx + 1 < samePositionLeaguePool.length ? samePositionLeaguePool[leagueIdx + 1] : null
+      const altCandidate = altAbove ?? altBelow
+      if (altCandidate) {
+        const xpDiff = (altCandidate.predicted_xp ?? 0) - (target.predicted_xp ?? 0)
+        factsText += lang === 'ku'
+          ? ` نزیکترین بژاردەی هاوپۆزیشن بەپێی پێشبینی: ${altCandidate.name} (xP ${altCandidate.predicted_xp ?? 'n/a'}${xpDiff !== 0 ? `، ${xpDiff >= 0 ? '+' : ''}${xpDiff.toFixed(2)} بەراورد بە ${target.name}` : ''}).`
+          : ` Nearest same-position alternative by forecast: ${altCandidate.name} (xP ${altCandidate.predicted_xp ?? 'n/a'}${xpDiff !== 0 ? `, ${xpDiff >= 0 ? '+' : ''}${xpDiff.toFixed(2)} vs ${target.name}` : ''}).`
+      }
     }
 
     // Official FPL availability vs. model P(start) -- always disclosed when
