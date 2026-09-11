@@ -41,6 +41,38 @@ interface OwnStartResponse {
   artifact_version?: string
 }
 
+export type ObjectLabel = 'OWN_START' | 'A_BLANK_SLATE' | 'B_LEGAL_BEST_XI' | 'PRIMARY' | 'OPTIONAL_XI_1' | 'OPTIONAL_XI_2' | 'OPTIONAL_XI_3' | 'OPTIONAL_XI_4'
+
+interface ObjectMember {
+  stable_player_id: number | null
+  name: string
+  position: string
+}
+
+interface ObjectResponse {
+  status: string
+  reason?: string
+  formation?: string | null
+  captain?: string
+  vice?: string
+  predicted_xi_xp?: number | null
+  final_points?: number | null
+  corrected_points?: number | null
+  note?: string
+  player_membership?: ObjectMember[] | 'NOT_AVAILABLE'
+}
+
+const OBJECT_LABELS: Record<ObjectLabel, string> = {
+  OWN_START: 'AI Manager',
+  A_BLANK_SLATE: 'Blank-Slate Squad',
+  B_LEGAL_BEST_XI: 'Best XI',
+  PRIMARY: 'Optional XI: Primary',
+  OPTIONAL_XI_1: 'Optional XI 1',
+  OPTIONAL_XI_2: 'Optional XI 2',
+  OPTIONAL_XI_3: 'Optional XI 3',
+  OPTIONAL_XI_4: 'Optional XI 4',
+}
+
 function upstreamBase(): string {
   // Matches the existing FPL-03 proxy routes' production fallback (see
   // app/api/research-fpl/status/route.ts) -- 72.62.35.32 with no port
@@ -64,9 +96,41 @@ async function fetchOwnStart(gw: number, model: ResearchModel): Promise<OwnStart
   }
 }
 
+async function fetchObjectData(gw: number, model: ResearchModel, object: ObjectLabel): Promise<ObjectResponse> {
+  const url = `${upstreamBase()}/api/v1/research-fpl/gameweek/${gw}/object?model=${encodeURIComponent(model)}&object=${encodeURIComponent(object)}`
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 4000)
+    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' })
+    clearTimeout(timeoutId)
+    if (!res.ok) {
+      return { status: 'NOT_AVAILABLE', reason: `Research API returned HTTP ${res.status}.` }
+    }
+    return await res.json()
+  } catch {
+    return { status: 'NOT_AVAILABLE', reason: 'Research API unreachable.' }
+  }
+}
+
 function parseGameweek(q: string, fallback: number): number {
   const m = q.match(/gw\s*([1-4])\b/) || q.match(/gameweek\s*([1-4])\b/)
   return m ? parseInt(m[1], 10) : fallback
+}
+
+// An explicit object mention in the CURRENT question always wins, same
+// precedence rule as parseModel -- "why this captain?" on the Best XI tab
+// must answer about Best XI, but "what about the blank slate?" must switch
+// even without repeating a GW/model.
+function parseObject(q: string, fallback: ObjectLabel): ObjectLabel {
+  if (/\bbest\s*[-]?\s*xi\b/.test(q)) return 'B_LEGAL_BEST_XI'
+  if (/\bblank[\s-]*slate\b/.test(q)) return 'A_BLANK_SLATE'
+  if (/\boptional\s*xi\s*1\b|\boption\s*1\b/.test(q)) return 'OPTIONAL_XI_1'
+  if (/\boptional\s*xi\s*2\b|\boption\s*2\b/.test(q)) return 'OPTIONAL_XI_2'
+  if (/\boptional\s*xi\s*3\b|\boption\s*3\b/.test(q)) return 'OPTIONAL_XI_3'
+  if (/\boptional\s*xi\s*4\b|\boption\s*4\b/.test(q)) return 'OPTIONAL_XI_4'
+  if (/\boptional\s*xi\b|\bprimary\b/.test(q)) return 'PRIMARY'
+  if (/\bown[\s-]*start\b|\bai\s*manager\b|\bmanager\s*team\b/.test(q)) return 'OWN_START'
+  return fallback
 }
 
 function parseTwoGameweeks(q: string, fallback: number): [number, number] {
@@ -129,11 +193,42 @@ function findMentionedPlayer(question: string, players: OwnStartPlayer[]): OwnSt
 const citation = (model: ResearchModel, gw: number, artifactVersion?: string) =>
   `${model} GW${gw}${artifactVersion ? ` (artifact ${artifactVersion})` : ''}`
 
+// Never surface raw formation JSON/repr in a chat answer -- reduce to a
+// human-readable "DEF-MID-FWD" string (GK implicit), matching the page's
+// own formatFormation.
+function formatFormation(f: unknown): string {
+  if (f === null || f === undefined) return 'unknown'
+  if (typeof f === 'object') {
+    const o = f as Record<string, number>
+    if (o.DEF !== undefined || o.MID !== undefined || o.FWD !== undefined) {
+      return `${o.DEF ?? 0}-${o.MID ?? 0}-${o.FWD ?? 0}`
+    }
+    return 'unknown'
+  }
+  const s = String(f)
+  if (/^\d(-\d){1,2}$/.test(s)) return s
+  if (s.trim().startsWith('{')) {
+    try {
+      return formatFormation(JSON.parse(s.replace(/'/g, '"')))
+    } catch {
+      return 'unknown'
+    }
+  }
+  return s === 'None' || s === 'nan' ? 'unknown' : s
+}
+
+export interface FantasyPageContext {
+  model: ResearchModel
+  gameweek: number
+  object: ObjectLabel
+}
+
 export async function buildResearchGroundedAnswer(
   question: string,
   intent: ChatIntent,
   lang: 'en' | 'ku',
-  history: ConversationTurn[] = []
+  history: ConversationTurn[] = [],
+  pageContext?: FantasyPageContext
 ): Promise<FantasyChatResponse> {
   const t0 = Date.now()
   const q = question.toLowerCase()
@@ -215,8 +310,9 @@ export async function buildResearchGroundedAnswer(
   }
 
   // RESEARCH_MODEL_QUERY
-  const modelSel = parseModel(q, history)
-  const gw = parseGameweek(q, 3)
+  const modelSel = pageContext && !detectModelMention(q) ? pageContext.model : parseModel(q, history)
+  const gw = parseGameweek(q, pageContext?.gameweek ?? 3)
+  const objectSel = parseObject(q, pageContext?.object ?? 'OWN_START')
 
   if (modelSel === 'BOTH' || q.includes('compare') || q.includes(' vs ')) {
     const [m3, v0] = await Promise.all([fetchOwnStart(gw, 'M3_SHRUNK'), fetchOwnStart(gw, 'V0_CONTROL')])
@@ -265,6 +361,68 @@ export async function buildResearchGroundedAnswer(
   }
 
   const model = modelSel
+
+  // Non-Own-Start decision object (Best XI, Blank Slate, Optional XI 1-4 /
+  // Primary): answer about THAT object specifically, using the same
+  // artifact API the page itself renders from. This is what keeps "why
+  // this captain?" on the Best XI tab from silently answering about the
+  // AI Manager instead.
+  if (objectSel !== 'OWN_START') {
+    const objResp = await fetchObjectData(gw, model, objectSel)
+    const objLabel = OBJECT_LABELS[objectSel]
+    if (objResp.status !== 'HISTORICAL_RECONSTRUCTION' && objResp.status !== 'FINAL_FROZEN_FORECAST') {
+      return na(objResp.reason || `${model} GW${gw} ${objLabel} is not available.`, gw, model)
+    }
+    const membership = Array.isArray(objResp.player_membership) ? objResp.player_membership : null
+    const switchedNote = pageContext && pageContext.object !== objectSel
+      ? ` (switched from the page's selected ${OBJECT_LABELS[pageContext.object]} because the question named ${objLabel} explicitly)`
+      : ''
+    const lines: string[] = []
+    lines.push(
+      lang === 'ku'
+        ? `${model} GW${gw} ${objLabel}${switchedNote}:`
+        : `${model} GW${gw} ${objLabel}${switchedNote}:`
+    )
+    if (objResp.captain) lines.push(`- Captain: ${objResp.captain}${objResp.vice ? ` • Vice: ${objResp.vice}` : ''}`)
+    if (objResp.formation) lines.push(`- Formation: ${formatFormation(objResp.formation)}`)
+    lines.push(`- Predicted XI xP: ${objResp.predicted_xi_xp ?? 'n/a'}`)
+    const finalPts = objResp.final_points ?? objResp.corrected_points
+    lines.push(objResp.status === 'FINAL_FROZEN_FORECAST'
+      ? '- This gameweek has not been played yet -- no final points exist.'
+      : `- Final points: ${finalPts ?? 'n/a'}`)
+    if (membership) {
+      lines.push(`- Players: ${membership.map((p) => p.name).join(', ')}`)
+    } else {
+      lines.push('- Player selections are not available for this historical decision object (the source export does not include a per-player roster here).')
+    }
+    if (objResp.note) lines.push(`- ${objResp.note}`)
+
+    const referencedPlayers: ReferencedPlayer[] = membership
+      ? membership.slice(0, 6).map((p) => ({
+          id: p.stable_player_id ?? -1, name: p.name, webName: p.name, club: '', position: p.position as any,
+          price: 0, predictedXp: 0, actualPoints: null, matchStatus: 'NOT_STARTED', isCaptain: p.name === objResp.captain, isViceCaptain: p.name === objResp.vice,
+        }))
+      : []
+
+    return {
+      answer: lines.join('\n'),
+      intent,
+      requestedGameweek: gw,
+      contextStatus: 'GENERAL',
+      sourceTypes,
+      sourceBadge: `${citation(model, gw)} • ${objLabel}`,
+      referencedPlayers,
+      suggestedFollowups: [`Show ${model} GW${gw} AI Manager`, `Compare M3_SHRUNK and V0_CONTROL for GW${gw}`],
+      generatedAt: new Date().toISOString(),
+      dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
+      llmUsed: false,
+      responseTimeMs: Date.now() - t0,
+      researchModel: model,
+      researchGameweek: gw,
+      researchArtifactStatus: objResp.status,
+    }
+  }
+
   const resp = await fetchOwnStart(gw, model)
   if (resp.status !== 'HISTORICAL_RECONSTRUCTION' && resp.status !== 'FINAL_FROZEN_FORECAST') {
     return na(resp.reason || `${model} GW${gw} is not available.`, gw, model)

@@ -69,6 +69,14 @@ export interface FPLPlayer {
   is_captain?: boolean
   is_vice_captain?: boolean
   bench_order?: number | null
+  // True only for the reserve goalkeeper's bench slot -- rendered as "GK"
+  // instead of a numeric priority badge. Additive/optional: existing
+  // callers never set it, so their numeric bench_order badges (or the '?B'
+  // fallback) are unaffected.
+  is_reserve_gk?: boolean
+  // Set only when the true source bench-priority order could not be
+  // determined for this row (never invented from points/price/xP).
+  bench_order_unknown?: boolean
   opponent?: string
   home_away?: string
   likely_range?: [number, number]
@@ -87,6 +95,11 @@ export interface FPLPlayer {
   // dual use above) -- only ever set from a source artifact, never derived.
   p_sub?: number | null
   p_dnp?: number | null
+  // True only when this row's expected_points is a placeholder 0 because the
+  // source object (e.g. Blank-Slate/Best-XI membership) does not carry a
+  // per-player predicted xP at all -- only an aggregate xP for the whole XI.
+  // Suppresses the misleading "0.00 xP" display without inventing a number.
+  xp_unavailable?: boolean
 }
 
 export interface FPLTransferRecommendation {

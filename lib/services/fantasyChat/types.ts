@@ -48,6 +48,14 @@ export interface FantasyChatRequest {
   language?: 'en' | 'ku'
   requestedGameweek?: number
   conversationHistory?: ConversationTurn[]
+  // Set by the main M3-only /fantasy page so chat answers default to
+  // exactly what's on screen (model/GW/tab) instead of legacy FPL-03
+  // grounding. Absent for any other caller, which preserves prior behavior.
+  pageContext?: {
+    model: 'M3_SHRUNK' | 'V0_CONTROL'
+    gameweek: number
+    object: 'OWN_START' | 'A_BLANK_SLATE' | 'B_LEGAL_BEST_XI' | 'PRIMARY' | 'OPTIONAL_XI_1' | 'OPTIONAL_XI_2' | 'OPTIONAL_XI_3' | 'OPTIONAL_XI_4'
+  }
 }
 
 export interface FantasyChatResponse {

@@ -220,8 +220,11 @@ export function PitchVisualization({
                   className="bg-[#0D1117] border border-[#30363D] hover:border-[#58A6FF] rounded-lg p-2.5 transition-all cursor-pointer group flex flex-col justify-between"
                 >
                   <div className="flex items-center gap-2">
-                    <div className="h-5 w-5 rounded bg-[#30363D] text-[#8B949E] flex items-center justify-center font-bold text-[10px]">
-                      {player.bench_order ?? 'B'}
+                    <div
+                      className="h-5 w-5 rounded bg-[#30363D] text-[#8B949E] flex items-center justify-center font-bold text-[9px]"
+                      title={player.is_reserve_gk ? 'Reserve goalkeeper' : player.bench_order_unknown ? 'Bench priority unknown' : `Bench priority ${player.bench_order}`}
+                    >
+                      {player.is_reserve_gk ? 'GK' : player.bench_order_unknown ? '?' : (player.bench_order ?? 'B')}
                     </div>
                     <ClubJerseySvg club={player.club} position={player.position} />
                     <div className="overflow-hidden">
@@ -235,7 +238,7 @@ export function PitchVisualization({
                     <span className="text-[#8B949E]">£{(player.price ?? 5.0).toFixed(1)}m</span>
                     <div className="flex items-center gap-1.5">
                       <span className="font-bold text-[#3FB950]">
-                        {(player.expected_points ?? (player as any).predicted_xp ?? 0).toFixed(2)} xP
+                        {player.xp_unavailable ? 'xP —' : `${(player.expected_points ?? (player as any).predicted_xp ?? 0).toFixed(2)} xP`}
                       </span>
                       {isFT && actualPts !== null && actualPts !== undefined ? (
                         <span className="font-black px-1 rounded bg-[#58A6FF]/20 text-[#58A6FF]">
@@ -323,8 +326,8 @@ function PlayerPitchCard({ player, onClick, researchMode = false }: { player: FP
             : player.club}
         </div>
         <div className="flex items-center justify-center gap-1 mt-0.5">
-          <span className="text-[10px] sm:text-[11px] font-extrabold text-[#3FB950]">
-            {expPoints.toFixed(2)} xP
+          <span className="text-[10px] sm:text-[11px] font-extrabold text-[#3FB950]" title={player.xp_unavailable ? 'Per-player xP not available for this decision object' : undefined}>
+            {player.xp_unavailable ? 'xP —' : `${expPoints.toFixed(2)} xP`}
           </span>
           {isFinished && actualPoints !== null && actualPoints !== undefined ? (
             <span className="text-[9px] font-black px-1 rounded bg-[#58A6FF]/20 text-[#58A6FF]" title="Match Finished">
@@ -447,9 +450,9 @@ function PlayerDetailModal({
           <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
             <div className="text-[11px] font-semibold text-[#8B949E] uppercase">Expected Points</div>
             <div className="text-2xl font-black text-[#3FB950] mt-1">
-              {(player.expected_points ?? (player as any).predicted_xp ?? 0).toFixed(2)} <span className="text-xs text-[#8B949E] font-normal">xP</span>
+              {player.xp_unavailable ? '—' : (player.expected_points ?? (player as any).predicted_xp ?? 0).toFixed(2)} <span className="text-xs text-[#8B949E] font-normal">xP</span>
             </div>
-            <div className="text-[10px] text-[#8B949E] mt-0.5">Central mean forecast</div>
+            <div className="text-[10px] text-[#8B949E] mt-0.5">{player.xp_unavailable ? 'Not available for this decision object' : 'Central mean forecast'}</div>
           </div>
 
           {researchMode ? (
@@ -542,7 +545,7 @@ function PlayerDetailModal({
         {/* Methodology Note */}
         <p className="text-[10px] text-[#8B949E] italic leading-tight">
           {researchMode
-            ? 'M3_SHRUNK / V0_CONTROL research forecast. Expected points and probability-card fields are model outputs from the verified research artifact, not the Ennovera Hybrid live-product methodology.'
+            ? 'M3_SHRUNK model forecast. Expected points and probability-card fields are model outputs from the verified artifact, not the Ennovera Hybrid live-product methodology.'
             : 'Ennovera Hybrid combines frozen expected points with a calibrated score probability distribution. Probabilities describe modeled uncertainty and are not guaranteed outcomes.'}
         </p>
       </div>

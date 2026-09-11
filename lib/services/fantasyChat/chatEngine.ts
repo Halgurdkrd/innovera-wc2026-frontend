@@ -91,11 +91,20 @@ export class FantasyChatEngine {
       }
     }
 
-    // 2b. Ennovera Research Model (M3_SHRUNK / V0_CONTROL) Fast Path.
-    // These answers are grounded exclusively in the verified research artifact
-    // API and are never handed to the LLM for numeric synthesis: every value
-    // here is read directly from the fetched artifact, per the governance
-    // requirement that M3/V0 answers use deterministic calculations only.
+    // 2b. M3-only Fantasy page context: the caller is the main /fantasy page
+    // (now M3-only), so every question is answered from the verified research
+    // artifact API using the page's selected model/GW/object as the default
+    // context -- never the legacy FPL-03 demo grounding below. An explicit
+    // model/GW/object mention in the question still overrides (handled inside
+    // buildResearchGroundedAnswer), and the answer is never handed to the LLM
+    // for numeric synthesis.
+    if (req.pageContext) {
+      return buildResearchGroundedAnswer(question, intent, lang, history, req.pageContext)
+    }
+
+    // Ennovera Research Model (M3_SHRUNK / V0_CONTROL) Fast Path -- reached
+    // only when no pageContext was supplied (e.g. a direct API caller),
+    // preserved for backward compatibility.
     if (intent === 'RESEARCH_MODEL_QUERY' || intent === 'GAMEWEEK_DELTA') {
       return buildResearchGroundedAnswer(question, intent, lang, history)
     }

@@ -80,9 +80,13 @@ function fmtTime() {
 export function AskEnnoveraChat({
   language = 'EN',
   onSelectPlayer,
+  pageContext,
 }: {
   language?: Language
   onSelectPlayer?: (player: ReferencedPlayer) => void
+  // When set (the main M3-only /fantasy page), every chat answer defaults
+  // to this model/GW/tab instead of legacy FPL-03 grounding.
+  pageContext?: { model: 'M3_SHRUNK' | 'V0_CONTROL'; gameweek: number; object: string }
 }) {
   const t = COPY[language === 'KU' ? 'KU' : 'EN']
   const langKey = language === 'KU' ? 'KU' : 'EN'
@@ -158,6 +162,7 @@ export function AskEnnoveraChat({
             question: trimmed,
             language: language === 'KU' ? 'ku' : 'en',
             conversationHistory: historyToSend,
+            pageContext,
           }),
         })
 
@@ -207,7 +212,7 @@ export function AskEnnoveraChat({
         setIsLoading(false)
       }
     },
-    [isLoading, language, messages]
+    [isLoading, language, messages, pageContext]
   )
 
   return (
