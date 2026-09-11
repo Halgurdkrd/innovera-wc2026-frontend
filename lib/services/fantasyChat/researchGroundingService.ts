@@ -248,7 +248,14 @@ function extractRequestedCount(q: string): number {
 // defenders") -- detected so the answer never falls back to a generic
 // summary when the user is explicitly re-scoping a position request.
 function isNarrowingCorrection(q: string): boolean {
+  // نەخێر = "no", تەنها = "only", نەک = "not" -- found missing via a
+  // Sorani multi-turn-correction test ("نەخێر، تەنها ناوەڕاست", "no, only
+  // midfield") that fell through to the generic manager summary despite
+  // matchAllPositions correctly detecting MID -- the position-ranking
+  // branch's OTHER condition (isRankingQuestion) also wasn't met since
+  // no "best/top" word was present, so neither half of the OR fired.
   return /\bnot\s+all\b|\bi\s+said\b|^no[,]?\s|\bonly\b|^just\b/.test(q)
+    || q.includes('نەخێر') || q.includes('تەنها') || q.includes('نەک')
 }
 
 // "why is Haaland's average 8 but upside higher" / "average vs range" /
@@ -515,26 +522,78 @@ function transliterateToLatinSkeleton(text: string): string {
   return out.replace(/[aeiouwy]/g, '')
 }
 
-function findMentionedPlayer(question: string, players: OwnStartPlayer[]): OwnStartPlayer | undefined {
+// A handful of explicitly VERIFIED Kurdish transliteration aliases --
+// checked before the heuristic skeleton matcher, since an exact known
+// alias is real evidence, not a guess. Not a comprehensive dictionary
+// (building one for all 494 GW4 candidates is future work); extend as
+// more are confirmed.
+const KNOWN_KURDISH_ALIASES: Record<string, string> = {
+  'هالاند': 'Haaland',
+  'فۆدن': 'Foden',
+}
+
+export type PlayerMentionResult =
+  | { kind: 'FOUND'; player: OwnStartPlayer }
+  | { kind: 'AMBIGUOUS'; candidates: OwnStartPlayer[] }
+  | { kind: 'NONE' }
+
+// Resolves a player mention to a stable ID (via the matched OwnStartPlayer,
+// which always carries stable_player_id), preferring exact Latin
+// substring matches and known aliases over the heuristic consonant-
+// skeleton matcher, and explicitly reporting a COLLISION (multiple
+// distinct players sharing the same matched skeleton) as ambiguous
+// rather than silently picking the first one found.
+function resolvePlayerMention(question: string, players: OwnStartPlayer[]): PlayerMentionResult {
   const q = question.toLowerCase()
-  const latinMatch = players.find((p) => {
+  const latinMatches = players.filter((p) => {
     const parts = p.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2)
     return parts.some((part) => q.includes(part))
   })
-  if (latinMatch) return latinMatch
-  if (!isSoraniScript(question)) return undefined
-  // Fall back to phonetic transliteration matching for a Kurdish-script
-  // player reference (e.g. "فۆدن" for "Foden") -- try each whitespace-
-  // separated token in the question against each player's surname/first
-  // name skeleton, requiring a reasonably long, non-trivial match to avoid
-  // false positives on short/common skeletons.
+  if (latinMatches.length === 1) return { kind: 'FOUND', player: latinMatches[0] }
+  if (latinMatches.length > 1) {
+    // Multiple players share a substring of their name (e.g. two "Silva"s)
+    // -- a real collision, not resolved by guessing the first.
+    const distinctIds = new Set(latinMatches.map((p) => p.stable_player_id))
+    if (distinctIds.size > 1) return { kind: 'AMBIGUOUS', candidates: latinMatches }
+    return { kind: 'FOUND', player: latinMatches[0] }
+  }
+  if (!isSoraniScript(question)) return { kind: 'NONE' }
+
+  // Known-alias check (exact, verified) before the heuristic fallback.
+  for (const [alias, englishFragment] of Object.entries(KNOWN_KURDISH_ALIASES)) {
+    if (q.includes(alias)) {
+      const matches = players.filter((p) => p.name.toLowerCase().includes(englishFragment.toLowerCase()))
+      if (matches.length === 1) return { kind: 'FOUND', player: matches[0] }
+      if (matches.length > 1) return { kind: 'AMBIGUOUS', candidates: matches }
+    }
+  }
+
+  // Heuristic phonetic transliteration fallback (e.g. "فۆدن" for "Foden"
+  // when no known alias/full name matched) -- NOT relied on alone: any
+  // skeleton collision across multiple distinct players is reported as
+  // ambiguous rather than picking whichever happens to be first in the array.
   const tokens = question.split(/\s+/).map(transliterateToLatinSkeleton).filter((t) => t.length >= 3)
-  if (tokens.length === 0) return undefined
-  return players.find((p) => {
+  if (tokens.length === 0) return { kind: 'NONE' }
+  const skeletonMatches = players.filter((p) => {
     const nameParts = p.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2)
     const nameSkeletons = nameParts.map((w) => w.replace(/[aeiouwy]/g, ''))
     return tokens.some((t) => nameSkeletons.some((ns) => ns.length >= 3 && (ns === t || ns.includes(t) || t.includes(ns))))
   })
+  const distinctSkeletonIds = new Set(skeletonMatches.map((p) => p.stable_player_id))
+  if (distinctSkeletonIds.size === 1) return { kind: 'FOUND', player: skeletonMatches[0] }
+  if (distinctSkeletonIds.size > 1) return { kind: 'AMBIGUOUS', candidates: skeletonMatches }
+  return { kind: 'NONE' }
+}
+
+function findMentionedPlayer(question: string, players: OwnStartPlayer[]): OwnStartPlayer | undefined {
+  const result = resolvePlayerMention(question, players)
+  // Existing callers (alternatives detection, average-vs-upside) keep
+  // their current behavior -- ambiguous collisions fall through to
+  // whatever they already do for "no player named" rather than every
+  // call site needing to handle a three-way result. The main named-
+  // player branch below uses resolvePlayerMention() directly so it CAN
+  // ask a clarifying question on a genuine collision.
+  return result.kind === 'FOUND' ? result.player : undefined
 }
 
 // Never surface the source export's internal technical codes verbatim.
@@ -1090,7 +1149,26 @@ export async function buildResearchGroundedAnswer(
     return na(resp.reason || `${model} GW${gw} is not available.`, gw, model, resp.status)
   }
   const players = resp.players || []
-  const mentioned = findMentionedPlayer(question, players)
+  const mentionResult = resolvePlayerMention(question, players)
+  if (mentionResult.kind === 'AMBIGUOUS') {
+    // A genuine collision (e.g. a Kurdish-script mention matching more
+    // than one distinct player) -- ask one targeted question rather than
+    // silently picking the first candidate or falling through to the
+    // generic manager summary.
+    const names = mentionResult.candidates.map((p) => p.name).join(', ')
+    return {
+      answer: lang === 'ku'
+        ? `کامیان مەبەستتە: ${names}؟`
+        : `Which player did you mean: ${names}?`,
+      intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+      sourceBadge: `${citation(model, gw)} • Clarification needed`,
+      referencedPlayers: mentionResult.candidates.slice(0, 5).map(toReferencedPlayer),
+      suggestedFollowups: withoutUnsolicitedV0(mentionResult.candidates.slice(0, 2).map((p) => `Why was ${p.name} selected?`), pageContext, `Show ${OBJECT_LABELS.OWN_START} GW${gw}`),
+      generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_CLARIFICATION_NEEDED',
+      llmUsed: false, responseTimeMs: Date.now() - t0, researchModel: model, researchGameweek: gw, researchArtifactStatus: resp.status,
+    }
+  }
+  const mentioned = mentionResult.kind === 'FOUND' ? mentionResult.player : undefined
 
   let answer: string
   let referencedPlayers: ReferencedPlayer[]
