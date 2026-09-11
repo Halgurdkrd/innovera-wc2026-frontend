@@ -12,12 +12,12 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   metadataBase: new URL('https://aifootballp.com'),
   title: {
-    default: "Ennovera AI | Premier League 2026-27",
-    template: "%s | Ennovera AI",
+    default: "Ennovera | Premier League 2026-27",
+    template: "%s | Ennovera",
   },
   description:
     "AI-powered Premier League 2026-27 predictions and match analytics — powered by Ennovera.",
-  applicationName: "Ennovera AI",
+  applicationName: "Ennovera",
   keywords: [
     "Premier League",
     "EPL 2026-27",
@@ -32,8 +32,8 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    siteName: "Ennovera AI",
-    title: "Ennovera AI | Premier League 2026-27",
+    siteName: "Ennovera",
+    title: "Ennovera | Premier League 2026-27",
     description:
       "AI-powered Premier League 2026-27 predictions and match analytics.",
     images: [
@@ -41,13 +41,13 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Ennovera AI",
+        alt: "Ennovera",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Ennovera AI | Premier League 2026-27",
+    title: "Ennovera | Premier League 2026-27",
     description:
       "AI-powered Premier League 2026-27 predictions and match analytics.",
     images: ["/og-image.png"],

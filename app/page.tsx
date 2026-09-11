@@ -7,7 +7,7 @@ import { useLanguage } from '@/hooks/useLanguage'
 const labels = {
   EN: {
     hero_title: 'AI-Powered Football Predictions',
-    hero_subtitle: 'Match outcomes and fantasy recommendations, powered by Ennovera AI',
+    hero_subtitle: 'Match outcomes and fantasy recommendations, powered by Ennovera',
     hero_badge: 'Powered by AI',
     pl_title: 'Premier League AI',
     pl_desc: 'AI-powered match predictions for every Premier League fixture',
@@ -22,7 +22,7 @@ const labels = {
   },
   KU: {
     hero_title: 'پێشبینی وەرزشی بە هوشی دەستکرد',
-    hero_subtitle: 'ئەنجامی یاری و ئامۆژگاری فانتازی، بە هێزی Ennovera AI',
+    hero_subtitle: 'ئەنجامی یاری و ئامۆژگاری فانتازی، بە هێزی ئینۆڤێرا',
     hero_badge: 'زیرەکی دەستکرد',
     pl_title: 'پرێمیەر لیگ AI',
     pl_desc: 'پێشبینی یاری بە هوشی دەستکرد بۆ هەموو یارییەکانی پرێمیەر لیگ',
@@ -174,7 +174,7 @@ export default function HomePage() {
                 <span className="text-xs font-bold text-[#0D1117]">I</span>
               </div>
               <span className="text-sm font-semibold text-[#E6EDF3]">
-                {language === 'KU' ? 'ئینۆڤێرا هوشی دەستکرد' : 'Ennovera AI'}
+                {language === 'KU' ? 'ئینۆڤێرا' : 'Ennovera'}
               </span>
             </div>
             <div className="flex items-center gap-4 text-xs text-[#8B949E]">

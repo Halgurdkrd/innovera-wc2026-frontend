@@ -403,7 +403,7 @@ export default function MyPredictionsPage() {
   const handleShare = async () => {
     const msg = t.shareMsg(displayName, totalPoints, badge.nameEN)
     if (navigator.share) {
-      await navigator.share({ title: 'Ennovera AI', text: msg, url: 'https://aifootballp.com' })
+      await navigator.share({ title: 'Ennovera', text: msg, url: 'https://aifootballp.com' })
     } else {
       await navigator.clipboard.writeText(msg)
     }
@@ -440,7 +440,7 @@ export default function MyPredictionsPage() {
         try {
           await navigator.share({
             title: 'My Ennovera PL Badge',
-            text: `${displayName} — ${badge.nameEN} on Ennovera AI Premier League Predictor!`,
+            text: `${displayName} — ${badge.nameEN} on Ennovera Premier League Predictor!`,
             files: [file],
           })
           return
@@ -502,7 +502,7 @@ export default function MyPredictionsPage() {
             >
               {/* Branding header — included in PNG */}
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-bold text-[#F0A500] tracking-widest uppercase">🏆 Ennovera AI · PL 26-27</span>
+                <span className="text-[10px] font-bold text-[#F0A500] tracking-widest uppercase">🏆 Ennovera · PL 26-27</span>
                 <span className="text-[10px] text-[#8B949E]">Ennovera</span>
               </div>
 

@@ -180,7 +180,7 @@ export default function LeaderboardPage() {
     })
     const rank = sortedProfiles.findIndex((p) => p.user_id === userProfile.user_id) + 1
     const pts = activeTab === 'weekly' ? userProfile.weekly_points : userProfile.total_points
-    const text = `I'm #${rank > 0 ? rank : '?'} on the Ennovera AI Premier League Leaderboard with ${pts} points! 🏆 Can you beat me? Ennovera`
+    const text = `I'm #${rank > 0 ? rank : '?'} on the Ennovera Premier League Leaderboard with ${pts} points! 🏆 Can you beat me? Ennovera`
 
     try {
       // Try API rank-card first

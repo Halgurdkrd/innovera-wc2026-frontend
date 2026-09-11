@@ -52,17 +52,17 @@ const SUGGESTIONS = {
 
 const COPY = {
   EN: {
-    title: 'ASK ENNOVERA AI',
+    title: 'ASK ENNOVERA',
     subtitle: 'Fantasy Football Intelligence',
     intro: 'Ask about player predictions, captaincy, transfers, FPL statistics, Ennovera selections and Gameweek strategy.',
-    placeholder: 'Ask Ennovera AI anything about Fantasy…',
+    placeholder: 'Ask Ennovera anything about Fantasy…',
     send: 'Send',
     online: 'Online • Hybrid Intelligence',
     suggested: 'Suggested Questions',
     disclaimer: 'Ennovera combines frozen expected points with authentic match realizations.',
   },
   KU: {
-    title: 'پرسیار لە هۆشی دەستکردی ئینۆڤێرا بکە',
+    title: 'پرسیار لە ئینۆڤێرا بکە',
     subtitle: 'زانیاری و پێشبینی وردی فانتاسی',
     intro: 'پرسیار لەبارەی پێشبینی یاریزانان، کاپتنی، گواستنەوە، ئامارەکانی فانتاسی و ستراتیژی گەڕەکان بپرسە.',
     placeholder: 'پرسیار لەبارەی فانتاسی بنووسە…',
@@ -227,10 +227,10 @@ export function AskEnnoveraChat({
         <button
           onClick={() => setIsOpen((v) => !v)}
           className="flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-[#58A6FF] to-[#3FB950] text-[#0D1117] font-black text-sm rounded-full shadow-2xl hover:scale-105 transition-all active:scale-95 border-2 border-white/20"
-          aria-label="Open Ask Ennovera AI Chat"
+          aria-label="Open Ask Ennovera Chat"
         >
           <span className="text-lg">🤖</span>
-          <span>ASK ENNOVERA AI</span>
+          <span>ASK ENNOVERA</span>
           <span className="h-2 w-2 rounded-full bg-[#0D1117] animate-ping" />
         </button>
       </div>

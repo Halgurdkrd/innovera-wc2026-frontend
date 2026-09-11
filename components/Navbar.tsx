@@ -62,7 +62,7 @@ export default function Navbar({ language, onLanguageChange }: NavbarProps) {
               <span className="text-base font-extrabold tracking-tight text-[#E6EDF3] group-hover:text-[#F0A500] transition-colors">
                 {language === 'KU'
                   ? <span className="text-[#F0A500]">ئینۆڤێرا</span>
-                  : <>Ennovera <span className="text-[#F0A500]">AI</span></>
+                  : <>Ennovera</>
                 }
               </span>
               <span className="hidden sm:block text-[10px] text-[#8B949E] font-medium tracking-wide">
@@ -71,11 +71,11 @@ export default function Navbar({ language, onLanguageChange }: NavbarProps) {
             </div>
           </Link>
 
-          {/* Nav links — desktop */}
+          {/* Nav links — desktop.
+              Predictions/Scorers/H2H/Leaderboard temporarily hidden from
+              navigation (pages/routes untouched, still reachable directly)
+              -- only Premier League, Fantasy, Explore remain, in that order. */}
           <div className="hidden md:flex items-center gap-6">
-            <Link href="/" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
-              {tr('nav_home', language)}
-            </Link>
             <Link href="/premier-league" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
               {language === 'KU' ? 'پرێمیەر لیگ' : 'Premier League'}
             </Link>
@@ -84,15 +84,6 @@ export default function Navbar({ language, onLanguageChange }: NavbarProps) {
             </Link>
             <Link href="/explore" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
               {tr('nav_explore', language)}
-            </Link>
-            <Link href="/scorers" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
-              {language === 'KU' ? 'گۆڵکارەکان' : 'Scorers'}
-            </Link>
-            <Link href="/h2h" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
-              {language === 'KU' ? 'هەڵبژاردنی تیم' : 'H2H'}
-            </Link>
-            <Link href="/leaderboard" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">
-              {tr('nav_leaderboard', language)}
             </Link>
             {user && (
               <Link href="/my-predictions" className="text-sm text-[#8B949E] hover:text-[#E6EDF3] transition-colors">

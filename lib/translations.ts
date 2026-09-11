@@ -106,12 +106,12 @@ const translations = {
   you_label:            { EN: 'You',                 KU: 'تۆ' },
 
   // ── Footer ───────────────────────────────────────────────────────────────────
-  footer_brand:     { EN: 'Ennovera AI',  KU: 'ئینۆڤێرا AI' },
+  footer_brand:     { EN: 'Ennovera',  KU: 'ئینۆڤێرا' },
   footer_copyright: { EN: '© 2026 Ennovera · AI predictions for entertainment purposes.', KU: 'هەموو حوقوقەکان پارێزراون © ٢٠٢٦ Ennovera' },
   footer_about:     { EN: 'About',               KU: 'دەربارە' },
 
   // ── Auth modal ───────────────────────────────────────────────────────────────
-  auth_title:       { EN: 'Sign in to Ennovera AI',         KU: 'چوونەژوورەوە بۆ ئینۆڤێرا AI' },
+  auth_title:       { EN: 'Sign in to Ennovera',         KU: 'چوونەژوورەوە بۆ ئینۆڤێرا' },
   auth_subtitle:    { EN: 'Save predictions · Climb the leaderboard · Compete with AI', KU: 'پێشبینیەکانت بپارێزە · لە پلەبەندی بەرزبە · دژ بە AI بپێوێ' },
   auth_google:      { EN: 'Continue with Google',    KU: 'بەردەوامبوون بە Google' },
   auth_facebook:    { EN: 'Continue with Facebook',  KU: 'بەردەوامبوون بە Facebook' },
@@ -122,7 +122,7 @@ const translations = {
 
   // ── About ────────────────────────────────────────────────────────────────────
   about_back:     { EN: '← Home',   KU: '← سەرەکی' },
-  about_title:    { EN: 'About Ennovera AI', KU: 'دەربارەی ئینۆڤێرا AI' },
+  about_title:    { EN: 'About Ennovera', KU: 'دەربارەی ئینۆڤێرا' },
   about_tagline:  { EN: 'AI-powered Premier League 2026-27 predictions', KU: 'پێشبینی پرێمیەر لیگ ٢٠٢٦-٢٧ بە هوشی دەستکرد' },
 
   // ── Fantasy: tabs & page ─────────────────────────────────────────────────────

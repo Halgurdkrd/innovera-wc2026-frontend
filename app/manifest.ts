@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Ennovera AI | Premier League 2026-27',
-    short_name: 'Ennovera AI',
+    name: 'Ennovera | Premier League 2026-27',
+    short_name: 'Ennovera',
     description:
       'AI-powered Premier League 2026-27 predictions and match analytics.',
     start_url: '/',

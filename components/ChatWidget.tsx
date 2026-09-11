@@ -48,8 +48,8 @@ const SUGGESTIONS: Record<Lang, string[]> = {
 }
 
 const WELCOME: Record<Lang, string> = {
-  EN: "👋 Hi! I'm Ennovera's AI assistant for the 2026 World Cup. Ask me anything about teams, predictions, or the tournament!",
-  KU: '👋 سڵاو! من یارمەتیدەری زیرەکی دەستکردی ئینۆڤێرام بۆ جامی جیهانی ٢٠٢٦. هەر شتێک لەبارەی تیمەکان، پێشبینییەکان بپرسە!',
+  EN: "👋 Hi! I'm Ennovera Assistant for the 2026 World Cup. Ask me anything about teams, predictions, or the tournament!",
+  KU: '👋 سڵاو! من یاریدەدەری ئینۆڤێرام بۆ جامی جیهانی ٢٠٢٦. هەر شتێک لەبارەی تیمەکان، پێشبینییەکان بپرسە!',
 }
 
 const COPY: Record<Lang, {
@@ -57,7 +57,7 @@ const COPY: Record<Lang, {
   sleepErr: string; netErr: string; emptyErr: string
 }> = {
   EN: {
-    title: 'Ennovera AI Assistant',
+    title: 'Ennovera Assistant',
     online: 'Online',
     placeholder: 'Ask about the World Cup…',
     sleepErr: '⏳ The AI is waking up — please try again in a moment.',
@@ -65,7 +65,7 @@ const COPY: Record<Lang, {
     emptyErr: "I didn't understand that. Try one of the suggested questions below.",
   },
   KU: {
-    title: 'یارمەتیدەری AI ئینۆڤێرا',
+    title: 'یاریدەدەری ئینۆڤێرا',
     online: 'ئۆنلاین',
     placeholder: 'لەبارەی جامی جیهان بپرسە…',
     sleepErr: '⏳ AI بە ئاگا دێتەوە، تکایە چەند خولەکێکی تر دووبارە هەوڵ بدەرەوە.',
