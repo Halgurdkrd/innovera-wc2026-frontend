@@ -432,7 +432,7 @@ export async function buildResearchGroundedAnswer(
       sourceTypes,
       sourceBadge: `${model} GW${gw} • ${isTemporaryFailure ? 'Connection issue' : 'Not available'}`,
       referencedPlayers: [],
-      suggestedFollowups: withoutUnsolicitedV0(['Show M3_SHRUNK GW3 own start', 'Compare M3_SHRUNK and V0_CONTROL for GW2'], pageContext, 'Show M3_SHRUNK GW3 own start'),
+      suggestedFollowups: withoutUnsolicitedV0(["Show Ennovera's GW3 forecast", 'Compare M3_SHRUNK and V0_CONTROL for GW2'], pageContext, "Show Ennovera's GW3 forecast"),
       generatedAt: new Date().toISOString(),
       dataSnapshot: isTemporaryFailure ? 'RESEARCH_ARTIFACT_TEMPORARILY_UNAVAILABLE' : 'RESEARCH_ARTIFACT_NOT_AVAILABLE',
       llmUsed: false,
@@ -490,7 +490,7 @@ export async function buildResearchGroundedAnswer(
       sourceTypes,
       sourceBadge: `${citation(model, gwA, respA.artifact_version)} vs ${citation(model, gwB, respB.artifact_version)}`,
       referencedPlayers: [...droppedOut, ...broughtIn].map(toReferencedPlayer),
-      suggestedFollowups: withoutUnsolicitedV0([`Compare M3_SHRUNK and V0_CONTROL for GW${gwB}`, `Who was the ${model} captain in GW${gwB}?`], pageContext, `Who was the ${model} captain in GW${gwB}?`),
+      suggestedFollowups: withoutUnsolicitedV0([`Compare M3_SHRUNK and V0_CONTROL for GW${gwB}`, `Who was the captain in GW${gwB}?`], pageContext, `Who was the captain in GW${gwB}?`),
       generatedAt: new Date().toISOString(),
       dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
       llmUsed: false,
@@ -747,9 +747,9 @@ export async function buildResearchGroundedAnswer(
       referencedPlayers: [...onlyM3, ...onlyV0].map(toReferencedPlayer),
       suggestedFollowups: withoutUnsolicitedV0(
         gw > 1
-          ? [`Show M3_SHRUNK GW${gw} own start`, `What changed for M3_SHRUNK between GW${gw - 1} and GW${gw}?`]
-          : [`Show M3_SHRUNK GW${gw} own start`, `Compare M3_SHRUNK and V0_CONTROL for GW${gw + 1}`],
-        pageContext, `Show M3_SHRUNK GW${gw} own start`
+          ? [`Show Ennovera's GW${gw} forecast`, `What changed between GW${gw - 1} and GW${gw}?`]
+          : [`Show Ennovera's GW${gw} forecast`, `Compare M3_SHRUNK and V0_CONTROL for GW${gw + 1}`],
+        pageContext, `Show Ennovera's GW${gw} forecast`
       ),
       generatedAt: new Date().toISOString(),
       dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
@@ -818,7 +818,7 @@ export async function buildResearchGroundedAnswer(
       sourceTypes,
       sourceBadge: `${citation(model, gw)} • ${objLabel}`,
       referencedPlayers,
-      suggestedFollowups: withoutUnsolicitedV0([`Show ${model} GW${gw} AI Manager`, `Compare M3_SHRUNK and V0_CONTROL for GW${gw}`], pageContext, `Show ${model} GW${gw} AI Manager`),
+      suggestedFollowups: withoutUnsolicitedV0([`Show GW${gw} AI Manager`, `Compare M3_SHRUNK and V0_CONTROL for GW${gw}`], pageContext, `Show GW${gw} AI Manager`),
       generatedAt: new Date().toISOString(),
       dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
       llmUsed: false,
@@ -924,9 +924,9 @@ export async function buildResearchGroundedAnswer(
     referencedPlayers,
     suggestedFollowups: withoutUnsolicitedV0(
       gw > 1
-        ? [`Compare M3_SHRUNK and V0_CONTROL for GW${gw}`, `What changed for ${model} between GW${gw - 1} and GW${gw}?`]
-        : [`Compare M3_SHRUNK and V0_CONTROL for GW${gw}`, `Show ${model} GW${gw + 1} own start`],
-      pageContext, `Show ${model} GW${gw} Best XI`
+        ? [`Compare M3_SHRUNK and V0_CONTROL for GW${gw}`, `What changed between GW${gw - 1} and GW${gw}?`]
+        : [`Compare M3_SHRUNK and V0_CONTROL for GW${gw}`, `Show GW${gw + 1} forecast`],
+      pageContext, `Show GW${gw} Best XI`
     ),
     generatedAt: new Date().toISOString(),
     dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
