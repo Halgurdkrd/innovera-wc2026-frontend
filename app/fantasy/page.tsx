@@ -69,6 +69,10 @@ interface PlayerRow {
   probability_fields_available?: boolean
   minutes?: number
   id_resolved?: boolean
+  opponent?: string | null
+  opponent_resolved?: string | null
+  was_home?: boolean | null
+  fixture_id?: string | null
 }
 
 interface OwnStartResponse {
@@ -146,6 +150,11 @@ function toFplPlayer(p: PlayerRow, benchIndex?: { outfield: number; isReserveGk:
     match_status: hasResult ? 'FT' : 'NOT_TRACKED',
     p_sub: p.p_sub ?? null,
     p_dnp: p.p_dnp ?? null,
+    // Real fixture data from the frozen source (opponent_resolved/was_home)
+    // -- left undefined (never a fabricated placeholder) when the source
+    // genuinely has none, e.g. an unresolved transferred-out player row.
+    opponent: p.opponent_resolved ?? undefined,
+    home_away: p.was_home === true ? 'H' : p.was_home === false ? 'A' : undefined,
   }
 }
 

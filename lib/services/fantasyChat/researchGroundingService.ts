@@ -39,6 +39,7 @@ interface OwnStartResponse {
   gross_points?: number
   net_points?: number
   artifact_version?: string
+  bank_after?: number | null
 }
 
 export type ObjectLabel = 'OWN_START' | 'A_BLANK_SLATE' | 'B_LEGAL_BEST_XI' | 'PRIMARY' | 'OPTIONAL_XI_1' | 'OPTIONAL_XI_2' | 'OPTIONAL_XI_3' | 'OPTIONAL_XI_4'
@@ -122,22 +123,160 @@ async function fetchObjectData(gw: number, model: ResearchModel, object: ObjectL
   }
 }
 
+export interface FullPoolPlayer {
+  stable_player_id: number
+  name: string
+  club: string
+  position: 'GK' | 'DEF' | 'MID' | 'FWD'
+  price: number | null
+  official_fpl_status?: string | null
+  opponent: string | null
+  opponent_resolved: string | null
+  was_home: boolean | null
+  fixture_id: string | null
+  has_target_gw_fixture: boolean | null
+  predicted_xp: number | null
+  rank_overall: number | null
+  rank_by_position: number | null
+  p_start: number | null
+  p_sub: number | null
+  p_dnp: number | null
+  expected_minutes: number | null
+}
+
+interface FullPoolResponse {
+  status: string
+  reason?: string
+  model?: ResearchModel
+  gameweek?: number
+  position_filter?: string | null
+  total_eligible_players?: number
+  total_matching_filter?: number
+  returned_count?: number
+  players?: FullPoolPlayer[]
+}
+
+// The full eligible candidate pool for one model/GW (up to ~500 players),
+// NOT one decision object's ~11-15 member roster -- backs every
+// league-wide "top N <position>" chat query. Only ever available for the
+// currently registered final pair (see get_full_pool in
+// research_fpl_service.py); GW1-3 reconstruction never had this.
+async function fetchFullPool(gw: number, model: ResearchModel, position?: 'GK' | 'DEF' | 'MID' | 'FWD', limit?: number): Promise<FullPoolResponse> {
+  const params = new URLSearchParams({ model })
+  if (position) params.set('position', position)
+  if (limit) params.set('limit', String(limit))
+  const url = `${upstreamBase()}/api/v1/research-fpl/gameweek/${gw}/full-pool?${params.toString()}`
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 4000)
+    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' })
+    clearTimeout(timeoutId)
+    if (!res.ok) {
+      return { status: 'TEMPORARILY_UNAVAILABLE', reason: `Research API returned HTTP ${res.status}.` }
+    }
+    return await res.json()
+  } catch {
+    return { status: 'TEMPORARILY_UNAVAILABLE', reason: 'Research API unreachable.' }
+  }
+}
+
+// Friendly public label -- chat prose must not lead with the internal
+// model identifier (M3_SHRUNK/V0_CONTROL); that stays in sourceBadge/
+// metadata for anyone who expands technical details.
+const PUBLIC_MODEL_LABEL: Record<ResearchModel, string> = {
+  M3_SHRUNK: "Ennovera's forecast",
+  V0_CONTROL: 'the baseline comparison model',
+}
+
 function parseGameweek(q: string, fallback: number): number {
-  const m = q.match(/gw\s*([1-4])\b/) || q.match(/gameweek\s*([1-4])\b/)
+  const m = q.match(/\bgw\s*([1-4])\b/) || q.match(/\bgame\s*[\s-]?\s*week\s*([1-4])\b/)
   return m ? parseInt(m[1], 10) : fallback
 }
 
-// Detects a "best midfielder"/"best mid" style question. Returns the
-// position to rank by, or null if the question isn't a position-ranking
-// query at all (falls through to the normal object summary).
-function detectPositionQuery(q: string): 'GK' | 'DEF' | 'MID' | 'FWD' | null {
-  const isRankingQuestion = /\bbest\b|\bhighest\b|\btop\b/.test(q)
-  if (!isRankingQuestion) return null
-  if (/\bmid(field(er)?)?s?\b/.test(q)) return 'MID'
-  if (/\bdef(end(er)?)?s?\b/.test(q)) return 'DEF'
-  if (/\b(fwd|forward|striker)s?\b/.test(q)) return 'FWD'
-  if (/\b(gk|goalkeeper|keeper)s?\b/.test(q)) return 'GK'
-  return null
+// "top 10" / "ten" / bare "top" (defaults to 5) -- deterministic, never
+// asks the LLM to count.
+const WORD_NUMBERS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
+function extractRequestedCount(q: string): number {
+  const digit = q.match(/\btop\s*(\d{1,2})\b/) || q.match(/\b(\d{1,2})\s+(?:midfielders?|defenders?|forwards?|attackers?|strikers?|goalkeepers?|players?|mids?|defs?|fwds?|gks?|diffeders?|atatckers?)\b/)
+  if (digit) return Math.min(50, Math.max(1, parseInt(digit[1], 10)))
+  for (const [word, n] of Object.entries(WORD_NUMBERS)) {
+    if (new RegExp(`\\b${word}\\b`).test(q)) return n
+  }
+  return 5
+}
+
+// A short correction phrase narrowing an earlier broader request ("I said
+// midfielders, not all players", "no, midfielders only", "just
+// defenders") -- detected so the answer never falls back to a generic
+// summary when the user is explicitly re-scoping a position request.
+function isNarrowingCorrection(q: string): boolean {
+  return /\bnot\s+all\b|\bi\s+said\b|^no[,]?\s|\bonly\b|^just\b/.test(q)
+}
+
+type Position = 'GK' | 'DEF' | 'MID' | 'FWD'
+
+// Every DISTINCT position mentioned, in first-mention order -- supports
+// "top 10 midfielders, 10 defenders and ten attackers" in one message.
+// Includes the required shorthand (md/mid, def, fwd) and the specific
+// misspellings observed in real user messages (diffeders, atatckers),
+// plus a few common variants; this is pattern-based typo tolerance for
+// known shapes, not a general spellchecker/fuzzy-match.
+function matchAllPositions(q: string): Position[] {
+  const patterns: [Position, RegExp][] = [
+    ['MID', /\bmds?\b|\bmids?\b|\bmidfield(er)?s?\b|\bmidfeilders?\b/],
+    ['DEF', /\bdefs?\b|\bdefend(er)?s?\b|\bdiffend(er)?s?\b|\bdiffeders?\b|\bdefendors?\b/],
+    ['FWD', /\bfwds?\b|\bforwards?\b|\bstrikers?\b|\battackers?\b|\batatckers?\b|\battakers?\b/],
+    ['GK', /\bgks?\b|\bgoalkeepers?\b|\bkeepers?\b/],
+  ]
+  const found: Position[] = []
+  for (const [pos, re] of patterns) {
+    if (re.test(q) && !found.includes(pos)) found.push(pos)
+  }
+  return found
+}
+
+// Is this a ranking-style question at all ("best"/"top"/"highest"/"good
+// choices"), independent of which/how-many positions it names? Split out
+// from matchAllPositions so a bare position mention with no ranking intent
+// (e.g. "tell me about defenders" as part of a different question) doesn't
+// misfire into the ranking branch.
+function isRankingQuestion(q: string): boolean {
+  return /\bbest\b|\bhighest\b|\btop\b|\bgood\s+choices?\b/.test(q)
+}
+
+type AlternativesIntent =
+  | { kind: 'PLAYER'; playerName: string }
+  | { kind: 'XI_OBJECTS' }
+  | { kind: 'AMBIGUOUS' }
+
+// Distinguishes three different things a user might mean by "alternatives"
+// -- (A) alternative individual players, (B) the site's stored Optional-XI
+// lineup objects, (C) a legally affordable transfer under budget/ownership
+// constraints (handled separately at the call site, not here, since it
+// needs the Own-Start squad/bank, not just text). Returns null if the
+// question isn't an alternatives-style question at all.
+function detectAlternativesQuery(q: string, players: OwnStartPlayer[]): AlternativesIntent | null {
+  // \baltern\w*tiv\w*\b tolerates the common letter-order/vowel-swap typos
+  // seen in real messages (e.g. "alternetives") without hardcoding every
+  // individual misspelling -- "altern" + anything + "tiv" + anything is
+  // distinctive enough not to false-positive on unrelated words.
+  const mentionsAlternative = /\baltern\w*tiv\w*\b/.test(q) || /\bsubstitutes?\s+for\b|\binstead\s+of\b/.test(q)
+  if (!mentionsAlternative) return null
+  // "alternative team(s)/squad(s)/xi(s)/lineup(s)" -> the stored Optional-XI objects.
+  if (/\baltern\w*tiv\w*\s*(to|for)?\s*(the\s+)?(team|squad|xi|lineup|line[\s-]?up)s?\b/.test(q)) {
+    return { kind: 'XI_OBJECTS' }
+  }
+  // "alternative(s) to/for <player name>" -- match against the currently
+  // known squad so a real name (however the user typed it) resolves.
+  const named = findMentionedPlayer(q, players)
+  if (named) return { kind: 'PLAYER', playerName: named.name }
+  // Bare "alternatives (for/this) (this) gameweek" with no name and no
+  // explicit team/squad wording -- genuinely ambiguous per spec.
+  return { kind: 'AMBIGUOUS' }
+}
+
+function detectLegalTransferQuery(q: string): boolean {
+  return /\blegal(ly)?\s+(afford|transfer|bring|sign)/.test(q) || /\bcan\s+i\s+(afford|bring\s+in|sign)\b/.test(q)
 }
 
 // An explicit object mention in the CURRENT question always wins, same
@@ -321,13 +460,13 @@ export async function buildResearchGroundedAnswer(
     const droppedOut = (respA.players || []).filter((p) => !inB.has(p.stable_player_id))
     const broughtIn = (respB.players || []).filter((p) => !inA.has(p.stable_player_id))
     const transfer = respB.transfer_event
-    const netDelta = (respB.net_points ?? 0) - (respA.net_points ?? 0)
+    const bothPlayed = respA.net_points != null && respB.net_points != null
 
     const lines: string[] = []
     lines.push(
       lang === 'ku'
-        ? `گۆڕانکارییەکانی ${model} لە GW${gwA} بۆ GW${gwB}:`
-        : `Changes for ${model} from GW${gwA} to GW${gwB}:`
+        ? `گۆڕانکارییەکانی ${PUBLIC_MODEL_LABEL[model]} لە GW${gwA} بۆ GW${gwB}:`
+        : `Changes in ${PUBLIC_MODEL_LABEL[model]} from GW${gwA} to GW${gwB}:`
     )
     if (transfer && transfer.player_out && transfer.player_in) {
       lines.push(`- Transfer: ${transfer.player_out} → ${transfer.player_in}`)
@@ -336,7 +475,12 @@ export async function buildResearchGroundedAnswer(
     } else {
       lines.push('- No squad transfer recorded between these gameweeks.')
     }
-    lines.push(`- Net points: GW${gwA}=${respA.net_points} → GW${gwB}=${respB.net_points} (${netDelta >= 0 ? '+' : ''}${netDelta.toFixed(1)})`)
+    if (bothPlayed) {
+      const netDelta = (respB.net_points ?? 0) - (respA.net_points ?? 0)
+      lines.push(`- Net points: GW${gwA}=${respA.net_points} → GW${gwB}=${respB.net_points} (${netDelta >= 0 ? '+' : ''}${netDelta.toFixed(1)})`)
+    } else {
+      lines.push(`- Net points: GW${gwA}=${respA.net_points ?? 'not available'}, GW${gwB}=${respB.net_points ?? 'actual points not available yet (not played)'}.`)
+    }
 
     return {
       answer: lines.join('\n'),
@@ -363,13 +507,162 @@ export async function buildResearchGroundedAnswer(
   const gw = parseGameweek(q, pageContext?.gameweek ?? 3)
   const objectSel = parseObject(q, pageContext?.object ?? 'OWN_START')
 
-  // "best midfielder" / "highest xP defender" etc. -- ranked ONLY among the
-  // players actually in the resolved object (we have no full-league-pool
-  // ranking endpoint), always disclosed as such rather than implied to be
-  // a league-wide ranking.
-  const positionQuery = modelSel !== 'BOTH' ? detectPositionQuery(q) : null
-  if (positionQuery) {
+  const POS_NAME: Record<Position, string> = { MID: 'midfielder', DEF: 'defender', FWD: 'forward', GK: 'goalkeeper' }
+
+  // Alternatives: distinguish player alternatives, stored Optional-XI
+  // objects, and legal-transfer-under-constraints -- three different
+  // things a bare "alternatives" question could mean. Checked before
+  // position-ranking since neither pattern overlaps the ranking wording.
+  if (modelSel !== 'BOTH') {
     const model = modelSel as ResearchModel
+    const ownStartForAlts = await fetchOwnStart(gw, model)
+    const altsPlayers = ownStartForAlts.players || []
+    const altIntent = detectAlternativesQuery(q, altsPlayers)
+    if (altIntent) {
+      if (detectLegalTransferQuery(q) && altIntent.kind === 'PLAYER') {
+        // Legal-transfer-under-constraints: distinct from an unconstrained
+        // player alternative -- must actually check bank/price/position
+        // against the Own-Start squad, never just relabel a suggestion.
+        const target = altsPlayers.find((p) => p.name === altIntent.playerName)
+        if (!target) return na(`Could not resolve "${altIntent.playerName}" in the Own-Start squad.`, gw, model)
+        const bank = ownStartForAlts.bank_after ?? 0
+        const budget = bank + (target.price ?? 0)
+        const pool = await fetchFullPool(gw, model, target.position, 50)
+        if (pool.status !== 'AVAILABLE') return na(pool.reason || 'Full player pool unavailable.', gw, model, pool.status)
+        const ownedIds = new Set(altsPlayers.map((p) => p.stable_player_id))
+        const affordable = (pool.players || [])
+          .filter((p) => !ownedIds.has(p.stable_player_id) && (p.price ?? Infinity) <= budget)
+        const answer = `Checking against the Own-Start squad's bank (£${bank.toFixed(1)}m) and ${target.name}'s price (£${(target.price ?? 0).toFixed(1)}m) gives a budget of £${budget.toFixed(1)}m for a same-position (${target.position}) replacement. ` +
+          `${affordable.length} eligible ${POS_NAME[target.position]}(s) fit that budget and aren't already in the squad: ` +
+          `${affordable.slice(0, 5).map((p) => `${p.name} (£${(p.price ?? 0).toFixed(1)}m, xP ${p.predicted_xp ?? 'n/a'})`).join(', ') || 'none found'}. ` +
+          `This checks price and position only -- it does not check per-club ownership limits (max 3 per real-world club) or the free-transfer/hit-cost rules, so confirm those separately before calling a specific swap fully legal.`
+        return {
+          answer, intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+          sourceBadge: `${citation(model, gw)} • Legal-transfer check`,
+          referencedPlayers: affordable.slice(0, 5).map((p, i) => ({
+            id: p.stable_player_id, name: p.name, webName: p.name, club: p.club, position: p.position,
+            price: p.price ?? 0, priceUnavailable: p.price == null,
+            predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
+            actualPoints: null, matchStatus: 'NOT_STARTED',
+          })),
+          suggestedFollowups: withoutUnsolicitedV0([`Alternatives to ${target.name}`, `Show ${OBJECT_LABELS.OWN_START} GW${gw}`], pageContext, `Show ${OBJECT_LABELS.OWN_START} GW${gw}`),
+          generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_FINAL_FROZEN_FORECAST',
+          llmUsed: false, responseTimeMs: Date.now() - t0,
+          researchModel: model, researchGameweek: gw, researchArtifactStatus: ownStartForAlts.status,
+        }
+      }
+      if (altIntent.kind === 'PLAYER') {
+        const target = altsPlayers.find((p) => p.name === altIntent.playerName)
+        if (!target) return na(`Could not resolve "${altIntent.playerName}".`, gw, model)
+        const pool = await fetchFullPool(gw, model, target.position, 30)
+        if (pool.status !== 'AVAILABLE') return na(pool.reason || 'Full player pool unavailable.', gw, model, pool.status)
+        const others = (pool.players || []).filter((p) => p.stable_player_id !== target.stable_player_id).slice(0, 5)
+        const lines = [
+          `Alternative ${POS_NAME[target.position]}s to ${target.name} (predicted xP ${target.predicted_xp ?? 'n/a'}, £${(target.price ?? 0).toFixed(1)}m), ranked league-wide by predicted xP:`,
+        ]
+        for (const p of others) {
+          const xpDiff = (p.predicted_xp ?? 0) - (target.predicted_xp ?? 0)
+          const priceDiff = (p.price ?? 0) - (target.price ?? 0)
+          lines.push(`- ${p.name} (${p.club}) vs ${p.opponent_resolved ?? 'unknown opponent'}${p.was_home === true ? ' (H)' : p.was_home === false ? ' (A)' : ''}: ` +
+            `xP ${p.predicted_xp ?? 'n/a'} (${xpDiff >= 0 ? '+' : ''}${xpDiff.toFixed(2)} vs ${target.name}), ` +
+            `£${(p.price ?? 0).toFixed(1)}m (${priceDiff >= 0 ? '+' : ''}${priceDiff.toFixed(1)}m)`)
+        }
+        lines.push('This lists alternative players by forecast only -- it is not a claim that any of these was the model\'s original selection rationale, and it does not check budget/ownership legality (ask for a "legal transfer" check for that).')
+        return {
+          answer: lines.join('\n'), intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+          sourceBadge: `${citation(model, gw)} • Full pool`,
+          referencedPlayers: others.map((p) => ({
+            id: p.stable_player_id, name: p.name, webName: p.name, club: p.club, position: p.position,
+            price: p.price ?? 0, priceUnavailable: p.price == null,
+            predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
+            actualPoints: null, matchStatus: 'NOT_STARTED',
+          })),
+          suggestedFollowups: withoutUnsolicitedV0([`Why was ${target.name} selected?`, `Show ${OBJECT_LABELS.OWN_START} GW${gw}`], pageContext, `Show ${OBJECT_LABELS.OWN_START} GW${gw}`),
+          generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_FULL_POOL',
+          llmUsed: false, responseTimeMs: Date.now() - t0,
+          researchModel: model, researchGameweek: gw, researchArtifactStatus: pool.status,
+        }
+      }
+      if (altIntent.kind === 'XI_OBJECTS' || altIntent.kind === 'AMBIGUOUS') {
+        const currentObj = pageContext?.object ?? objectSel
+        const otherLabels = (Object.keys(OBJECT_LABELS) as ObjectLabel[]).filter((l) => l !== 'OWN_START' && l !== currentObj)
+        const otherResults = await Promise.all(otherLabels.map((l) => fetchObjectData(gw, model, l)))
+        const lines: string[] = []
+        if (altIntent.kind === 'AMBIGUOUS') {
+          lines.push(`"Alternatives" could mean alternative players (e.g. "alternatives to Foden") or alternative lineups for this gameweek -- showing the alternative lineup options since none was named:`)
+        } else {
+          lines.push(`Alternative lineup options for GW${gw} (besides ${OBJECT_LABELS[currentObj]}):`)
+        }
+        otherLabels.forEach((label, i) => {
+          const r = otherResults[i]
+          if (r.status === 'HISTORICAL_RECONSTRUCTION' || r.status === 'FINAL_FROZEN_FORECAST') {
+            lines.push(`- ${OBJECT_LABELS[label]}: formation ${formatFormation(r.formation)}, captain ${r.captain ?? 'n/a'}, predicted XI xP ${r.predicted_xi_xp ?? 'n/a'}`)
+          }
+        })
+        if (lines.length === 1) lines.push('No other lineup options are available for this gameweek.')
+        return {
+          answer: lines.join('\n'), intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+          sourceBadge: `${citation(model, gw)} • Alternative lineups`,
+          referencedPlayers: [],
+          suggestedFollowups: withoutUnsolicitedV0(otherLabels.slice(0, 2).map((l) => `Show ${OBJECT_LABELS[l]} GW${gw}`), pageContext, `Show ${OBJECT_LABELS.B_LEGAL_BEST_XI} GW${gw}`),
+          generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
+          llmUsed: false, responseTimeMs: Date.now() - t0,
+          researchModel: model, researchGameweek: gw, researchArtifactStatus: 'AVAILABLE',
+        }
+      }
+    }
+  }
+
+  // Position ranking -- "best midfielder", "top 10 midfielders, 10
+  // defenders and ten attackers", etc. Supports multiple positions in one
+  // message. Prefers the FULL eligible candidate pool (league-wide, not
+  // just one decision object's ~11-15 players) when available for this
+  // GW/model (currently only the registered final pair); falls back to
+  // ranking within the resolved decision object -- clearly labeled as
+  // such -- for GW1-3, which never had a full-pool export.
+  const positions = matchAllPositions(q)
+  if (modelSel !== 'BOTH' && positions.length > 0 && (isRankingQuestion(q) || isNarrowingCorrection(q))) {
+    const model = modelSel as ResearchModel
+    const count = extractRequestedCount(q)
+    const poolResults = await Promise.all(positions.map((pos) => fetchFullPool(gw, model, pos, count)))
+    const allAvailable = poolResults.every((r) => r.status === 'AVAILABLE')
+
+    if (allAvailable) {
+      const lines: string[] = [`Top ${count} by predicted xP for GW${gw} (full eligible player pool, not just one squad/lineup):`]
+      const referencedPlayers: ReferencedPlayer[] = []
+      positions.forEach((pos, i) => {
+        const r = poolResults[i]
+        lines.push(`\n${POS_NAME[pos].toUpperCase()}S (${r.total_matching_filter} eligible):`)
+        for (const p of r.players || []) {
+          lines.push(`- ${p.name} (${p.club}) vs ${p.opponent_resolved ?? 'unknown opponent'}${p.was_home === true ? ' (H)' : p.was_home === false ? ' (A)' : ''}: ` +
+            `xP ${p.predicted_xp ?? 'n/a'}${p.price != null ? `, £${p.price.toFixed(1)}m` : ''}${p.p_start != null ? `, P(start) ${(p.p_start * 100).toFixed(0)}%` : ''}`)
+          if (referencedPlayers.length < 15) {
+            referencedPlayers.push({
+              id: p.stable_player_id, name: p.name, webName: p.name, club: p.club, position: p.position,
+              price: p.price ?? 0, priceUnavailable: p.price == null,
+              predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
+              actualPoints: null, matchStatus: 'NOT_STARTED',
+            })
+          }
+        }
+      })
+      if (poolResults.some((r) => (r.total_matching_filter ?? 0) < count)) {
+        lines.push(`\n(Fewer than ${count} were eligible for at least one requested position -- the actual eligible count is shown above.)`)
+      }
+      return {
+        answer: lines.join('\n'), intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+        sourceBadge: `${citation(model, gw)} • Full pool`,
+        referencedPlayers,
+        suggestedFollowups: withoutUnsolicitedV0([`Why was ${poolResults[0].players?.[0]?.name || 'this player'} ranked there?`, `Show ${OBJECT_LABELS.B_LEGAL_BEST_XI} GW${gw}`], pageContext, `Show ${OBJECT_LABELS.B_LEGAL_BEST_XI} GW${gw}`),
+        generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_FULL_POOL',
+        llmUsed: false, responseTimeMs: Date.now() - t0,
+        researchModel: model, researchGameweek: gw, researchArtifactStatus: 'AVAILABLE',
+      }
+    }
+
+    // Fallback: full pool not available for this GW (e.g. GW1-3) -- rank
+    // within the resolved decision object instead, explicitly labeled as
+    // object-scoped rather than league-wide.
     const objLabel = OBJECT_LABELS[objectSel]
     let candidates: { name: string; position: string; predicted_xp?: number | null; actual_points?: number | null }[] = []
     let sourceStatus = 'NOT_AVAILABLE'
@@ -388,29 +681,33 @@ export async function buildResearchGroundedAnswer(
     if (sourceStatus !== 'HISTORICAL_RECONSTRUCTION' && sourceStatus !== 'FINAL_FROZEN_FORECAST') {
       return na(reason, gw, model, sourceStatus)
     }
-    const inPosition = candidates.filter((p) => p.position === positionQuery)
-    const ranked = inPosition.filter((p) => p.predicted_xp !== null && p.predicted_xp !== undefined)
-      .sort((a, b) => (b.predicted_xp as number) - (a.predicted_xp as number))
-    const posName = { MID: 'midfielder', DEF: 'defender', FWD: 'forward', GK: 'goalkeeper' }[positionQuery]
-    let answer: string
-    if (ranked.length === 0) {
-      answer = inPosition.length === 0
-        ? `No ${posName}s are present in ${model} GW${gw} ${objLabel}.`
-        : `${model} GW${gw} ${objLabel} has ${inPosition.length} ${posName}(s), but none have a predicted xP available for this decision object -- no forecast to rank by.`
-    } else {
-      const top = ranked[0]
-      answer = `Among the players actually selected in ${model} GW${gw} ${objLabel} (not a league-wide ranking), the highest predicted xP ${posName} is ${top.name} at ${top.predicted_xp} xP.` +
-        (ranked.length > 1 ? ` Next: ${ranked.slice(1, 3).map((p) => `${p.name} (${p.predicted_xp} xP)`).join(', ')}.` : '')
+    const lines: string[] = [`Full league-wide ranking isn't available for GW${gw} (${poolResults.find((r) => r.reason)?.reason || 'no full pool export for this gameweek'}). Ranking instead among the players actually in ${objLabel}:`]
+    const referencedPlayers: ReferencedPlayer[] = []
+    for (const pos of positions) {
+      const inPosition = candidates.filter((p) => p.position === pos)
+      const ranked = inPosition.filter((p) => p.predicted_xp !== null && p.predicted_xp !== undefined)
+        .sort((a, b) => (b.predicted_xp as number) - (a.predicted_xp as number))
+      lines.push(`\n${POS_NAME[pos].toUpperCase()}S:`)
+      if (ranked.length === 0) {
+        lines.push(inPosition.length === 0 ? `- none present in ${objLabel}.` : `- present but no predicted xP available for this object.`)
+      } else {
+        for (const p of ranked) {
+          lines.push(`- ${p.name}: xP ${p.predicted_xp}`)
+          if (referencedPlayers.length < 15) {
+            referencedPlayers.push({
+              id: -1 - referencedPlayers.length, name: p.name, webName: p.name, club: '', position: pos,
+              price: 0, priceUnavailable: true, predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
+              actualPoints: p.actual_points ?? null, matchStatus: 'NOT_STARTED',
+            })
+          }
+        }
+      }
     }
     return {
-      answer, intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+      answer: lines.join('\n'), intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
       sourceBadge: `${citation(model, gw)} • ${objLabel}`,
-      referencedPlayers: ranked.slice(0, 3).map((p, i) => ({
-        id: -1 - i, name: p.name, webName: p.name, club: '', position: positionQuery,
-        price: 0, priceUnavailable: true, predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
-        actualPoints: p.actual_points ?? null, matchStatus: 'NOT_STARTED',
-      })),
-      suggestedFollowups: withoutUnsolicitedV0([`Show ${model} GW${gw} ${objLabel}`, `Why was ${ranked[0]?.name || 'this player'} selected?`], pageContext, `Show ${model} GW${gw} ${objLabel}`),
+      referencedPlayers,
+      suggestedFollowups: withoutUnsolicitedV0([`Show ${model === 'M3_SHRUNK' ? OBJECT_LABELS.B_LEGAL_BEST_XI : objLabel} GW${gw}`], pageContext, `Show ${objLabel} GW${gw}`),
       generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
       llmUsed: false, responseTimeMs: Date.now() - t0,
       researchModel: model, researchGameweek: gw, researchArtifactStatus: sourceStatus,
@@ -542,30 +839,53 @@ export async function buildResearchGroundedAnswer(
   let answer: string
   let referencedPlayers: ReferencedPlayer[]
 
+  const isFutureForecast = resp.status === 'FINAL_FROZEN_FORECAST'
+  const modelLabel = PUBLIC_MODEL_LABEL[model]
+
   if (mentioned) {
     // Selection-explanation style answer for one named player. Predeadline
     // factors only (xP, rank among same-position squad members, price) --
     // never uses the post-hoc actual result to explain why a predeadline
-    // selection was made, per the governance requirement that "why
-    // selected" answers cannot cite outcomes the model could not have known.
+    // selection was made. Tense depends on whether this GW has actually
+    // been played: a FINAL_FROZEN_FORECAST (future GW) player was
+    // "selected in the starting XI", never claimed to have "started" --
+    // that verb asserts a real-world event that has not happened yet.
     referencedPlayers = [toReferencedPlayer(mentioned)]
-    const roleText = mentioned.role === 'XI' ? 'started' : 'was on the bench (did not count)'
+    const roleText = isFutureForecast
+      ? (mentioned.role === 'XI' ? 'was selected in the starting XI' : 'was placed on the bench')
+      : (mentioned.role === 'XI' ? 'started' : 'was on the bench (did not count)')
     const capText = mentioned.is_captain ? ' as captain' : mentioned.is_vice ? ' as vice-captain' : ''
     const isWhyQuestion = /\bwhy\b|\bselect/.test(q)
     const samePosition = [...players].filter((p) => p.position === mentioned.position).sort((a, b) => b.predicted_xp - a.predicted_xp)
-    const rank = samePosition.findIndex((p) => p.stable_player_id === mentioned.stable_player_id) + 1
+    const squadRank = samePosition.findIndex((p) => p.stable_player_id === mentioned.stable_player_id) + 1
     const priceText = mentioned.price != null ? `£${mentioned.price.toFixed(1)}m` : 'price unavailable'
     if (isWhyQuestion) {
+      // League-wide rank via the full candidate pool -- separate from the
+      // squad-relative rank above, only shown when the full pool is
+      // actually available for this GW/model (currently only the
+      // registered final pair; never fabricated for GW1-3).
+      let leagueRankText = ''
+      const pool = await fetchFullPool(gw, model, mentioned.position, 500)
+      if (pool.status === 'AVAILABLE' && pool.players) {
+        const leagueIdx = pool.players.findIndex((p) => p.stable_player_id === mentioned.stable_player_id)
+        if (leagueIdx >= 0) {
+          leagueRankText = `, and #${leagueIdx + 1} of ${pool.total_matching_filter} ${mentioned.position}s league-wide by predicted xP`
+        }
+      }
       answer =
-        `In ${model} GW${gw}, ${mentioned.name} ${roleText}${capText}. Predeadline factors available: predicted xP ${mentioned.predicted_xp} ` +
-        `(ranked #${rank} of ${samePosition.length} ${mentioned.position}s in this squad by predicted xP), price ${priceText}. ` +
-        `The detailed selection rationale beyond these predeadline numbers (e.g. exact formation/budget tradeoffs considered) was not preserved in the exported artifact.`
+        `In ${modelLabel} for GW${gw}, ${mentioned.name} ${roleText}${capText}. Predeadline evidence available: predicted xP ${mentioned.predicted_xp} ` +
+        `(ranked #${squadRank} of ${samePosition.length} ${mentioned.position}s in this squad by predicted xP${leagueRankText}), price ${priceText}. ` +
+        (mentioned.role === 'XI'
+          ? `This shows he ranked well on predeadline forecast evidence -- it is not, by itself, the model's full selection rationale (budget/formation tradeoffs), which was not preserved in the exported artifact.`
+          : `The detailed selection rationale beyond these predeadline numbers (e.g. exact formation/budget tradeoffs considered) was not preserved in the exported artifact.`)
     } else {
-      const actualText = mentioned.actual_points !== null ? `, scoring ${mentioned.actual_points} actual points` : ' (no completed-match result recorded)'
+      const actualText = isFutureForecast
+        ? ' (this gameweek has not been played yet, so no actual points exist)'
+        : (mentioned.actual_points !== null ? `, scoring ${mentioned.actual_points} actual points` : ' (no completed-match result recorded)')
       answer =
         lang === 'ku'
-          ? `لە ${model} GW${gw} دا، ${mentioned.name} ${roleText}${capText} بە ٪xP پێشبینیکراوی ${mentioned.predicted_xp}${actualText}.`
-          : `In ${model} GW${gw}, ${mentioned.name} ${roleText}${capText} with a predicted xP of ${mentioned.predicted_xp}${actualText}.`
+          ? `لە ${modelLabel} بۆ GW${gw} دا، ${mentioned.name} ${roleText}${capText} بە ٪xP پێشبینیکراوی ${mentioned.predicted_xp}${actualText}.`
+          : `In ${modelLabel} for GW${gw}, ${mentioned.name} ${roleText}${capText} with a predicted xP of ${mentioned.predicted_xp}${actualText}.`
     }
 
     if (mentioned.role === 'BENCH') {
@@ -573,9 +893,10 @@ export async function buildResearchGroundedAnswer(
         .filter((p) => p.role === 'XI' && p.position === mentioned.position)
         .sort((a, b) => a.predicted_xp - b.predicted_xp)[0]
       if (nearestStarter) {
+        const nearestVerb = isFutureForecast ? 'selected to start' : 'started'
         answer += lang === 'ku'
           ? ` نزیکترین بژاردەی جێگرەوە لەم پۆزیشنە ${nearestStarter.name} بوو (٪xP=${nearestStarter.predicted_xp}).`
-          : ` The nearest alternative in that position who started was ${nearestStarter.name} (xP=${nearestStarter.predicted_xp}).`
+          : ` The nearest alternative in that position ${nearestVerb} was ${nearestStarter.name} (xP=${nearestStarter.predicted_xp}).`
         referencedPlayers.push(toReferencedPlayer(nearestStarter))
       }
     }
@@ -583,10 +904,13 @@ export async function buildResearchGroundedAnswer(
     const xi = players.filter((p) => p.role === 'XI').sort((a, b) => b.predicted_xp - a.predicted_xp)
     const captain = players.find((p) => p.is_captain)
     const list = xi.slice(0, 5).map((p) => `${p.name} (${p.position}, xP=${p.predicted_xp}${p.actual_points !== null ? `, actual=${p.actual_points}` : ''})`)
+    const pointsText = isFutureForecast
+      ? 'Actual points are not available yet (this gameweek has not been played).'
+      : `Net points: ${resp.net_points ?? 'not available'} (gross ${resp.gross_points ?? 'not available'}).`
     answer =
       lang === 'ku'
-        ? `${model} GW${gw}: کۆی خاڵی نیشتەجێ ${resp.net_points} (کۆی گشتی ${resp.gross_points}). کاپتن: ${captain?.name || 'نەزانراو'}. باشترین یاریزانان: ${list.join('; ')}.`
-        : `${model} GW${gw}: net points ${resp.net_points} (gross ${resp.gross_points}). Captain: ${captain?.name || 'unknown'}. Top starters: ${list.join('; ')}.`
+        ? `${modelLabel}، GW${gw}: ${isFutureForecast ? 'هێشتا خاڵی ڕاستەقینە بەردەست نییە.' : `کۆی خاڵی نیشتەجێ ${resp.net_points ?? 'نەزانراو'}`}. کاپتن: ${captain?.name || 'نەزانراو'}. باشترین یاریزانان: ${list.join('; ')}.`
+        : `${modelLabel} for GW${gw}: ${pointsText} Captain: ${captain?.name || 'unknown'}. Top starters: ${list.join('; ')}.`
     referencedPlayers = xi.slice(0, 5).map(toReferencedPlayer)
   }
 
