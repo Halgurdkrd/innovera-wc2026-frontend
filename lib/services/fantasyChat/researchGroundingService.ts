@@ -285,14 +285,52 @@ const NATURALIZE_SYSTEM_PROMPT_KU =
   'یان هەر ڕێژەیەک/xP/نرخ. (٣) هەرگیز هۆکارێک مەربنووسە کە لە زانیارییەکاندا ڕاستەوخۆ نەهاتووە. (٤) وەڵامەکە کورت بێت ' +
   '(٢-٤ ڕستە). (٥) ئەگەر نەتوانیت بە دڵنیاییەوە بیگۆڕیت، دەقی FACTS بە بێ گۆڕانکاری بگەڕێنەوە. تەنها بە کوردیی سۆرانی وەڵام بدەوە.'
 
+// Extracts every number (integer or decimal) from a string -- used to
+// verify the LLM's rephrasing didn't drop, add, or change a number.
+function extractNumbers(text: string): string[] {
+  return (text.match(/\d+(?:\.\d+)?/g) || []).map((n) => n.replace(/^0+(?=\d)/, ''))
+}
+
+// Real, structural fact-preservation validation -- NOT relying on the
+// system prompt's own instructions alone to guarantee consistency (an
+// instruction can be ignored or partially followed). Compares the
+// rephrased text's numbers against the original facts' numbers (every
+// number in the original must still appear somewhere in the rephrasing;
+// extra numbers are also rejected, since that would mean the model added
+// a figure not present in the source) and confirms a short list of
+// required keywords/names (e.g. a player's name) are still present
+// verbatim. Returns false -- meaning "fall back to the verified text" --
+// on any mismatch, never applies a "partial credit" allowance.
+export function validateFactPreservation(original: string, rephrased: string, requiredVerbatim: string[]): boolean {
+  const origNums = extractNumbers(original).sort()
+  const newNums = extractNumbers(rephrased).sort()
+  if (origNums.length !== newNums.length) return false
+  for (let i = 0; i < origNums.length; i++) {
+    if (origNums[i] !== newNums[i]) return false
+  }
+  for (const req of requiredVerbatim) {
+    if (req && !rephrased.includes(req)) return false
+  }
+  // A negation ("not", "no", "never", "نییە", "نەک") present in the
+  // original must not be silently dropped -- catches the model
+  // "resolving" an uncertainty/caveat into a false certainty.
+  const origHasNegation = /\bnot\b|\bno\b|\bnever\b|نییە|نەک|هیچ/.test(original.toLowerCase())
+  const newHasNegation = /\bnot\b|\bno\b|\bnever\b|نییە|نەک|هیچ/.test(rephrased.toLowerCase())
+  if (origHasNegation && !newHasNegation) return false
+  return true
+}
+
 // The ONE narrow, optional use of an LLM in this file -- given an already-
 // computed, fact-complete deterministic answer, asks the existing Groq
 // provider to rephrase it more naturally. Bounded timeout; any failure,
-// timeout, empty response, or the model echoing back an obviously-truncated
-// reply falls back to the original deterministic text unchanged. Never
-// used for retrieval, ranking, legality, or arithmetic -- purely cosmetic
-// phrasing of facts already fully determined before this is called.
-async function naturalize(factsText: string, lang: 'en' | 'ku'): Promise<string> {
+// timeout, empty response, an obviously-truncated reply, OR a failed
+// post-hoc fact-preservation check (numbers/required names/negations
+// must all survive verbatim -- the system prompt's own instructions are
+// not treated as sufficient guarantee on their own) falls back to the
+// original deterministic text unchanged. Never used for retrieval,
+// ranking, legality, or arithmetic -- purely cosmetic phrasing of facts
+// already fully determined before this is called.
+async function naturalize(factsText: string, lang: 'en' | 'ku', requiredVerbatim: string[] = []): Promise<string> {
   const groqKey = process.env.GROQ_API_KEY
   if (!groqKey || !groqKey.trim()) return factsText
   try {
@@ -316,7 +354,9 @@ async function naturalize(factsText: string, lang: 'en' | 'ku'): Promise<string>
     if (!res.ok) return factsText
     const data = await res.json()
     const rephrased = data.choices?.[0]?.message?.content?.trim()
-    return rephrased && rephrased.length > 10 ? rephrased : factsText
+    if (!rephrased || rephrased.length <= 10) return factsText
+    if (!validateFactPreservation(factsText, rephrased, requiredVerbatim)) return factsText
+    return rephrased
   } catch {
     return factsText
   }
@@ -1012,7 +1052,7 @@ export async function buildResearchGroundedAnswer(
         `for this player yet, so I can't give you specific P25/P75/P80 numbers here -- but in general, an average (mean) forecast summarizes a whole range ` +
         `of possible outcomes into one number, so higher scores above that average are always possible even without a calculated upside figure.`
     }
-    const answerText = await naturalize(factsText, lang)
+    const answerText = await naturalize(factsText, lang, [target.name])
     return {
       answer: answerText, intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
       sourceBadge: `${citation(model, gw)} • Outlook explanation`,
@@ -1233,7 +1273,7 @@ export async function buildResearchGroundedAnswer(
             ? `This shows he ranked well on predeadline forecast evidence -- it is not, by itself, the model's full selection rationale (budget/formation tradeoffs), which was not preserved in the exported artifact.`
             : `The detailed selection rationale beyond these predeadline numbers (e.g. exact formation/budget tradeoffs considered) was not preserved in the exported artifact.`)
       }
-      answer = await naturalize(whyFacts, lang)
+      answer = await naturalize(whyFacts, lang, [mentioned.name])
       llmUsedForAnswer = answer !== whyFacts
     } else {
       const actualText = isFutureForecast
