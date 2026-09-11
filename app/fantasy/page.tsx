@@ -24,7 +24,7 @@ type ObjectLabel = 'B_LEGAL_BEST_XI' | 'OWN_START' | 'A_BLANK_SLATE' | 'PRIMARY'
 const TABS: { id: ObjectLabel; title: string }[] = [
   { id: 'B_LEGAL_BEST_XI', title: 'Best XI' },
   { id: 'OWN_START', title: 'AI Manager' },
-  { id: 'A_BLANK_SLATE', title: 'Blank-Slate Squad' },
+  { id: 'A_BLANK_SLATE', title: 'Best £100m Squad' },
   { id: 'PRIMARY', title: 'Optional XI: Primary' },
   { id: 'OPTIONAL_XI_1', title: 'Optional XI 1' },
   { id: 'OPTIONAL_XI_2', title: 'Optional XI 2' },
@@ -39,14 +39,14 @@ const HISTORICAL_MAX_GW = 3
 // genuinely different selections with different rules, never a claim that
 // one is "better" than another.
 const TAB_DESCRIPTIONS: Record<ObjectLabel, string> = {
-  B_LEGAL_BEST_XI: 'Unconstrained highest-xP legal XI for this gameweek -- no squad, no bank, no bench.',
+  B_LEGAL_BEST_XI: 'An alternative starting XI: the highest-xP legal XI for this gameweek. No reserve bench or automatic substitutions.',
   OWN_START: 'Persistent season-long manager: carried squad, bank, free transfers, and one real transfer decision per gameweek.',
-  A_BLANK_SLATE: 'Fresh 15-player squad optimized from scratch for this gameweek alone, with a real reserve bench.',
-  PRIMARY: 'Optional-XI selection balancing expected points against appearance risk -- no squad or bench concept.',
-  OPTIONAL_XI_1: 'Alternative optional-XI selection under a different risk weighting -- no squad or bench concept.',
-  OPTIONAL_XI_2: 'Alternative optional-XI selection under a different risk weighting -- no squad or bench concept.',
-  OPTIONAL_XI_3: 'Alternative optional-XI selection under a different risk weighting -- no squad or bench concept.',
-  OPTIONAL_XI_4: 'Alternative optional-XI selection under a different risk weighting -- no squad or bench concept.',
+  A_BLANK_SLATE: 'A fresh 15-player squad for this gameweek, including starters and substitutes.',
+  PRIMARY: 'An alternative starting XI for this gameweek. No reserve bench or automatic substitutions.',
+  OPTIONAL_XI_1: 'An alternative starting XI for this gameweek. No reserve bench or automatic substitutions.',
+  OPTIONAL_XI_2: 'An alternative starting XI for this gameweek. No reserve bench or automatic substitutions.',
+  OPTIONAL_XI_3: 'An alternative starting XI for this gameweek. No reserve bench or automatic substitutions.',
+  OPTIONAL_XI_4: 'An alternative starting XI for this gameweek. No reserve bench or automatic substitutions.',
 }
 
 interface PlayerRow {
@@ -122,10 +122,19 @@ function toFplPlayer(p: PlayerRow, benchIndex?: { outfield: number; isReserveGk:
     club: p.club,
     position: p.position,
     price: p.price ?? 0,
+    price_unavailable: p.price === undefined || p.price === null,
     expected_points: p.predicted_xp ?? 0,
     xp_unavailable: p.predicted_xp === undefined || p.predicted_xp === null,
-    expected_minutes: p.expected_minutes ?? 0,
-    starting_prob: p.p_start ?? (p.role === 'XI' ? 1 : 0),
+    // Left null (never coerced to 0) when genuinely unavailable, so the
+    // modal's own "missing vs real zero" check actually has something to
+    // distinguish -- a real forecast of 0 expected minutes is a legitimate,
+    // different fact from "we have no forecast for this decision object".
+    expected_minutes: p.expected_minutes ?? null,
+    // Real P(start) only -- a role of 'XI' means this player WAS selected,
+    // not that a start-probability of 100% was forecast. Left undefined
+    // when the source has no real per-player probability (matches the
+    // PitchVisualization display contract exactly).
+    starting_prob: p.p_start ?? undefined,
     haul_prob: 0,
     is_starting: p.role === 'XI',
     is_captain: p.is_captain,
@@ -203,26 +212,38 @@ function computeFormationFromXI(players: PlayerRow[]): string {
   return `${count('DEF')}-${count('MID')}-${count('FWD')}`
 }
 
+// The source export carries internal technical codes in this field --
+// never show them verbatim to users.
+const NOTE_TEXT: Record<string, string> = {
+  XI_ONLY_no_autosub: 'An alternative starting XI. No reserve bench or automatic substitutions.',
+}
+function formatNote(note: string): string {
+  return NOTE_TEXT[note] ?? note
+}
+
 function statusBadge(status: string | undefined) {
   const isForecast = status === 'FINAL_FROZEN_FORECAST'
   const isEvaluated = status === 'FINALIZED_EVALUATION'
+  const isTemporaryFailure = status === 'TEMPORARILY_UNAVAILABLE'
   const isAvailable = status === 'HISTORICAL_RECONSTRUCTION' || isForecast || isEvaluated
-  return { isForecast, isEvaluated, isAvailable }
+  return { isForecast, isEvaluated, isAvailable, isTemporaryFailure }
 }
 
-function OwnStartView({ data }: { data: OwnStartResponse | null }) {
-  const { isForecast, isAvailable } = statusBadge(data?.status)
+function OwnStartView({ data, onRetry }: { data: OwnStartResponse | null; onRetry: () => void }) {
+  const { isForecast, isAvailable, isTemporaryFailure } = statusBadge(data?.status)
   return (
     <div className="bg-neutral-900 rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
         <h2 className="font-semibold">AI Manager</h2>
-        <span className={`text-xs px-2 py-0.5 rounded ${!isAvailable ? 'bg-red-900 text-red-200' : isForecast ? 'bg-emerald-900 text-emerald-200' : 'bg-amber-900 text-amber-200'}`}>
-          {!isAvailable ? 'Not available' : isForecast ? 'Final frozen forecast' : 'Historical reconstruction'}
+        <span className={`text-xs px-2 py-0.5 rounded ${isTemporaryFailure ? 'bg-orange-900 text-orange-200' : !isAvailable ? 'bg-red-900 text-red-200' : isForecast ? 'bg-emerald-900 text-emerald-200' : 'bg-amber-900 text-amber-200'}`}>
+          {isTemporaryFailure ? 'Connection issue' : !isAvailable ? 'Not available' : isForecast ? 'Final frozen forecast' : 'Historical reconstruction'}
         </span>
       </div>
       <p className="text-xs text-neutral-500 mb-3">{TAB_DESCRIPTIONS.OWN_START}</p>
-      {!isAvailable && (
-        <div className="text-neutral-400 text-sm py-8 text-center">Not available: {data?.reason}</div>
+      {isTemporaryFailure ? (
+        <ErrorState message="Temporarily unable to load data. This is a connectivity issue, not a missing forecast." onRetry={onRetry} />
+      ) : !isAvailable && (
+        <div className="text-neutral-400 text-sm py-8 text-center">Final forecast not available: {data?.reason}</div>
       )}
       {isAvailable && data?.players && (
         <>
@@ -248,6 +269,10 @@ function OwnStartView({ data }: { data: OwnStartResponse | null }) {
             startingXI={data.players.filter((p) => p.role === 'XI').map((p) => toFplPlayer(p))}
             bench={benchWithPriorities(data.players.filter((p) => p.role === 'BENCH'))}
             researchMode
+            provenance={{
+              model: MODEL, season: '2026-27', gameweek: data.gameweek ?? 0, object: 'AI Manager',
+              status: data.status ?? 'UNKNOWN', artifactVersion: data.artifact_version,
+            }}
           />
           <div className="text-xs text-neutral-500 mt-2">
             Artifact version: {data.artifact_version}. {isForecast
@@ -260,20 +285,22 @@ function OwnStartView({ data }: { data: OwnStartResponse | null }) {
   )
 }
 
-function ObjectView({ tabId, tabTitle, data }: { tabId: ObjectLabel; tabTitle: string; data: ObjectResponse | null }) {
-  const { isForecast, isAvailable } = statusBadge(data?.status)
+function ObjectView({ tabId, tabTitle, data, onRetry }: { tabId: ObjectLabel; tabTitle: string; data: ObjectResponse | null; onRetry: () => void }) {
+  const { isForecast, isAvailable, isTemporaryFailure } = statusBadge(data?.status)
   const membership = data?.player_membership
   const hasMembershipList = Array.isArray(membership)
   return (
     <div className="bg-neutral-900 rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
         <h2 className="font-semibold">{tabTitle}</h2>
-        <span className={`text-xs px-2 py-0.5 rounded ${!isAvailable ? 'bg-red-900 text-red-200' : isForecast ? 'bg-emerald-900 text-emerald-200' : 'bg-amber-900 text-amber-200'}`}>
-          {!isAvailable ? 'Not available' : isForecast ? 'Final frozen forecast' : 'Historical reconstruction'}
+        <span className={`text-xs px-2 py-0.5 rounded ${isTemporaryFailure ? 'bg-orange-900 text-orange-200' : !isAvailable ? 'bg-red-900 text-red-200' : isForecast ? 'bg-emerald-900 text-emerald-200' : 'bg-amber-900 text-amber-200'}`}>
+          {isTemporaryFailure ? 'Connection issue' : !isAvailable ? 'Not available' : isForecast ? 'Final frozen forecast' : 'Historical reconstruction'}
         </span>
       </div>
       <p className="text-xs text-neutral-500 mb-3">{TAB_DESCRIPTIONS[tabId]}</p>
-      {!isAvailable && <div className="text-neutral-400 text-sm py-8 text-center">Not available: {data?.reason}</div>}
+      {isTemporaryFailure ? (
+        <ErrorState message="Temporarily unable to load data. This is a connectivity issue, not a missing forecast." onRetry={onRetry} />
+      ) : !isAvailable && <div className="text-neutral-400 text-sm py-8 text-center">Final forecast not available: {data?.reason}</div>}
       {isAvailable && (
         <>
           <div className="text-sm text-neutral-300 space-y-1 mb-3">
@@ -284,7 +311,7 @@ function ObjectView({ tabId, tabTitle, data }: { tabId: ObjectLabel; tabTitle: s
               {' • '}
               Final points: {isForecast ? 'not played yet' : (data?.final_points ?? data?.corrected_points ?? '—')}
             </div>
-            {data?.note && <div className="text-xs text-neutral-500">{data.note}</div>}
+            {data?.note && <div className="text-xs text-neutral-500">{formatNote(data.note)}</div>}
           </div>
           {hasMembershipList ? (
             <PitchVisualization
@@ -292,6 +319,10 @@ function ObjectView({ tabId, tabTitle, data }: { tabId: ObjectLabel; tabTitle: s
               startingXI={(membership as PlayerRow[]).filter((p) => p.role !== 'BENCH').map((p) => toFplPlayer(p))}
               bench={benchWithPriorities((membership as PlayerRow[]).filter((p) => p.role === 'BENCH'))}
               researchMode
+              provenance={{
+                model: MODEL, season: '2026-27', gameweek: data?.gameweek ?? 0, object: tabTitle,
+                status: data?.status ?? 'UNKNOWN',
+              }}
             />
           ) : (
             <div className="text-sm text-neutral-400 py-6 text-center border border-dashed border-neutral-700 rounded">
@@ -411,8 +442,8 @@ function FantasyPageInner() {
 
         {!loading && !error && (
           tab === 'OWN_START'
-            ? <OwnStartView data={ownStart} />
-            : <ObjectView tabId={tab} tabTitle={activeTabTitle} data={objectData} />
+            ? <OwnStartView data={ownStart} onRetry={() => load(gw, tab)} />
+            : <ObjectView tabId={tab} tabTitle={activeTabTitle} data={objectData} onRetry={() => load(gw, tab)} />
         )}
       </div>
 

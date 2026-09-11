@@ -47,6 +47,11 @@ interface ObjectMember {
   stable_player_id: number | null
   name: string
   position: string
+  price: number | null
+  predicted_xp?: number | null
+  actual_points?: number | null
+  is_captain?: boolean
+  is_vice?: boolean
 }
 
 interface ObjectResponse {
@@ -87,12 +92,17 @@ async function fetchOwnStart(gw: number, model: ResearchModel): Promise<OwnStart
     const timeoutId = setTimeout(() => controller.abort(), 4000)
     const res = await fetch(url, { signal: controller.signal, cache: 'no-store' })
     clearTimeout(timeoutId)
+    // A non-2xx/unreachable backend is a connectivity failure, not "no
+    // forecast exists" -- kept as a distinct status so the answer never
+    // claims data is missing when the real problem is transient (this is
+    // exactly the distinction that mattered during the backend hang: a
+    // stuck server must never be reported to the user as "no GW4 pair").
     if (!res.ok) {
-      return { status: 'NOT_AVAILABLE', reason: `Research API returned HTTP ${res.status}.`, model, gameweek: gw }
+      return { status: 'TEMPORARILY_UNAVAILABLE', reason: `Research API returned HTTP ${res.status}.`, model, gameweek: gw }
     }
     return await res.json()
   } catch {
-    return { status: 'NOT_AVAILABLE', reason: 'Research API unreachable.', model, gameweek: gw }
+    return { status: 'TEMPORARILY_UNAVAILABLE', reason: 'Research API unreachable.', model, gameweek: gw }
   }
 }
 
@@ -104,17 +114,30 @@ async function fetchObjectData(gw: number, model: ResearchModel, object: ObjectL
     const res = await fetch(url, { signal: controller.signal, cache: 'no-store' })
     clearTimeout(timeoutId)
     if (!res.ok) {
-      return { status: 'NOT_AVAILABLE', reason: `Research API returned HTTP ${res.status}.` }
+      return { status: 'TEMPORARILY_UNAVAILABLE', reason: `Research API returned HTTP ${res.status}.` }
     }
     return await res.json()
   } catch {
-    return { status: 'NOT_AVAILABLE', reason: 'Research API unreachable.' }
+    return { status: 'TEMPORARILY_UNAVAILABLE', reason: 'Research API unreachable.' }
   }
 }
 
 function parseGameweek(q: string, fallback: number): number {
   const m = q.match(/gw\s*([1-4])\b/) || q.match(/gameweek\s*([1-4])\b/)
   return m ? parseInt(m[1], 10) : fallback
+}
+
+// Detects a "best midfielder"/"best mid" style question. Returns the
+// position to rank by, or null if the question isn't a position-ranking
+// query at all (falls through to the normal object summary).
+function detectPositionQuery(q: string): 'GK' | 'DEF' | 'MID' | 'FWD' | null {
+  const isRankingQuestion = /\bbest\b|\bhighest\b|\btop\b/.test(q)
+  if (!isRankingQuestion) return null
+  if (/\bmid(field(er)?)?s?\b/.test(q)) return 'MID'
+  if (/\bdef(end(er)?)?s?\b/.test(q)) return 'DEF'
+  if (/\b(fwd|forward|striker)s?\b/.test(q)) return 'FWD'
+  if (/\b(gk|goalkeeper|keeper)s?\b/.test(q)) return 'GK'
+  return null
 }
 
 // An explicit object mention in the CURRENT question always wins, same
@@ -190,6 +213,12 @@ function findMentionedPlayer(question: string, players: OwnStartPlayer[]): OwnSt
   })
 }
 
+// Never surface the source export's internal technical codes verbatim.
+const NOTE_TEXT: Record<string, string> = {
+  XI_ONLY_no_autosub: 'An alternative starting XI. No reserve bench or automatic substitutions.',
+}
+const formatNote = (note: string): string => NOTE_TEXT[note] ?? note
+
 const citation = (model: ResearchModel, gw: number, artifactVersion?: string) =>
   `${model} GW${gw}${artifactVersion ? ` (artifact ${artifactVersion})` : ''}`
 
@@ -223,6 +252,16 @@ export interface FantasyPageContext {
   object: ObjectLabel
 }
 
+// The public M3-only Fantasy page (identified by pageContext being set)
+// must never volunteer a V0_CONTROL comparison the user didn't ask for --
+// an explicit "compare"/"vs" question still reaches the compare branch
+// above regardless, this only trims unsolicited SUGGESTIONS.
+function withoutUnsolicitedV0(suggestions: string[], pageContext: FantasyPageContext | undefined, fallback: string): string[] {
+  if (!pageContext) return suggestions
+  const filtered = suggestions.filter((s) => !s.toLowerCase().includes('v0_control'))
+  return filtered.length > 0 ? filtered : [fallback]
+}
+
 export async function buildResearchGroundedAnswer(
   question: string,
   intent: ChatIntent,
@@ -234,26 +273,36 @@ export async function buildResearchGroundedAnswer(
   const q = question.toLowerCase()
   const sourceTypes: DataSourceType[] = ['ENNOVERA_RESEARCH_ARTIFACT']
 
-  const na = (reason: string, gw: number, model: ResearchModel): FantasyChatResponse => ({
-    answer:
-      lang === 'ku'
-        ? `ئەم زانیارییە بەردەست نییە: ${reason}`
-        : `That information is not available yet: ${reason}`,
-    intent,
-    requestedGameweek: gw,
-    contextStatus: 'GENERAL',
-    sourceTypes,
-    sourceBadge: `${model} GW${gw} • Not available`,
-    referencedPlayers: [],
-    suggestedFollowups: ['Show M3_SHRUNK GW3 own start', 'Compare M3_SHRUNK and V0_CONTROL for GW2'],
-    generatedAt: new Date().toISOString(),
-    dataSnapshot: 'RESEARCH_ARTIFACT_NOT_AVAILABLE',
-    llmUsed: false,
-    responseTimeMs: Date.now() - t0,
-    researchModel: model,
-    researchGameweek: gw,
-    researchArtifactStatus: 'NOT_AVAILABLE',
-  })
+  const na = (reason: string, gw: number, model: ResearchModel, sourceStatus: string = 'NOT_AVAILABLE'): FantasyChatResponse => {
+    // TEMPORARILY_UNAVAILABLE (network/server failure) must never be
+    // phrased as "this forecast doesn't exist" -- that would turn a
+    // transient connectivity problem into a false missing-data claim.
+    const isTemporaryFailure = sourceStatus === 'TEMPORARILY_UNAVAILABLE'
+    const answer = isTemporaryFailure
+      ? (lang === 'ku'
+          ? `ناتوانرێت زانیاری ئێستا باربکرێت (کێشەی پەیوەندی، نەک نەبوونی پێشبینی): ${reason}`
+          : `Temporarily unable to load that data (a connectivity issue, not a missing forecast): ${reason}`)
+      : (lang === 'ku'
+          ? `ئەم زانیارییە بەردەست نییە: ${reason}`
+          : `That information is not available yet: ${reason}`)
+    return {
+      answer,
+      intent,
+      requestedGameweek: gw,
+      contextStatus: 'GENERAL',
+      sourceTypes,
+      sourceBadge: `${model} GW${gw} • ${isTemporaryFailure ? 'Connection issue' : 'Not available'}`,
+      referencedPlayers: [],
+      suggestedFollowups: withoutUnsolicitedV0(['Show M3_SHRUNK GW3 own start', 'Compare M3_SHRUNK and V0_CONTROL for GW2'], pageContext, 'Show M3_SHRUNK GW3 own start'),
+      generatedAt: new Date().toISOString(),
+      dataSnapshot: isTemporaryFailure ? 'RESEARCH_ARTIFACT_TEMPORARILY_UNAVAILABLE' : 'RESEARCH_ARTIFACT_NOT_AVAILABLE',
+      llmUsed: false,
+      responseTimeMs: Date.now() - t0,
+      researchModel: model,
+      researchGameweek: gw,
+      researchArtifactStatus: sourceStatus,
+    }
+  }
 
   if (intent === 'GAMEWEEK_DELTA') {
     const model = parseModel(q, history) === 'BOTH' ? 'M3_SHRUNK' : (parseModel(q, history) as ResearchModel)
@@ -261,10 +310,10 @@ export async function buildResearchGroundedAnswer(
     const [respA, respB] = await Promise.all([fetchOwnStart(gwA, model), fetchOwnStart(gwB, model)])
 
     if (respA.status !== 'HISTORICAL_RECONSTRUCTION' && respA.status !== 'FINAL_FROZEN_FORECAST') {
-      return na(respA.reason || `${model} GW${gwA} is not available.`, gwA, model)
+      return na(respA.reason || `${model} GW${gwA} is not available.`, gwA, model, respA.status)
     }
     if (respB.status !== 'HISTORICAL_RECONSTRUCTION' && respB.status !== 'FINAL_FROZEN_FORECAST') {
-      return na(respB.reason || `${model} GW${gwB} is not available.`, gwB, model)
+      return na(respB.reason || `${model} GW${gwB} is not available.`, gwB, model, respB.status)
     }
 
     const inA = new Set((respA.players || []).map((p) => p.stable_player_id))
@@ -297,7 +346,7 @@ export async function buildResearchGroundedAnswer(
       sourceTypes,
       sourceBadge: `${citation(model, gwA, respA.artifact_version)} vs ${citation(model, gwB, respB.artifact_version)}`,
       referencedPlayers: [...droppedOut, ...broughtIn].map(toReferencedPlayer),
-      suggestedFollowups: [`Compare M3_SHRUNK and V0_CONTROL for GW${gwB}`, `Who was the ${model} captain in GW${gwB}?`],
+      suggestedFollowups: withoutUnsolicitedV0([`Compare M3_SHRUNK and V0_CONTROL for GW${gwB}`, `Who was the ${model} captain in GW${gwB}?`], pageContext, `Who was the ${model} captain in GW${gwB}?`),
       generatedAt: new Date().toISOString(),
       dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
       llmUsed: false,
@@ -314,13 +363,67 @@ export async function buildResearchGroundedAnswer(
   const gw = parseGameweek(q, pageContext?.gameweek ?? 3)
   const objectSel = parseObject(q, pageContext?.object ?? 'OWN_START')
 
+  // "best midfielder" / "highest xP defender" etc. -- ranked ONLY among the
+  // players actually in the resolved object (we have no full-league-pool
+  // ranking endpoint), always disclosed as such rather than implied to be
+  // a league-wide ranking.
+  const positionQuery = modelSel !== 'BOTH' ? detectPositionQuery(q) : null
+  if (positionQuery) {
+    const model = modelSel as ResearchModel
+    const objLabel = OBJECT_LABELS[objectSel]
+    let candidates: { name: string; position: string; predicted_xp?: number | null; actual_points?: number | null }[] = []
+    let sourceStatus = 'NOT_AVAILABLE'
+    let reason = `${model} GW${gw} is not available.`
+    if (objectSel === 'OWN_START') {
+      const resp = await fetchOwnStart(gw, model)
+      sourceStatus = resp.status
+      reason = resp.reason || reason
+      candidates = resp.players || []
+    } else {
+      const resp = await fetchObjectData(gw, model, objectSel)
+      sourceStatus = resp.status
+      reason = resp.reason || reason
+      candidates = Array.isArray(resp.player_membership) ? resp.player_membership : []
+    }
+    if (sourceStatus !== 'HISTORICAL_RECONSTRUCTION' && sourceStatus !== 'FINAL_FROZEN_FORECAST') {
+      return na(reason, gw, model, sourceStatus)
+    }
+    const inPosition = candidates.filter((p) => p.position === positionQuery)
+    const ranked = inPosition.filter((p) => p.predicted_xp !== null && p.predicted_xp !== undefined)
+      .sort((a, b) => (b.predicted_xp as number) - (a.predicted_xp as number))
+    const posName = { MID: 'midfielder', DEF: 'defender', FWD: 'forward', GK: 'goalkeeper' }[positionQuery]
+    let answer: string
+    if (ranked.length === 0) {
+      answer = inPosition.length === 0
+        ? `No ${posName}s are present in ${model} GW${gw} ${objLabel}.`
+        : `${model} GW${gw} ${objLabel} has ${inPosition.length} ${posName}(s), but none have a predicted xP available for this decision object -- no forecast to rank by.`
+    } else {
+      const top = ranked[0]
+      answer = `Among the players actually selected in ${model} GW${gw} ${objLabel} (not a league-wide ranking), the highest predicted xP ${posName} is ${top.name} at ${top.predicted_xp} xP.` +
+        (ranked.length > 1 ? ` Next: ${ranked.slice(1, 3).map((p) => `${p.name} (${p.predicted_xp} xP)`).join(', ')}.` : '')
+    }
+    return {
+      answer, intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+      sourceBadge: `${citation(model, gw)} • ${objLabel}`,
+      referencedPlayers: ranked.slice(0, 3).map((p, i) => ({
+        id: -1 - i, name: p.name, webName: p.name, club: '', position: positionQuery,
+        price: 0, priceUnavailable: true, predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
+        actualPoints: p.actual_points ?? null, matchStatus: 'NOT_STARTED',
+      })),
+      suggestedFollowups: withoutUnsolicitedV0([`Show ${model} GW${gw} ${objLabel}`, `Why was ${ranked[0]?.name || 'this player'} selected?`], pageContext, `Show ${model} GW${gw} ${objLabel}`),
+      generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
+      llmUsed: false, responseTimeMs: Date.now() - t0,
+      researchModel: model, researchGameweek: gw, researchArtifactStatus: sourceStatus,
+    }
+  }
+
   if (modelSel === 'BOTH' || q.includes('compare') || q.includes(' vs ')) {
     const [m3, v0] = await Promise.all([fetchOwnStart(gw, 'M3_SHRUNK'), fetchOwnStart(gw, 'V0_CONTROL')])
     if (m3.status !== 'HISTORICAL_RECONSTRUCTION' && m3.status !== 'FINAL_FROZEN_FORECAST') {
-      return na(m3.reason || `M3_SHRUNK GW${gw} is not available.`, gw, 'M3_SHRUNK')
+      return na(m3.reason || `M3_SHRUNK GW${gw} is not available.`, gw, 'M3_SHRUNK', m3.status)
     }
     if (v0.status !== 'HISTORICAL_RECONSTRUCTION' && v0.status !== 'FINAL_FROZEN_FORECAST') {
-      return na(v0.reason || `V0_CONTROL GW${gw} is not available.`, gw, 'V0_CONTROL')
+      return na(v0.reason || `V0_CONTROL GW${gw} is not available.`, gw, 'V0_CONTROL', v0.status)
     }
     const m3Ids = new Set((m3.players || []).map((p) => p.stable_player_id))
     const v0Ids = new Set((v0.players || []).map((p) => p.stable_player_id))
@@ -345,10 +448,12 @@ export async function buildResearchGroundedAnswer(
       sourceTypes,
       sourceBadge: `${citation('M3_SHRUNK', gw, m3.artifact_version)} vs ${citation('V0_CONTROL', gw, v0.artifact_version)}`,
       referencedPlayers: [...onlyM3, ...onlyV0].map(toReferencedPlayer),
-      suggestedFollowups:
+      suggestedFollowups: withoutUnsolicitedV0(
         gw > 1
           ? [`Show M3_SHRUNK GW${gw} own start`, `What changed for M3_SHRUNK between GW${gw - 1} and GW${gw}?`]
           : [`Show M3_SHRUNK GW${gw} own start`, `Compare M3_SHRUNK and V0_CONTROL for GW${gw + 1}`],
+        pageContext, `Show M3_SHRUNK GW${gw} own start`
+      ),
       generatedAt: new Date().toISOString(),
       dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
       llmUsed: false,
@@ -371,7 +476,7 @@ export async function buildResearchGroundedAnswer(
     const objResp = await fetchObjectData(gw, model, objectSel)
     const objLabel = OBJECT_LABELS[objectSel]
     if (objResp.status !== 'HISTORICAL_RECONSTRUCTION' && objResp.status !== 'FINAL_FROZEN_FORECAST') {
-      return na(objResp.reason || `${model} GW${gw} ${objLabel} is not available.`, gw, model)
+      return na(objResp.reason || `${model} GW${gw} ${objLabel} is not available.`, gw, model, objResp.status)
     }
     const membership = Array.isArray(objResp.player_membership) ? objResp.player_membership : null
     const switchedNote = pageContext && pageContext.object !== objectSel
@@ -395,12 +500,16 @@ export async function buildResearchGroundedAnswer(
     } else {
       lines.push('- Player selections are not available for this historical decision object (the source export does not include a per-player roster here).')
     }
-    if (objResp.note) lines.push(`- ${objResp.note}`)
+    if (objResp.note) lines.push(`- ${formatNote(objResp.note)}`)
 
     const referencedPlayers: ReferencedPlayer[] = membership
       ? membership.slice(0, 6).map((p) => ({
           id: p.stable_player_id ?? -1, name: p.name, webName: p.name, club: '', position: p.position as any,
-          price: 0, predictedXp: 0, actualPoints: null, matchStatus: 'NOT_STARTED', isCaptain: p.name === objResp.captain, isViceCaptain: p.name === objResp.vice,
+          price: p.price ?? 0, priceUnavailable: p.price === null || p.price === undefined,
+          predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp === null || p.predicted_xp === undefined,
+          actualPoints: p.actual_points ?? null,
+          matchStatus: p.actual_points !== null && p.actual_points !== undefined ? 'FT' : 'NOT_STARTED',
+          isCaptain: p.is_captain ?? (p.name === objResp.captain), isViceCaptain: p.is_vice ?? (p.name === objResp.vice),
         }))
       : []
 
@@ -412,7 +521,7 @@ export async function buildResearchGroundedAnswer(
       sourceTypes,
       sourceBadge: `${citation(model, gw)} • ${objLabel}`,
       referencedPlayers,
-      suggestedFollowups: [`Show ${model} GW${gw} AI Manager`, `Compare M3_SHRUNK and V0_CONTROL for GW${gw}`],
+      suggestedFollowups: withoutUnsolicitedV0([`Show ${model} GW${gw} AI Manager`, `Compare M3_SHRUNK and V0_CONTROL for GW${gw}`], pageContext, `Show ${model} GW${gw} AI Manager`),
       generatedAt: new Date().toISOString(),
       dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
       llmUsed: false,
@@ -425,7 +534,7 @@ export async function buildResearchGroundedAnswer(
 
   const resp = await fetchOwnStart(gw, model)
   if (resp.status !== 'HISTORICAL_RECONSTRUCTION' && resp.status !== 'FINAL_FROZEN_FORECAST') {
-    return na(resp.reason || `${model} GW${gw} is not available.`, gw, model)
+    return na(resp.reason || `${model} GW${gw} is not available.`, gw, model, resp.status)
   }
   const players = resp.players || []
   const mentioned = findMentionedPlayer(question, players)
@@ -434,15 +543,30 @@ export async function buildResearchGroundedAnswer(
   let referencedPlayers: ReferencedPlayer[]
 
   if (mentioned) {
-    // Selection-explanation style answer for one named player.
+    // Selection-explanation style answer for one named player. Predeadline
+    // factors only (xP, rank among same-position squad members, price) --
+    // never uses the post-hoc actual result to explain why a predeadline
+    // selection was made, per the governance requirement that "why
+    // selected" answers cannot cite outcomes the model could not have known.
     referencedPlayers = [toReferencedPlayer(mentioned)]
     const roleText = mentioned.role === 'XI' ? 'started' : 'was on the bench (did not count)'
     const capText = mentioned.is_captain ? ' as captain' : mentioned.is_vice ? ' as vice-captain' : ''
-    const actualText = mentioned.actual_points !== null ? `, scoring ${mentioned.actual_points} actual points` : ' (no completed-match result recorded)'
-    answer =
-      lang === 'ku'
-        ? `لە ${model} GW${gw} دا، ${mentioned.name} ${roleText}${capText} بە ٪xP پێشبینیکراوی ${mentioned.predicted_xp}${actualText}.`
-        : `In ${model} GW${gw}, ${mentioned.name} ${roleText}${capText} with a predicted xP of ${mentioned.predicted_xp}${actualText}.`
+    const isWhyQuestion = /\bwhy\b|\bselect/.test(q)
+    const samePosition = [...players].filter((p) => p.position === mentioned.position).sort((a, b) => b.predicted_xp - a.predicted_xp)
+    const rank = samePosition.findIndex((p) => p.stable_player_id === mentioned.stable_player_id) + 1
+    const priceText = mentioned.price != null ? `£${mentioned.price.toFixed(1)}m` : 'price unavailable'
+    if (isWhyQuestion) {
+      answer =
+        `In ${model} GW${gw}, ${mentioned.name} ${roleText}${capText}. Predeadline factors available: predicted xP ${mentioned.predicted_xp} ` +
+        `(ranked #${rank} of ${samePosition.length} ${mentioned.position}s in this squad by predicted xP), price ${priceText}. ` +
+        `The detailed selection rationale beyond these predeadline numbers (e.g. exact formation/budget tradeoffs considered) was not preserved in the exported artifact.`
+    } else {
+      const actualText = mentioned.actual_points !== null ? `, scoring ${mentioned.actual_points} actual points` : ' (no completed-match result recorded)'
+      answer =
+        lang === 'ku'
+          ? `لە ${model} GW${gw} دا، ${mentioned.name} ${roleText}${capText} بە ٪xP پێشبینیکراوی ${mentioned.predicted_xp}${actualText}.`
+          : `In ${model} GW${gw}, ${mentioned.name} ${roleText}${capText} with a predicted xP of ${mentioned.predicted_xp}${actualText}.`
+    }
 
     if (mentioned.role === 'BENCH') {
       const nearestStarter = [...players]
@@ -474,10 +598,12 @@ export async function buildResearchGroundedAnswer(
     sourceTypes,
     sourceBadge: citation(model, gw, resp.artifact_version),
     referencedPlayers,
-    suggestedFollowups:
+    suggestedFollowups: withoutUnsolicitedV0(
       gw > 1
         ? [`Compare M3_SHRUNK and V0_CONTROL for GW${gw}`, `What changed for ${model} between GW${gw - 1} and GW${gw}?`]
         : [`Compare M3_SHRUNK and V0_CONTROL for GW${gw}`, `Show ${model} GW${gw + 1} own start`],
+      pageContext, `Show ${model} GW${gw} Best XI`
+    ),
     generatedAt: new Date().toISOString(),
     dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
     llmUsed: false,

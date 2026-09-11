@@ -32,8 +32,13 @@ export async function GET() {
     if (res.ok) {
       return NextResponse.json(await res.json())
     }
-    return NextResponse.json({ status: 'NOT_AVAILABLE', reason: `Upstream returned HTTP ${res.status}` }, { status: 200 })
+    // A non-2xx from a reachable backend is an infrastructure failure, not
+    // "no forecast exists" -- NOT_AVAILABLE would wrongly tell the user
+    // their data is genuinely missing when the real problem is transient.
+    return NextResponse.json({ status: 'TEMPORARILY_UNAVAILABLE', reason: `Upstream returned HTTP ${res.status}` }, { status: 200 })
   } catch (err) {
-    return NextResponse.json({ status: 'NOT_AVAILABLE', reason: 'Research API unreachable.' }, { status: 200 })
+    // Network/timeout/unreachable -- same distinction: this is "try again",
+    // not "this forecast doesn't exist".
+    return NextResponse.json({ status: 'TEMPORARILY_UNAVAILABLE', reason: 'Research API unreachable.' }, { status: 200 })
   }
 }

@@ -27,8 +27,8 @@ export async function GET(request: Request) {
     if (res.ok) {
       return NextResponse.json(await res.json())
     }
-    return NextResponse.json({ status: 'NOT_AVAILABLE', reason: `Upstream returned HTTP ${res.status}` }, { status: 200 })
+    return NextResponse.json({ status: 'TEMPORARILY_UNAVAILABLE', reason: `Upstream returned HTTP ${res.status}` }, { status: 200 })
   } catch (err) {
-    return NextResponse.json({ status: 'NOT_AVAILABLE', reason: 'Research API unreachable.' }, { status: 200 })
+    return NextResponse.json({ status: 'TEMPORARILY_UNAVAILABLE', reason: 'Research API unreachable.' }, { status: 200 })
   }
 }

@@ -61,9 +61,18 @@ export interface FPLPlayer {
   club: string
   position: 'GK' | 'DEF' | 'MID' | 'FWD'
   price: number
+  // True when the source object has no real per-player price -- never
+  // display "£0.0m" in that case, show "Price unavailable" instead.
+  price_unavailable?: boolean
   expected_points: number
-  expected_minutes: number
-  starting_prob: number
+  // null/undefined means genuinely no forecast exists for this decision
+  // object -- distinct from a real forecast of 0 expected minutes.
+  expected_minutes?: number | null
+  // Real P(start) probability from the source artifact. Left undefined
+  // (never defaulted from is_starting/role) when the source genuinely has
+  // no per-player start probability -- a selected-XI flag is NOT a 100%
+  // appearance probability and must never be displayed as one.
+  starting_prob?: number
   haul_prob: number
   is_starting: boolean
   is_captain?: boolean

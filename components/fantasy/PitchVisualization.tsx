@@ -17,6 +17,17 @@ export interface PitchVisualizationProps {
   // showing that block there would misattribute methodology and invent
   // numbers. Default false preserves exact existing behavior everywhere else.
   researchMode?: boolean
+  // Exact source identity for the research-mode player detail modal's
+  // provenance footer -- never a generic disclaimer when the real
+  // model/season/GW/object/status/version are known.
+  provenance?: {
+    model: string
+    season: string
+    gameweek: number
+    object: string
+    status: string
+    artifactVersion?: string
+  }
 }
 
 // Authentic 20 Premier League Club Kit Palette & Styles
@@ -122,6 +133,7 @@ export function PitchVisualization({
   bench,
   language = 'EN',
   researchMode = false,
+  provenance,
 }: PitchVisualizationProps) {
   const [selectedPlayer, setSelectedPlayer] = React.useState<FPLPlayer | null>(null)
 
@@ -235,7 +247,7 @@ export function PitchVisualization({
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-2 pt-1 border-t border-[#30363D]/40 text-[10px]">
-                    <span className="text-[#8B949E]">£{(player.price ?? 5.0).toFixed(1)}m</span>
+                    <span className="text-[#8B949E]">{player.price_unavailable ? 'Price unavailable' : `£${(player.price ?? 5.0).toFixed(1)}m`}</span>
                     <div className="flex items-center gap-1.5">
                       <span className="font-bold text-[#3FB950]">
                         {player.xp_unavailable ? 'xP —' : `${(player.expected_points ?? (player as any).predicted_xp ?? 0).toFixed(2)} xP`}
@@ -264,7 +276,7 @@ export function PitchVisualization({
 
       {/* Expanded Player Detail Modal */}
       {selectedPlayer && (
-        <PlayerDetailModal player={selectedPlayer} onClose={() => setSelectedPlayer(null)} language={language} researchMode={researchMode} />
+        <PlayerDetailModal player={selectedPlayer} onClose={() => setSelectedPlayer(null)} language={language} researchMode={researchMode} provenance={provenance} />
       )}
     </div>
   )
@@ -369,11 +381,13 @@ function PlayerDetailModal({
   onClose,
   language = 'EN',
   researchMode = false,
+  provenance,
 }: {
   player: FPLPlayer
   onClose: () => void
   language?: Language
   researchMode?: boolean
+  provenance?: PitchVisualizationProps['provenance']
 }) {
   const p25 = player.likely_range ? player.likely_range[0] : Math.max(0, Math.floor(player.expected_points * 0.5))
   const p75 = player.likely_range ? player.likely_range[1] : Math.ceil(player.expected_points * 1.5)
@@ -411,7 +425,9 @@ function PlayerDetailModal({
               )}
             </div>
             <p className="text-xs text-[#8B949E]">
-              {player.club} • {player.position} • £{(player.price ?? 5.0).toFixed(1)}m • {player.expected_minutes ?? 90} mins
+              {player.club} • {player.position}
+              {' • '}{player.price_unavailable ? 'Price unavailable' : `£${(player.price ?? 5.0).toFixed(1)}m`}
+              {' • '}{player.expected_minutes != null ? `${player.expected_minutes} mins (forecast)` : 'Expected minutes unavailable'}
             </p>
           </div>
         </div>
@@ -421,7 +437,9 @@ function PlayerDetailModal({
           <div>
             <span className="text-[#8B949E]">Fixture: </span>
             <span className="font-semibold text-[#58A6FF]">
-              {player.opponent ? `${player.club} vs ${player.opponent} (${player.home_away === 'H' ? 'Home' : 'Away'})` : 'Gameweek Fixture'}
+              {player.opponent
+                ? `${player.club} vs ${player.opponent} (${player.home_away === 'H' ? 'Home' : 'Away'})`
+                : researchMode ? 'Fixture data not available for this decision object' : 'Gameweek Fixture'}
             </span>
           </div>
           <div>
@@ -461,7 +479,9 @@ function PlayerDetailModal({
               <div className="text-2xl font-black text-[#58A6FF] mt-1">
                 {player.expected_minutes != null ? player.expected_minutes : '—'} <span className="text-xs text-[#8B949E] font-normal">mins</span>
               </div>
-              <div className="text-[10px] text-[#8B949E] mt-0.5">Forecast field, not match-status evidence</div>
+              <div className="text-[10px] text-[#8B949E] mt-0.5">
+                {player.expected_minutes != null ? 'Forecast field, not match-status evidence' : 'Not available for this decision object'}
+              </div>
             </div>
           ) : (
             <div className="bg-[#0D1117] p-3 rounded-xl border border-[#30363D]">
@@ -542,10 +562,13 @@ function PlayerDetailModal({
           </>
         )}
 
-        {/* Methodology Note */}
+        {/* Methodology / Provenance Note -- exact source identity when known,
+            never a generic disclaimer that could apply to any player/GW. */}
         <p className="text-[10px] text-[#8B949E] italic leading-tight">
           {researchMode
-            ? 'M3_SHRUNK model forecast. Expected points and probability-card fields are model outputs from the verified artifact, not the Ennovera Hybrid live-product methodology.'
+            ? provenance
+              ? `${provenance.model} • ${provenance.season} • GW${provenance.gameweek} • ${provenance.object} • ${provenance.status}${provenance.artifactVersion ? ` • artifact ${provenance.artifactVersion}` : ''}. Fields above are read directly from this exact source; unavailable fields are never estimated.`
+              : 'Model forecast. Expected points and probability-card fields are model outputs from the verified artifact, not the Ennovera Hybrid live-product methodology.'
             : 'Ennovera Hybrid combines frozen expected points with a calibrated score probability distribution. Probabilities describe modeled uncertainty and are not guaranteed outcomes.'}
         </p>
       </div>

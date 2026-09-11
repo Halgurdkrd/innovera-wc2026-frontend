@@ -36,6 +36,11 @@ export interface ReferencedPlayer {
   matchStatus?: 'FT' | 'LIVE' | 'NOT_STARTED'
   isCaptain?: boolean
   isViceCaptain?: boolean
+  // Set when the source object has no real per-player price/xP (e.g. an
+  // aggregate-only historical decision object) -- the chat chip must never
+  // show a fabricated "£0.0m"/"0.00 xP" in that case.
+  priceUnavailable?: boolean
+  xpUnavailable?: boolean
 }
 
 export interface ConversationTurn {

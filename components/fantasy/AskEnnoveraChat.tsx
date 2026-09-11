@@ -217,8 +217,13 @@ export function AskEnnoveraChat({
 
   return (
     <>
-      {/* Floating Action Button */}
-      <div className="fixed bottom-6 right-6 z-40">
+      {/* Floating Action Button -- lifted above the mobile BottomNav (fixed,
+          60px + safe-area, z-50) with a higher z-index so it is never
+          hidden behind it; reverts to the original corner position on
+          desktop (md:) where BottomNav does not render at all. */}
+      <div
+        className="fixed z-[60] right-4 md:right-6 bottom-[calc(60px+env(safe-area-inset-bottom)+16px)] md:bottom-6"
+      >
         <button
           onClick={() => setIsOpen((v) => !v)}
           className="flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-[#58A6FF] to-[#3FB950] text-[#0D1117] font-black text-sm rounded-full shadow-2xl hover:scale-105 transition-all active:scale-95 border-2 border-white/20"
@@ -230,10 +235,16 @@ export function AskEnnoveraChat({
         </button>
       </div>
 
-      {/* Slide-over Chat Modal Drawer */}
+      {/* Slide-over Chat Modal Drawer -- z-[60] (above BottomNav's z-50) so
+          it fully covers the bottom navigation while open rather than
+          fighting it for stacking order or DOM-order tie-breaks. Height
+          uses dvh (dynamic viewport height), which shrinks correctly when
+          the mobile on-screen keyboard opens, unlike vh; bottom offset
+          clears the BottomNav + safe-area on mobile, reverting to a plain
+          corner drawer on desktop. */}
       <div
         ref={panelRef}
-        className={`fixed z-50 transition-all duration-300 ease-out bottom-4 right-4 left-4 sm:left-auto sm:w-[420px] max-h-[85vh] h-[640px] flex flex-col bg-[#161B22] border border-[#58A6FF]/40 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden ${
+        className={`fixed z-[60] transition-all duration-300 ease-out right-4 left-4 sm:left-auto sm:w-[420px] bottom-[calc(60px+env(safe-area-inset-bottom)+8px)] md:bottom-4 max-h-[min(640px,85dvh)] h-[min(640px,72dvh)] md:h-[640px] flex flex-col bg-[#161B22] border border-[#58A6FF]/40 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden ${
           isOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-6 pointer-events-none'
         }`}
       >
@@ -246,8 +257,11 @@ export function AskEnnoveraChat({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-extrabold text-sm text-[#E6EDF3] tracking-wide">{t.title}</h3>
-                <span className="text-[9px] px-1.5 py-0.2 bg-[#3FB950]/20 text-[#3FB950] border border-[#3FB950]/40 rounded font-black">
-                  LIVE
+                <span
+                  className="text-[9px] px-1.5 py-0.2 bg-[#3FB950]/20 text-[#3FB950] border border-[#3FB950]/40 rounded font-black"
+                  title="Chat connectivity status -- not the freshness of any historical or forecast data shown in answers"
+                >
+                  CONNECTED
                 </span>
               </div>
               <p className="text-[10px] text-[#8B949E]">{t.subtitle}</p>
@@ -263,7 +277,7 @@ export function AskEnnoveraChat({
         </div>
 
         {/* Messages Scroll Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs scrollbar-thin scrollbar-thumb-[#30363D]">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 text-base leading-relaxed scrollbar-thin scrollbar-thumb-[#30363D]">
           {messages.map((msg) => (
             <div
               key={msg.id}
@@ -327,7 +341,7 @@ export function AskEnnoveraChat({
                             className="px-2 py-0.5 rounded bg-[#161B22] hover:bg-[#58A6FF]/20 border border-[#58A6FF]/40 text-[#58A6FF] font-bold text-[10px] flex items-center gap-1 transition-all"
                           >
                             <span>👤 {p.webName || p.name}</span>
-                            <span className="text-[9px] text-[#8B949E]">£{p.price.toFixed(1)}m</span>
+                            <span className="text-[9px] text-[#8B949E]">{p.priceUnavailable ? 'Price unavailable' : `£${p.price.toFixed(1)}m`}</span>
                           </button>
                         ))}
                       </div>
@@ -362,6 +376,7 @@ export function AskEnnoveraChat({
             sendMessage(input)
           }}
           className="p-3 bg-[#0D1117] border-t border-[#30363D] flex items-center gap-2"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
         >
           <input
             ref={inputRef}
@@ -370,12 +385,15 @@ export function AskEnnoveraChat({
             onChange={(e) => setInput(e.target.value)}
             placeholder={t.placeholder}
             disabled={isLoading}
-            className="flex-1 bg-[#161B22] border border-[#30363D] focus:border-[#58A6FF] rounded-xl px-3.5 py-2.5 text-xs text-[#E6EDF3] placeholder-[#8B949E] focus:outline-none transition-all"
+            // text-base (16px): below 16px, iOS Safari auto-zooms the whole
+            // page on focus, which is part of what made the input/send
+            // button feel obstructed once the keyboard opened.
+            className="flex-1 min-w-0 bg-[#161B22] border border-[#30363D] focus:border-[#58A6FF] rounded-xl px-3.5 py-2.5 text-base text-[#E6EDF3] placeholder-[#8B949E] focus:outline-none transition-all"
           />
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
-            className="px-4 py-2.5 bg-[#58A6FF] hover:bg-[#58A6FF]/90 disabled:opacity-40 text-[#0D1117] font-black text-xs rounded-xl shadow transition-all shrink-0"
+            className="px-4 py-2.5 bg-[#58A6FF] hover:bg-[#58A6FF]/90 disabled:opacity-40 text-[#0D1117] font-black text-sm rounded-xl shadow transition-all shrink-0"
           >
             {t.send}
           </button>
