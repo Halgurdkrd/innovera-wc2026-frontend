@@ -111,16 +111,15 @@ export class FantasyChatEngine {
     // otherwise) -- it does not require pageContext to answer correctly.
     // Genuinely non-fantasy or gameweek-agnostic intents (methodology
     // explanations, official-fact corrections, live-score narration, FPL
-    // rules) are intentionally left on the legacy path below. PLAYER_
-    // COMPARISON and BUDGET_QUERY are ALSO intentionally excluded here --
-    // buildResearchGroundedAnswer has no multi-player-comparison branch
-    // (two names in one question would misfire into its ambiguous-mention
-    // clarification) and no price-filter parsing (a "£7m" constraint
-    // would be silently dropped), so the legacy path's dedicated handling
-    // for those two remains correct without pageContext.
+    // rules) are intentionally left on the legacy path below.
+    // PLAYER_COMPARISON and BUDGET_QUERY now have real, current-pool-
+    // grounded branches inside buildResearchGroundedAnswer (multi-player
+    // comparison and price-filtered ranking respectively) -- routed here
+    // too so they never fall back to the legacy fixed GW2/GW3 demo data
+    // just because no pageContext was supplied.
     const FANTASY_DOMAIN_INTENTS: typeof intent[] = [
       'RESEARCH_MODEL_QUERY', 'GAMEWEEK_DELTA', 'TEAM_OBJECT_QUERY',
-      'SELECTION_EXPLANATION', 'PREDICTION_RECOMMENDATION',
+      'SELECTION_EXPLANATION', 'PREDICTION_RECOMMENDATION', 'PLAYER_COMPARISON', 'BUDGET_QUERY',
     ]
     if (FANTASY_DOMAIN_INTENTS.includes(intent)) {
       return buildResearchGroundedAnswer(question, intent, lang, history)

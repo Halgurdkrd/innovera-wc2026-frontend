@@ -822,6 +822,78 @@ function resolvePlayerMention<T extends NamedEntity>(question: string, players: 
   return { kind: 'NONE' }
 }
 
+// Collects EVERY distinctly-named player mentioned in a question --
+// unlike resolvePlayerMention (which reports 2+ matches as an unresolved
+// AMBIGUOUS collision), a comparison question ("compare Saka and Palmer")
+// is SUPPOSED to name multiple real players, so finding several distinct
+// matches here is success, not ambiguity. Uses the same precedence as
+// resolvePlayerMention (exact full name first; distinctive name-part
+// second, only when no full name matched at all) so an ordinary word
+// still can never accidentally match (same word-boundary + normalization
+// guarantees).
+function findAllDistinctPlayerMentions<T extends NamedEntity & { predicted_xp?: number | null }>(question: string, players: T[]): T[] {
+  const qNorm = normalizeForMatch(question)
+  const byId = new Map<number, T>()
+  for (const p of players) {
+    if (wordBoundaryIncludes(qNorm, normalizeForMatch(p.name))) byId.set(p.stable_player_id, p)
+  }
+  if (byId.size === 0) {
+    // Surname-tier fallback: group by the SPECIFIC matched token first --
+    // a real bug this fixes: "compare Saka and Palmer" pulled in a third,
+    // irrelevant player (a backup goalkeeper also surnamed Palmer)
+    // alongside the two clearly-intended players, because every player
+    // sharing that surname was collected with no way to prefer the
+    // relevant one. When one token matches multiple distinct players,
+    // keeps only the highest predicted-xP match for that token (the
+    // most likely one a user comparing real candidates means), rather
+        // than silently including every same-surname player found.
+    const byToken = new Map<string, T[]>()
+    for (const p of players) {
+      const parts = normalizeForMatch(p.name).split(/\s+/).filter((w) => w.length >= 4)
+      for (const part of parts) {
+        if (wordBoundaryIncludes(qNorm, part)) {
+          const list = byToken.get(part) ?? []
+          list.push(p)
+          byToken.set(part, list)
+        }
+      }
+    }
+    Array.from(byToken.values()).forEach((matches) => {
+      const best = matches.reduce((a: T, b: T) => ((b.predicted_xp ?? -Infinity) > (a.predicted_xp ?? -Infinity) ? b : a))
+      byId.set(best.stable_player_id, best)
+    })
+  }
+  // Sorani fallback (known aliases, then phonetic-skeleton tokens) -- only
+  // when no Latin match was found at all, mirroring resolvePlayerMention's
+  // own precedence. Each Kurdish token is resolved independently and any
+  // per-token collision is reduced the same way as the surname tier above
+  // (highest predicted xP), so "compare Ronaldo-ish players" style
+  // ambiguity never silently pulls in every same-skeleton player.
+  if (byId.size === 0 && isSoraniScript(question)) {
+    for (const [alias, englishFragment] of Object.entries(KNOWN_KURDISH_ALIASES)) {
+      if (question.toLowerCase().includes(alias)) {
+        const matches = players.filter((p) => p.name.toLowerCase().includes(englishFragment.toLowerCase()))
+        if (matches.length > 0) {
+          const best = matches.reduce((a, b) => ((b.predicted_xp ?? -Infinity) > (a.predicted_xp ?? -Infinity) ? b : a))
+          byId.set(best.stable_player_id, best)
+        }
+      }
+    }
+    const tokens = question.split(/\s+/).map(transliterateToLatinSkeleton).filter((t) => t.length >= 3)
+    for (const t of tokens) {
+      const matches = players.filter((p) => {
+        const nameParts = p.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2)
+        return nameParts.some((w) => w.replace(/[aeiouwy]/g, '') === t)
+      })
+      if (matches.length > 0) {
+        const best = matches.reduce((a, b) => ((b.predicted_xp ?? -Infinity) > (a.predicted_xp ?? -Infinity) ? b : a))
+        byId.set(best.stable_player_id, best)
+      }
+    }
+  }
+  return Array.from(byId.values())
+}
+
 // Explicitly separates "Official FPL availability" (the raw acquisition's
 // own status/chance/news, e.g. Gakpo's 75%) from the model's OWN P(start)
 // forecast -- never presents one as the other, and never claims a missing
@@ -1171,6 +1243,97 @@ export async function buildResearchGroundedAnswer(
       generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_HISTORICAL_RECONSTRUCTION',
       llmUsed: false, responseTimeMs: Date.now() - t0,
       researchModel: model, researchGameweek: gw, researchArtifactStatus: ownStartResp.status,
+    }
+  }
+
+  // Player comparison ("compare Saka and Palmer", "which is better,
+  // Ødegaard or Bruno?") -- previously only reachable via the legacy
+  // engine's hardcoded 4-name allowlist (and the old fixed GW2/GW3 demo
+  // data even when it DID match), so most real player names never
+  // triggered a comparison at all. Resolves every distinctly-named player
+  // against the FULL eligible pool for the correctly-resolved gameweek,
+  // never the old demo snapshot.
+  if (modelSel !== 'BOTH' && (/\bcompare\b|\bvs\.?\b|\bversus\b|which (one )?is better\b|better than\b|\bor\b/i.test(q) || q.includes('بەراورد') || q.includes('یان'))) {
+    const model = modelSel as ResearchModel
+    const pool = await fetchFullPool(gw, model, undefined, 500)
+    if (pool.status === 'AVAILABLE' && pool.players) {
+      const mentioned = findAllDistinctPlayerMentions(q, pool.players)
+      if (mentioned.length >= 2) {
+        const rows = mentioned.slice(0, 4)
+        const lines = [`Comparison for GW${gw}${gwUsedNote(lang)}:`]
+        for (const p of rows) {
+          const officialPct = p.official_chance_of_playing_next_round ?? p.official_chance_of_playing_this_round
+          lines.push(
+            `- ${p.name} (${p.club}, ${p.position}): xP ${p.predicted_xp ?? 'n/a'}` +
+            `${p.price != null ? `, £${p.price.toFixed(1)}m` : ''}` +
+            `${p.expected_minutes != null ? `, expected minutes ${p.expected_minutes}` : ''}` +
+            `${p.p_start != null ? `, model P(start) ${(p.p_start * 100).toFixed(0)}%` : ''}` +
+            `${officialPct != null ? `, Official FPL availability ${officialPct.toFixed(0)}%` : ''}` +
+            `${p.likely_range ? `, likely range ${p.likely_range[0]}-${p.likely_range[1]}, P80 upside ${p.upside_score ?? 'n/a'}` : ''}`
+          )
+        }
+        const ranked = [...rows].sort((a, b) => (b.predicted_xp ?? 0) - (a.predicted_xp ?? 0))
+        const gap = (ranked[0].predicted_xp ?? 0) - (ranked[1].predicted_xp ?? 0)
+        lines.push(`Ennovera's forecast favors ${ranked[0].name} by ${gap.toFixed(2)} xP -- a forecast comparison only, not a claim either is legally available for your squad.`)
+        return {
+          answer: lines.join('\n'), intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+          sourceBadge: `${citation(model, gw)} • Player comparison`,
+          referencedPlayers: rows.map((p) => ({
+            id: p.stable_player_id, name: p.name, webName: p.name, club: p.club, position: p.position,
+            price: p.price ?? 0, priceUnavailable: p.price == null, predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
+            actualPoints: null, matchStatus: 'NOT_STARTED',
+          })),
+          suggestedFollowups: withoutUnsolicitedV0([`Why was ${ranked[0].name} selected?`, `Alternatives to ${ranked[1].name}`], pageContext, `Show ${OBJECT_LABELS.OWN_START} GW${gw}`),
+          generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_FULL_POOL',
+          llmUsed: false, responseTimeMs: Date.now() - t0,
+          researchModel: model, researchGameweek: gw, researchArtifactStatus: 'AVAILABLE',
+        }
+      }
+    }
+    // Pool unavailable (e.g. historical GW1-3, no full-pool export) or no
+    // 2 distinct players resolved -- fall through rather than guessing;
+    // the generic named-player/ranking/object logic below still applies.
+  }
+
+  // Budget/price-filtered query ("best midfielder under £7m", "show five
+  // forwards costing no more than £8m") -- previously only reachable via
+  // the legacy engine's fixed GW2/GW3 demo top-players list. Price is
+  // always interpreted as whole-and-decimal £ MILLIONS (matching the
+  // site's own display convention), never raw price "tenths".
+  if (modelSel !== 'BOTH' && intent === 'BUDGET_QUERY') {
+    const model = modelSel as ResearchModel
+    const positions = matchAllPositions(q)
+    const pos: Position = positions[0] ?? 'MID'
+    const priceMatch = q.match(/(?:under|below|no more than|cheaper than|costing(?:\s+no more than)?)\s*£?\s*(\d+(?:\.\d+)?)\s*m?\b/i) || q.match(/£\s*(\d+(?:\.\d+)?)\s*m\b/i)
+    const priceCeiling = priceMatch ? parseFloat(priceMatch[1]) : null
+    const count = extractRequestedCount(q)
+    const pool = await fetchFullPool(gw, model, pos, 500)
+    if (pool.status !== 'AVAILABLE' || !pool.players) {
+      return na(pool.reason || `Full player pool unavailable for GW${gw} -- a complete candidate pool exists only for the currently registered final pair, not every historical gameweek.`, gw, model, pool.status)
+    }
+    const filtered = (priceCeiling != null ? pool.players.filter((p) => p.price != null && p.price <= priceCeiling) : pool.players).slice(0, count)
+    const priceLine = priceCeiling != null ? ` under £${priceCeiling.toFixed(1)}m` : ''
+    const lines = [`Top ${count} ${POS_NAME[pos]}s${priceLine} for GW${gw}${gwUsedNote(lang)} (full eligible pool, ranked by predicted xP):`]
+    for (const p of filtered) {
+      const officialPct = p.official_chance_of_playing_next_round ?? p.official_chance_of_playing_this_round
+      lines.push(`- ${p.name} (${p.club}) vs ${p.opponent_resolved ?? 'unknown opponent'}${p.was_home === true ? ' (H)' : p.was_home === false ? ' (A)' : ''}: ` +
+        `xP ${p.predicted_xp ?? 'n/a'}${p.price != null ? `, £${p.price.toFixed(1)}m` : ''}${p.p_start != null ? `, model P(start) ${(p.p_start * 100).toFixed(0)}%` : ''}` +
+        `${officialPct != null ? `, Official FPL availability ${officialPct.toFixed(0)}%` : ''}`)
+    }
+    if (filtered.length === 0) lines.push(priceCeiling != null ? `No ${POS_NAME[pos]}s in the full eligible pool are priced at or under £${priceCeiling.toFixed(1)}m.` : `No ${POS_NAME[pos]}s available.`)
+    lines.push('This is a forecast/price-filtered recommendation only -- it does not check budget, ownership, or free-transfer legality for your own squad (ask for a "legal transfer" check for that).')
+    return {
+      answer: lines.join('\n'), intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+      sourceBadge: `${citation(model, gw)} • Full pool`,
+      referencedPlayers: filtered.map((p) => ({
+        id: p.stable_player_id, name: p.name, webName: p.name, club: p.club, position: p.position,
+        price: p.price ?? 0, priceUnavailable: p.price == null, predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
+        actualPoints: null, matchStatus: 'NOT_STARTED',
+      })),
+      suggestedFollowups: withoutUnsolicitedV0([`Why was ${filtered[0]?.name ?? 'this player'} ranked there?`, `Show ${OBJECT_LABELS.B_LEGAL_BEST_XI} GW${gw}`], pageContext, `Show ${OBJECT_LABELS.B_LEGAL_BEST_XI} GW${gw}`),
+      generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_FULL_POOL',
+      llmUsed: false, responseTimeMs: Date.now() - t0,
+      researchModel: model, researchGameweek: gw, researchArtifactStatus: 'AVAILABLE',
     }
   }
 

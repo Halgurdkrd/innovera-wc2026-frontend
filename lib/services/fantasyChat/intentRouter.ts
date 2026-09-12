@@ -176,34 +176,48 @@ export class IntentRouter {
       return 'LIVE_GAMEWEEK'
     }
 
-    // 7. Player Comparison
+    // 7. Player Comparison -- comparison WORDING alone is enough to
+    // classify the intent; real player-name resolution (any two distinct
+    // players, not a fixed 4-name allowlist) happens downstream against
+    // the actual current candidate pool, which safely no-ops (falls
+    // through to other handling) if fewer than 2 real players are found,
+    // so over-triggering here on wording alone carries no false-positive
+    // risk. A real bug this fixes: "which is better, Ødegaard or Bruno?"
+    // never even reached PLAYER_COMPARISON before, since neither name was
+    // in the old hardcoded 4-player list.
     if (
-      ((q.includes(' or ') || q.includes(' vs ') || q.includes('compare') || q.includes('یان')) &&
-        (q.includes('saka') || q.includes('palmer') || q.includes('haaland') || q.includes('isak') || q.includes('ساکا') || q.includes('پاڵمەر'))) ||
-      q.includes('what about palmer') ||
-      q.includes('what about ')
+      q.includes(' or ') || q.includes(' vs ') || q.includes('compare') || q.includes('versus') ||
+      q.includes('better than') || q.includes('which is better') || q.includes('یان') ||
+      q.includes('what about palmer') || q.includes('what about ')
     ) {
       return 'PLAYER_COMPARISON'
     }
 
-    // 8. Budget Filtered Query
+    // 8. Budget Filtered Query -- broadened price-ceiling wording (a real
+    // gap: "costing no more than £8m" matched none of the original
+    // trigger phrases at all, silently falling through to an unrelated
+    // generic summary instead of the price-filtered ranking).
     if (
       (q.includes('under £') ||
         q.includes('under ') ||
         q.includes('below £') ||
         q.includes('cheaper') ||
         q.includes('budget is') ||
+        q.includes('no more than') ||
+        q.includes('costing') ||
+        q.includes('at most') ||
+        /£\s*\d/.test(q) ||
         q.includes('ژێر')) &&
       (q.includes('mid') ||
         q.includes('midfielder') ||
         q.includes('forward') ||
         q.includes('defender') ||
         q.includes('striker') ||
+        q.includes('attacker') ||
+        q.includes('gk') ||
+        q.includes('keeper') ||
         q.includes('میدفیلدەر') ||
-        q.includes('6m') ||
-        q.includes('7m') ||
-        q.includes('5m') ||
-        q.includes('8m'))
+        /\b\d{1,2}(\.\d)?m\b/.test(q))
     ) {
       return 'BUDGET_QUERY'
     }
