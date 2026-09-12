@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import type { Language } from '@/lib/translations'
+import { useLanguage } from '@/hooks/useLanguage'
+import { useFantasyChatContext } from '@/context/FantasyChatContext'
 import type { FantasyChatResponse, ReferencedPlayer } from '@/lib/services/fantasyChat/types'
 
 interface ChatMessage {
@@ -77,17 +78,23 @@ function fmtTime() {
   return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
+// The single, site-wide Ask Ennovera assistant -- mounted ONCE in the
+// root layout so every public page (homepage, Premier League, Explore,
+// Fantasy, etc.) shares the same conversation/entity-resolution/grounding
+// implementation. Fantasy context (model/gameweek/decision object) is
+// read from FantasyChatContext rather than a prop, since the Fantasy
+// page's own gw/tab state lives in a different part of the tree than
+// this now-global component -- the Fantasy page writes into that shared
+// context; every other route simply never sets it, so fantasy questions
+// asked elsewhere fall through to the latest registered forecast instead
+// of fabricating Fantasy page context on an unrelated page.
 export function AskEnnoveraChat({
-  language = 'EN',
   onSelectPlayer,
-  pageContext,
 }: {
-  language?: Language
   onSelectPlayer?: (player: ReferencedPlayer) => void
-  // When set (the main M3-only /fantasy page), every chat answer defaults
-  // to this model/GW/tab instead of legacy FPL-03 grounding.
-  pageContext?: { model: 'M3_SHRUNK' | 'V0_CONTROL'; gameweek: number; object: string }
 }) {
+  const { language } = useLanguage()
+  const { fantasyContext: pageContext } = useFantasyChatContext()
   const t = COPY[language === 'KU' ? 'KU' : 'EN']
   const langKey = language === 'KU' ? 'KU' : 'EN'
   const [isOpen, setIsOpen] = useState(false)

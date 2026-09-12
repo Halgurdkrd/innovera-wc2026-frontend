@@ -2,8 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { FantasyChatContextProvider } from "@/context/FantasyChatContext";
 import BottomNav from "@/components/BottomNav";
-import ChatWidget from "@/components/ChatWidget";
+import { AskEnnoveraChat } from "@/components/fantasy/AskEnnoveraChat";
 import WhatsAppFooter from "@/components/WhatsAppFooter";
 import { Analytics } from "@vercel/analytics/next";
 
@@ -75,12 +76,14 @@ export default function RootLayout({
         className={`${inter.className} antialiased bg-[#0D1117] text-[#E6EDF3]`}
       >
         <AuthProvider>
-          <div className="pb-20 md:pb-0">
-            {children}
-            <WhatsAppFooter />
-          </div>
-          <BottomNav />
-          <ChatWidget />
+          <FantasyChatContextProvider>
+            <div className="pb-20 md:pb-0">
+              {children}
+              <WhatsAppFooter />
+            </div>
+            <BottomNav />
+            <AskEnnoveraChat />
+          </FantasyChatContextProvider>
         </AuthProvider>
         <Analytics />
       </body>

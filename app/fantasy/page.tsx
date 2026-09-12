@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import { PitchVisualization } from '@/components/fantasy/PitchVisualization'
-import { AskEnnoveraChat } from '@/components/fantasy/AskEnnoveraChat'
 import ErrorState from '@/components/ui/ErrorState'
 import { useLanguage } from '@/hooks/useLanguage'
+import { useFantasyChatContext } from '@/context/FantasyChatContext'
 import { tr, type Language, type TranslationKey } from '@/lib/translations'
 import type { FPLPlayer } from '@/lib/api/types'
 
@@ -486,6 +486,7 @@ function ObjectView({ tabId, tabTitle, data, onRetry, language }: { tabId: Objec
 
 function FantasyPageInner() {
   const { language, changeLanguage } = useLanguage()
+  const { setFantasyContext } = useFantasyChatContext()
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -502,6 +503,24 @@ function FantasyPageInner() {
 
   useEffect(() => {
     fetchStatus().then(setStatus).catch(() => setStatus(null))
+  }, [])
+
+  // Keeps the single, site-wide chat assistant's Fantasy context in sync
+  // with this page's own selected gameweek/decision object -- the
+  // assistant is mounted globally (root layout), outside this page's
+  // component tree, so it reads this via shared context rather than a
+  // prop. Cleared on unmount so navigating away never leaves stale
+  // Fantasy context fabricated on an unrelated page.
+  useEffect(() => {
+    setFantasyContext({ model: MODEL, gameweek: gw, object: tab })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gw, tab])
+  useEffect(() => {
+    // True-unmount-only cleanup (empty deps) -- clearing on every gw/tab
+    // change instead would flash the shared context to null between
+    // updates rather than just when leaving the Fantasy page entirely.
+    return () => setFantasyContext(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // "This gameweek" (on the page and in chat) must resolve to the latest
@@ -622,8 +641,6 @@ function FantasyPageInner() {
             : <ObjectView tabId={tab} tabTitle={activeTabTitle} data={objectData} onRetry={() => load(gw, tab)} language={language} />
         )}
       </div>
-
-      <AskEnnoveraChat language={language} pageContext={{ model: MODEL, gameweek: gw, object: tab }} />
     </div>
   )
 }

@@ -102,10 +102,27 @@ export class FantasyChatEngine {
       return buildResearchGroundedAnswer(question, intent, lang, history, req.pageContext)
     }
 
-    // Ennovera Research Model (M3_SHRUNK / V0_CONTROL) Fast Path -- reached
-    // only when no pageContext was supplied (e.g. a direct API caller),
-    // preserved for backward compatibility.
-    if (intent === 'RESEARCH_MODEL_QUERY' || intent === 'GAMEWEEK_DELTA') {
+    // No pageContext (e.g. the homepage's shared assistant, or a direct
+    // API caller) -- fantasy-domain questions (selection/ranking/
+    // forecast/object-comparison) still route to the current, real
+    // research-grounded engine rather than the legacy hardcoded GW2/GW3
+    // demo branches below. buildResearchGroundedAnswer resolves "which
+    // gameweek" itself (latest registered forecast when nothing else says
+    // otherwise) -- it does not require pageContext to answer correctly.
+    // Genuinely non-fantasy or gameweek-agnostic intents (methodology
+    // explanations, official-fact corrections, live-score narration, FPL
+    // rules) are intentionally left on the legacy path below. PLAYER_
+    // COMPARISON and BUDGET_QUERY are ALSO intentionally excluded here --
+    // buildResearchGroundedAnswer has no multi-player-comparison branch
+    // (two names in one question would misfire into its ambiguous-mention
+    // clarification) and no price-filter parsing (a "£7m" constraint
+    // would be silently dropped), so the legacy path's dedicated handling
+    // for those two remains correct without pageContext.
+    const FANTASY_DOMAIN_INTENTS: typeof intent[] = [
+      'RESEARCH_MODEL_QUERY', 'GAMEWEEK_DELTA', 'TEAM_OBJECT_QUERY',
+      'SELECTION_EXPLANATION', 'PREDICTION_RECOMMENDATION',
+    ]
+    if (FANTASY_DOMAIN_INTENTS.includes(intent)) {
       return buildResearchGroundedAnswer(question, intent, lang, history)
     }
 

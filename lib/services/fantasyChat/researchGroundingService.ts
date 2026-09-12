@@ -268,14 +268,59 @@ function lastGwMentionIn(text: string): number | null {
   const last = matches[matches.length - 1]
   return parseInt(last[1] || last[2], 10)
 }
-function parseGameweekSticky(q: string, pageContextGw: number | undefined, history: ConversationTurn[], fallback: number): number {
+// Returns null (rather than an arbitrary hardcoded default) when neither
+// the current message, conversation history, nor an explicit page context
+// name a gameweek -- the caller resolves that case via
+// resolveEffectiveGameweek, which asks the backend for the latest
+// REGISTERED gameweek instead of silently defaulting to a stale constant.
+function parseGameweekSticky(q: string, pageContextGw: number | undefined, history: ConversationTurn[]): number | null {
   const current = lastGwMentionIn(q)
   if (current != null) return current
   for (let i = history.length - 1; i >= 0; i--) {
     const m = lastGwMentionIn(history[i].content)
     if (m != null) return m
   }
-  return pageContextGw ?? fallback
+  return pageContextGw ?? null
+}
+
+// Backend's own notion of "latest registered forecast" (the same field
+// the Fantasy page itself uses to choose its default gameweek) -- used
+// ONLY as the last-resort fallback, when a page supplies no context at
+// all (e.g. the homepage's shared assistant) and the conversation itself
+// never named a gameweek. Never used to override an explicit or sticky
+// gameweek that was already resolved.
+let _latestGwCache: { value: number; fetchedAtMs: number } | null = null
+async function fetchLatestRegisteredGameweek(): Promise<number | null> {
+  if (_latestGwCache && Date.now() - _latestGwCache.fetchedAtMs < 60000) return _latestGwCache.value
+  const url = `${upstreamBase()}/api/v1/research-fpl/status`
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 3000)
+    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' })
+    clearTimeout(timeoutId)
+    if (!res.ok) return null
+    const data = await res.json()
+    if (typeof data.final_pair_gameweek !== 'number') return null
+    _latestGwCache = { value: data.final_pair_gameweek, fetchedAtMs: Date.now() }
+    return data.final_pair_gameweek
+  } catch {
+    return null
+  }
+}
+
+// The single entry point for resolving "which gameweek is this question
+// about" -- explicit mention > conversational stickiness > page context >
+// latest registered forecast (fetched live, never a hardcoded constant)
+// > 3 (only if the backend itself is unreachable). Matches the required
+// precedence: a fantasy question with no explicit context anywhere (e.g.
+// asked from the homepage's shared assistant, which supplies no
+// pageContext at all) must use the latest registered forecast, not an
+// old GW2/GW3 snapshot.
+async function resolveEffectiveGameweek(q: string, pageContextGw: number | undefined, history: ConversationTurn[]): Promise<number> {
+  const sticky = parseGameweekSticky(q, pageContextGw, history)
+  if (sticky != null) return sticky
+  const latest = await fetchLatestRegisteredGameweek()
+  return latest ?? 3
 }
 
 // "top 10" / "ten" / bare "top" (defaults to 5) -- deterministic, never
@@ -1070,7 +1115,7 @@ export async function buildResearchGroundedAnswer(
   // hardcoded value -- the answer states which GW was actually used
   // (gwWasExplicit) whenever that resolution wasn't spelled out by the user.
   const gwExplicitInMessage = /\bgw\s*([1-4])\b/.test(q) || /\bgame\s*[\s-]?\s*week\s*([1-4])\b/.test(q)
-  const gw = parseGameweekSticky(q, pageContext?.gameweek, history, 3)
+  const gw = await resolveEffectiveGameweek(q, pageContext?.gameweek, history)
   const gwUsedNote = (lang: 'en' | 'ku') => gwExplicitInMessage ? '' : (lang === 'ku' ? '، دوایین هەفتەی تۆمارکراو' : ', the latest registered gameweek')
   const objectSel = parseObject(q, pageContext?.object ?? 'OWN_START')
 
