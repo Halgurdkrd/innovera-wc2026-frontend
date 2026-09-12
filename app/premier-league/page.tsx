@@ -26,7 +26,7 @@ const L = {
     predAway: 'Away Win',
     cutoffNotice: 'Inference based on pre-match team Elo and rolling 5-game form.',
     simHeading: '10,000 Monte Carlo Season Forecast',
-    simSub: 'Vectorized league simulations running after every fixture cycle.',
+    simSub: 'A single season-long simulation snapshot, refreshed manually (not on an automated fixture-cycle schedule yet).',
     colPos: 'Pos',
     colTeam: 'Club',
     colXPts: 'Exp Pts',
@@ -57,7 +57,7 @@ const L = {
     predAway: 'بردنەوەی میوان',
     cutoffNotice: 'پێشبینییەکان لەسەر بنەمای هێزی Elo و ئاستی ٥ یاری ڕابردوو ئەنجام دراون.',
     simHeading: '١٠،٠٠٠ خەمڵاندنی وەرزی مۆنتی کارلۆ',
-    simSub: 'شیکاری وەرز لە دوای هەر گەڕێک نوێ دەکرێتەوە.',
+    simSub: 'وێنەیەکی تاکی خەمڵاندنی وەرز، بەدەستی نوێ دەکرێتەوە (هێشتا بەشێوەی خۆکار لەگەڵ هەر گەڕێکدا نوێ نابێتەوە).',
     colPos: 'پلە',
     colTeam: 'یانە',
     colXPts: 'خاڵی پێشبینیکراو',
@@ -220,6 +220,11 @@ export default function PremierLeaguePage() {
               </div>
               <FreshnessTag generatedAt={tableData?.generated_at} />
             </div>
+            {tableData?.is_stale && tableData.staleness_note && (
+              <div className="text-xs text-amber-400/90 bg-amber-950/20 border border-amber-700/40 rounded-lg p-3">
+                {tableData.staleness_note}
+              </div>
+            )}
 
             {loading ? (
               <div className="h-96 rounded-xl bg-[#161B22] border border-[#30363D] animate-pulse" />

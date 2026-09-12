@@ -47,6 +47,9 @@ export interface PLTableResponse {
   simulation_runs: number
   model_version: string
   generated_at: string
+  data_cutoff?: string
+  is_stale?: boolean
+  staleness_note?: string
   standings: PLStanding[]
 }
 
