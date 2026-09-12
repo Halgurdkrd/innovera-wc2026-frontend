@@ -74,6 +74,7 @@ function tabDescription(id: ObjectLabel, lang: Language): string {
 interface PlayerRow {
   stable_player_id: number
   name: string
+  web_name?: string | null
   club: string
   position: 'GK' | 'DEF' | 'MID' | 'FWD'
   price: number | null
@@ -151,7 +152,13 @@ function toFplPlayer(p: PlayerRow, benchIndex?: { outfield: number; isReserveGk:
   return {
     player_id: p.stable_player_id,
     name: p.name,
-    web_name: p.name,
+    // Real official FPL short display name when available (e.g.
+    // "B.Fernandes", "Strand Larsen") -- previously this was silently
+    // fed the full name here (a placeholder from before the backend
+    // exposed a real web_name), so PitchVisualization's own
+    // `web_name || name` preference never actually showed anything but
+    // the full name despite already being written to prefer it.
+    web_name: p.web_name ?? p.name,
     club: p.club,
     position: p.position,
     price: p.price ?? 0,

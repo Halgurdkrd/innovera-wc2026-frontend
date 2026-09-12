@@ -468,13 +468,19 @@ function PlayerDetailModal({
           <ClubJerseySvg club={player.club} position={player.position} isCaptain={player.is_captain} />
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg sm:text-xl font-bold text-[#E6EDF3]">{player.name}</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-[#E6EDF3]">{player.web_name || player.name}</h2>
               {player.is_captain && (
                 <span className="text-[10px] sm:text-xs font-extrabold px-2 py-0.5 rounded bg-[#F0A500] text-[#0D1117]">
                   CAPTAIN
                 </span>
               )}
             </div>
+            {/* Full name shown only when it differs from the official
+                short display name -- preserves it for clarity/search
+                without duplicating an identical string. */}
+            {player.web_name && player.web_name !== player.name && (
+              <p className="text-[11px] text-[#8B949E]/80">{player.name}</p>
+            )}
             <p className="text-xs sm:text-sm text-[#8B949E]">
               {player.club} • {player.position}
               {' • '}{player.price_unavailable ? tr('pitch_price_unavailable', language) : <Num>{`£${(player.price ?? 5.0).toFixed(1)}m`}</Num>}

@@ -20,6 +20,7 @@ export type ResearchModel = 'M3_SHRUNK' | 'V0_CONTROL'
 interface OwnStartPlayer {
   stable_player_id: number
   name: string
+  web_name?: string | null
   club: string
   position: 'GK' | 'DEF' | 'MID' | 'FWD'
   price: number
@@ -73,6 +74,7 @@ export type ObjectLabel = 'OWN_START' | 'A_BLANK_SLATE' | 'B_LEGAL_BEST_XI' | 'P
 interface ObjectMember {
   stable_player_id: number | null
   name: string
+  web_name?: string | null
   position: string
   price: number | null
   predicted_xp?: number | null
@@ -152,6 +154,11 @@ async function fetchObjectData(gw: number, model: ResearchModel, object: ObjectL
 export interface FullPoolPlayer {
   stable_player_id: number
   name: string
+  // Official FPL short display name (e.g. "B.Fernandes", "Strand Larsen")
+  // -- the presentation-layer name users actually recognize. null when no
+  // clean official mapping exists (falls back to `name`, the full name,
+  // never fabricated or shortened by this app itself).
+  web_name?: string | null
   club: string
   position: 'GK' | 'DEF' | 'MID' | 'FWD'
   price: number | null
@@ -704,7 +711,7 @@ function toReferencedPlayer(p: OwnStartPlayer): ReferencedPlayer {
   return {
     id: p.stable_player_id,
     name: p.name,
-    webName: p.name,
+    webName: p.web_name ?? p.name,
     club: p.club,
     position: p.position,
     price: p.price,
@@ -1233,7 +1240,7 @@ export async function buildResearchGroundedAnswer(
           answer: lines.join('\n'), intent, requestedGameweek: poolGw, contextStatus: 'GENERAL', sourceTypes,
           sourceBadge: `Official FPL event-live archive • ${target.name}`,
           referencedPlayers: [{
-            id: target.stable_player_id, name: target.name, webName: target.name, club: target.club, position: target.position,
+            id: target.stable_player_id, name: target.name, webName: target.web_name ?? target.name, club: target.club, position: target.position,
             price: target.price ?? 0, priceUnavailable: target.price == null, predictedXp: target.predicted_xp ?? 0, xpUnavailable: true,
             actualPoints: null, matchStatus: 'FT',
           }],
@@ -1369,7 +1376,7 @@ export async function buildResearchGroundedAnswer(
       answer: lines.join('\n'), intent, requestedGameweek: gwB, contextStatus: 'GENERAL', sourceTypes,
       sourceBadge: `${citation(model, gwA)} vs ${citation(model, gwB)} • ${objLabel}`,
       referencedPlayers: [...outNames, ...inNames].slice(0, 10).map((p) => ({
-        id: p.stable_player_id ?? -1, name: p.name, webName: p.name, club: '', position: p.position as any,
+        id: p.stable_player_id ?? -1, name: p.name, webName: p.web_name ?? p.name, club: '', position: p.position as any,
         price: p.price ?? 0, priceUnavailable: p.price == null, predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
         actualPoints: p.actual_points ?? null, matchStatus: p.actual_points != null ? 'FT' : 'NOT_STARTED',
       })),
@@ -1480,7 +1487,7 @@ export async function buildResearchGroundedAnswer(
           answer: lines.join('\n'), intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
           sourceBadge: `${citation(model, gw)} • Player comparison`,
           referencedPlayers: rows.map((p) => ({
-            id: p.stable_player_id, name: p.name, webName: p.name, club: p.club, position: p.position,
+            id: p.stable_player_id, name: p.name, webName: p.web_name ?? p.name, club: p.club, position: p.position,
             price: p.price ?? 0, priceUnavailable: p.price == null, predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
             actualPoints: null, matchStatus: 'NOT_STARTED',
           })),
@@ -1527,7 +1534,7 @@ export async function buildResearchGroundedAnswer(
       answer: lines.join('\n'), intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
       sourceBadge: `${citation(model, gw)} • Full pool`,
       referencedPlayers: filtered.map((p) => ({
-        id: p.stable_player_id, name: p.name, webName: p.name, club: p.club, position: p.position,
+        id: p.stable_player_id, name: p.name, webName: p.web_name ?? p.name, club: p.club, position: p.position,
         price: p.price ?? 0, priceUnavailable: p.price == null, predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
         actualPoints: null, matchStatus: 'NOT_STARTED',
       })),
@@ -1590,7 +1597,7 @@ export async function buildResearchGroundedAnswer(
             answer: lines.join('\n'), intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
             sourceBadge: `${citation(model, gw)} • Full pool`,
             referencedPlayers: altsPool.map((p) => ({
-              id: p.stable_player_id, name: p.name, webName: p.name, club: p.club, position: p.position,
+              id: p.stable_player_id, name: p.name, webName: p.web_name ?? p.name, club: p.club, position: p.position,
               price: p.price ?? 0, priceUnavailable: p.price == null,
               predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
               actualPoints: null, matchStatus: 'NOT_STARTED',
@@ -1622,7 +1629,7 @@ export async function buildResearchGroundedAnswer(
           answer, intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
           sourceBadge: `${citation(model, gw)} • Legal-transfer check`,
           referencedPlayers: affordable.slice(0, 5).map((p, i) => ({
-            id: p.stable_player_id, name: p.name, webName: p.name, club: p.club, position: p.position,
+            id: p.stable_player_id, name: p.name, webName: p.web_name ?? p.name, club: p.club, position: p.position,
             price: p.price ?? 0, priceUnavailable: p.price == null,
             predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
             actualPoints: null, matchStatus: 'NOT_STARTED',
@@ -1654,7 +1661,7 @@ export async function buildResearchGroundedAnswer(
           answer: lines.join('\n'), intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
           sourceBadge: `${citation(model, gw)} • Full pool`,
           referencedPlayers: others.map((p) => ({
-            id: p.stable_player_id, name: p.name, webName: p.name, club: p.club, position: p.position,
+            id: p.stable_player_id, name: p.name, webName: p.web_name ?? p.name, club: p.club, position: p.position,
             price: p.price ?? 0, priceUnavailable: p.price == null,
             predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
             actualPoints: null, matchStatus: 'NOT_STARTED',
@@ -1723,7 +1730,7 @@ export async function buildResearchGroundedAnswer(
             `${p.likely_range ? `, likely range ${p.likely_range[0]}-${p.likely_range[1]}, P80 upside ${p.upside_score ?? 'n/a'}` : ''}`)
           if (referencedPlayers.length < 15) {
             referencedPlayers.push({
-              id: p.stable_player_id, name: p.name, webName: p.name, club: p.club, position: p.position,
+              id: p.stable_player_id, name: p.name, webName: p.web_name ?? p.name, club: p.club, position: p.position,
               price: p.price ?? 0, priceUnavailable: p.price == null,
               predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
               actualPoints: null, matchStatus: 'NOT_STARTED',
@@ -1823,7 +1830,7 @@ export async function buildResearchGroundedAnswer(
         intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
         sourceBadge: `${citation(model, gw)} • Clarification needed`,
         referencedPlayers: mention.candidates.slice(0, 5).map((p) => ({
-          id: p.stable_player_id, name: p.name, webName: p.name, club: p.club, position: p.position,
+          id: p.stable_player_id, name: p.name, webName: p.web_name ?? p.name, club: p.club, position: p.position,
           price: p.price ?? 0, priceUnavailable: p.price == null, predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
           actualPoints: null, matchStatus: 'NOT_STARTED',
         })),
@@ -1866,7 +1873,7 @@ export async function buildResearchGroundedAnswer(
       answer: answerText, intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
       sourceBadge: `${citation(model, gw)} • Outlook explanation`,
       referencedPlayers: [{
-        id: target.stable_player_id, name: target.name, webName: target.name, club: target.club, position: target.position,
+        id: target.stable_player_id, name: target.name, webName: target.web_name ?? target.name, club: target.club, position: target.position,
         price: target.price ?? 0, priceUnavailable: target.price == null,
         predictedXp: target.predicted_xp ?? 0, xpUnavailable: target.predicted_xp == null,
         actualPoints: null, matchStatus: 'NOT_STARTED',
@@ -1950,7 +1957,7 @@ export async function buildResearchGroundedAnswer(
       intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
       sourceBadge: `${citation(model, gw)} • Clarification needed`,
       referencedPlayers: globalMention.candidates.slice(0, 5).map((p) => ({
-        id: p.stable_player_id, name: p.name, webName: p.name, club: p.club, position: p.position,
+        id: p.stable_player_id, name: p.name, webName: p.web_name ?? p.name, club: p.club, position: p.position,
         price: p.price ?? 0, priceUnavailable: p.price == null, predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp == null,
         actualPoints: null, matchStatus: 'NOT_STARTED',
       })),
@@ -2000,7 +2007,7 @@ export async function buildResearchGroundedAnswer(
     const priceText = target.price != null ? `£${target.price.toFixed(1)}m` : 'price unavailable'
     const xpText = target.predicted_xp != null ? `${target.predicted_xp}` : 'not available'
     const referencedPlayers: ReferencedPlayer[] = [{
-      id: target.stable_player_id, name: target.name, webName: target.name, club: target.club, position: target.position,
+      id: target.stable_player_id, name: target.name, webName: target.web_name ?? target.name, club: target.club, position: target.position,
       price: target.price ?? 0, priceUnavailable: target.price == null,
       predictedXp: target.predicted_xp ?? 0, xpUnavailable: target.predicted_xp == null,
       actualPoints: null, matchStatus: isFutureForecast ? 'NOT_STARTED' : 'NOT_STARTED',
@@ -2152,7 +2159,7 @@ export async function buildResearchGroundedAnswer(
 
     const referencedPlayers: ReferencedPlayer[] = membership
       ? membership.slice(0, 6).map((p) => ({
-          id: p.stable_player_id ?? -1, name: p.name, webName: p.name, club: '', position: p.position as any,
+          id: p.stable_player_id ?? -1, name: p.name, webName: p.web_name ?? p.name, club: '', position: p.position as any,
           price: p.price ?? 0, priceUnavailable: p.price === null || p.price === undefined,
           predictedXp: p.predicted_xp ?? 0, xpUnavailable: p.predicted_xp === null || p.predicted_xp === undefined,
           actualPoints: p.actual_points ?? null,
