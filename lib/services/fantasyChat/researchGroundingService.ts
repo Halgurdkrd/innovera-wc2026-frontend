@@ -224,6 +224,96 @@ async function fetchFullPool(gw: number, model: ResearchModel, position?: 'GK' |
   }
 }
 
+interface PlayerActualsGwRow {
+  minutes: number | null
+  starts: number | null
+  total_points: number | null
+  played: boolean | null
+  goals_scored: number | null
+  assists: number | null
+  source: string
+}
+interface PlayerActualsResponse {
+  status: string
+  reason?: string
+  stable_player_id?: number
+  name?: string
+  season?: string
+  gameweeks?: Record<string, PlayerActualsGwRow>
+  missing_gameweeks?: number[]
+}
+async function fetchPlayerActuals(playerId: number, gameweeks: number[]): Promise<PlayerActualsResponse> {
+  const url = `${upstreamBase()}/api/v1/research-fpl/player-actuals?player_id=${playerId}&gameweeks=${gameweeks.join(',')}`
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 4000)
+    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' })
+    clearTimeout(timeoutId)
+    if (!res.ok) return { status: 'TEMPORARILY_UNAVAILABLE', reason: `Research API returned HTTP ${res.status}.` }
+    return await res.json()
+  } catch {
+    return { status: 'TEMPORARILY_UNAVAILABLE', reason: 'Research API unreachable.' }
+  }
+}
+
+// Recognizes a question about ACTUAL past results (minutes/points/starts/
+// appearances already recorded in a specific gameweek) -- distinct from,
+// and higher precedence than, a selection/forecast question. A real bug
+// this fixes: "how many minutes did Larsen play in GW1, 2 and 3?" was
+// answered with a GW4 selection summary and forecast xP, because nothing
+// in the engine recognized "actual past minutes" as a different kind of
+// question from "is he selected/forecast for the upcoming gameweek".
+// Deliberately narrow (specific stat words + explicit past-GW evidence)
+// so it can never misfire on a genuine forecast/selection question, which
+// asks about upcoming expected minutes/points, not recorded ones.
+const HISTORICAL_STAT_WORDS = /\bminutes\b|\bpoints\b|\bstart(ed|s)?\b|\bplayed\b|\bappear(ed|ance)?s?\b|\bgoals\b|\bassists\b/i
+const ACTUAL_EVIDENCE_WORDS = /\bactual\b|\brecorded\b|\breal\b|\bhow many\b|\bwhich (games?|gameweeks?)\b|\bdid he\b|\bhave they\b/i
+// A forecast/selection question ("expected minutes for GW4", "predicted
+// points", "will he start") must stay on the forecast path even when it
+// shares a stat word with a historical-actuals question -- checked
+// wherever a HISTORICAL_STAT_WORDS match alone would otherwise be enough
+// (specifically the follow-up-continuation path, which has no explicit
+// "actual/recorded/how many" evidence word of its own to lean on). A real
+// bug this guards against: "what are Larsen's expected minutes for GW4?"
+// asked right after an unrelated historical-actuals exchange was
+// mis-treated as a continuation of that exchange purely because it also
+// contains the word "minutes".
+const FORECAST_EXCLUSION_WORDS = /\bexpected\b|\bpredicted\b|\bforecast\b|\bwill (he|she|they)\b|\bselected\b|\bxp\b/i
+function extractExplicitGameweeks(q: string): number[] {
+  const found = new Set<number>()
+  // Ranges: "gameweeks 1 to 3", "GW1-3"
+  const rangeMatches = Array.from(q.matchAll(/\bg(?:ameweeks?|w)s?\s*(\d)\s*(?:-|to|–)\s*(\d)\b/gi))
+  for (const m of rangeMatches) {
+    const a = parseInt(m[1], 10), b = parseInt(m[2], 10)
+    for (let i = Math.min(a, b); i <= Math.max(a, b); i++) found.add(i)
+  }
+  // Explicit lists: "gameweeks 1, 2 and 3", "GW1, GW2, GW3", bare "gw2"
+  const listMatches = Array.from(q.matchAll(/\bgw\s*([1-4])\b/gi))
+  for (const m of listMatches) found.add(parseInt(m[1], 10))
+  if (found.size === 0) {
+    // "gameweeks 1, 2 and 3" without repeating "gw" per number
+    const gwListPrefix = q.match(/\bgameweeks?\b([\s,and\d]+)/i)
+    if (gwListPrefix) {
+      const nums = Array.from(gwListPrefix[1].matchAll(/[1-4]/g)).map((m) => parseInt(m[0], 10))
+      nums.forEach((n) => found.add(n))
+    }
+  }
+  return Array.from(found).sort((a, b) => a - b)
+}
+function isHistoricalStatsQuestion(q: string): boolean {
+  const explicitGws = extractExplicitGameweeks(q)
+  return explicitGws.length > 0 && HISTORICAL_STAT_WORDS.test(q) && (ACTUAL_EVIDENCE_WORDS.test(q) || /\bhow many\b/i.test(q))
+}
+type HistoricalStat = 'minutes' | 'points' | 'starts' | 'goals' | 'assists'
+function detectRequestedStat(q: string, fallback: HistoricalStat): HistoricalStat {
+  if (/\bpoints?\b/i.test(q)) return 'points'
+  if (/\bstart(ed|s)?\b/i.test(q)) return 'starts'
+  if (/\bgoals?\b/i.test(q)) return 'goals'
+  if (/\bassists?\b/i.test(q)) return 'assists'
+  if (/\bminutes?\b/i.test(q)) return 'minutes'
+  return fallback
+}
+
 // Friendly public label -- chat prose must not lead with the internal
 // model identifier (M3_SHRUNK/V0_CONTROL); that stays in sourceBadge/
 // metadata for anyone who expands technical details.
@@ -1047,6 +1137,117 @@ export async function buildResearchGroundedAnswer(
       researchModel: model,
       researchGameweek: gw,
       researchArtifactStatus: sourceStatus,
+    }
+  }
+
+  // ACTUAL past-results question ("how many minutes did Larsen play in
+  // GW1, 2 and 3?") -- checked FIRST, before any selection/forecast
+  // logic, since this asks what already happened, not what's selected or
+  // expected for the upcoming gameweek. Explicit GW1/GW2/GW3 here are
+  // never replaced by "latest registered gameweek" -- that fallback only
+  // applies to forecast/selection questions, not to a request for a
+  // specific historical record.
+  {
+    const priorHistorical = lastAssistant?.role === 'assistant' ? lastAssistant.content.match(/^(.+?)'s recorded (\w+) in ([\d-]+)/) : null
+    const priorGws = priorHistorical ? Array.from(new Set(Array.from(lastAssistant!.content.matchAll(/GW(\d)\b/g)).map((m) => parseInt(m[1], 10)))).sort((a, b) => a - b) : []
+    const onlyGwMatch = q.match(/\bonly\s+gameweek\s+(one|two|three|four|[1-4])\b|\bjust\s+gw\s*([1-4])\b/i)
+    const isFollowup = !!priorHistorical && !FORECAST_EXCLUSION_WORDS.test(q) && (
+      HISTORICAL_STAT_WORDS.test(q) || /\bonly\b|\bjust\b|\bwhat about\b|\bhis\b|\bhe\b|\bshe\b|\bher\b/i.test(q)
+    )
+    if (isHistoricalStatsQuestion(q) || isFollowup) {
+      const model = (pageContext?.model) || 'M3_SHRUNK'
+      const poolGw = await fetchLatestRegisteredGameweek() ?? 3
+      const pool = await fetchFullPool(poolGw, model, undefined, 500)
+      let target: FullPoolPlayer | null = null
+      if (pool.status === 'AVAILABLE' && pool.players) {
+        const mention = resolvePlayerMention(question, pool.players)
+        if (mention.kind === 'AMBIGUOUS') {
+          const names = mention.candidates.map((p) => p.name).join(', ')
+          return {
+            answer: lang === 'ku' ? `کامیان مەبەستتە: ${names}؟` : `Which player did you mean: ${names}?`,
+            intent, requestedGameweek: poolGw, contextStatus: 'GENERAL', sourceTypes,
+            sourceBadge: 'Historical stats • Clarification needed', referencedPlayers: [],
+            suggestedFollowups: [], generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_CLARIFICATION_NEEDED',
+            llmUsed: false, responseTimeMs: Date.now() - t0,
+          }
+        }
+        if (mention.kind === 'FOUND') target = mention.player
+      }
+      // Follow-up with no new player named -- reuse the prior player by
+      // re-resolving their name from the prior reply (never guessing a
+      // stable ID that wasn't actually re-verified against the pool).
+      if (!target && priorHistorical && pool.status === 'AVAILABLE' && pool.players) {
+        const priorName = priorHistorical[1]
+        target = pool.players.find((p) => p.name === priorName) ?? null
+      }
+      if (target) {
+        const explicitGws = extractExplicitGameweeks(q)
+        let gws = explicitGws.length > 0 ? explicitGws : priorGws
+        if (onlyGwMatch) {
+          const wordToNum: Record<string, number> = { one: 1, two: 2, three: 3, four: 4 }
+          const raw = onlyGwMatch[1] || onlyGwMatch[2]
+          const n = wordToNum[raw?.toLowerCase()] ?? parseInt(raw, 10)
+          gws = [n]
+        }
+        if (gws.length === 0) gws = [1, 2, 3]
+        const stat = detectRequestedStat(q, priorHistorical ? (priorHistorical[2] as HistoricalStat) : 'minutes')
+        const season = priorHistorical ? priorHistorical[3] : '2026-27'
+        const actuals = await fetchPlayerActuals(target.stable_player_id, gws)
+        if (actuals.status !== 'AVAILABLE') {
+          return na(actuals.reason || 'Historical GW1-3 records are not available.', poolGw, model as ResearchModel, actuals.status)
+        }
+        const lines: string[] = []
+        const statLabel = stat === 'starts' ? (lang === 'ku' ? 'یاری دەستپێکردن' : 'starts') : stat
+        if (stat === 'starts') {
+          const started = gws.filter((g) => (actuals.gameweeks?.[String(g)]?.starts ?? 0) > 0)
+          const notStarted = gws.filter((g) => actuals.gameweeks?.[String(g)] && (actuals.gameweeks[String(g)].starts ?? 0) === 0)
+          const missing = actuals.missing_gameweeks || []
+          // Same opening-line template as the numeric-stat branch below
+          // ("X's recorded STAT in SEASON ...") so a later follow-up
+          // ("only gameweek two", "and his points?") can recognize a
+          // "starts" answer as historical-context too, not just the
+          // numeric list format.
+          lines.push(lang === 'ku'
+            ? `${target.name} تۆماری ${statLabel} لە ${season}: یاری دەستی پێکردووە لە ${started.map((g) => `GW${g}`).join(', ') || 'هیچ'}.`
+            : `${target.name}'s recorded ${statLabel} in ${season}: started in ${started.map((g) => `GW${g}`).join(', ') || 'none'}.`)
+          if (notStarted.length) lines.push(lang === 'ku' ? `دەستی پێنەکردووە لە: ${notStarted.map((g) => `GW${g}`).join(', ')}.` : `Did not start: ${notStarted.map((g) => `GW${g}`).join(', ')}.`)
+          if (missing.length) lines.push(lang === 'ku' ? `تۆماری بەردەست نییە بۆ: ${missing.map((g) => `GW${g}`).join(', ')}.` : `No archived record for: ${missing.map((g) => `GW${g}`).join(', ')}.`)
+        } else {
+          lines.push(lang === 'ku' ? `${target.name} تۆماری ${statLabel} لە ${season} بۆ:` : `${target.name}'s recorded ${statLabel} in ${season} were:`)
+          lines.push('')
+          let sum = 0
+          let anyMissing = false
+          for (const g of gws) {
+            const row = actuals.gameweeks?.[String(g)]
+            if (!row) { lines.push(`GW${g}: ${lang === 'ku' ? 'تۆمار بەردەست نییە' : 'no record available'}`); anyMissing = true; continue }
+            const value = stat === 'points' ? row.total_points : stat === 'goals' ? row.goals_scored : stat === 'assists' ? row.assists : row.minutes
+            lines.push(`GW${g}: ${value ?? (lang === 'ku' ? 'تۆمار بەردەست نییە' : 'no record available')}`)
+            if (typeof value === 'number') sum += value
+          }
+          lines.push('')
+          lines.push(lang === 'ku'
+            ? `کۆ: ${sum} ${statLabel}${anyMissing ? ' (تەنها گەڕە تۆمارکراوەکان)' : ''}.`
+            : `Total: ${sum} ${statLabel}${anyMissing ? ' (recorded gameweeks only)' : ''}.`)
+        }
+        return {
+          answer: lines.join('\n'), intent, requestedGameweek: poolGw, contextStatus: 'GENERAL', sourceTypes,
+          sourceBadge: `Official FPL event-live archive • ${target.name}`,
+          referencedPlayers: [{
+            id: target.stable_player_id, name: target.name, webName: target.name, club: target.club, position: target.position,
+            price: target.price ?? 0, priceUnavailable: target.price == null, predictedXp: target.predicted_xp ?? 0, xpUnavailable: true,
+            actualPoints: null, matchStatus: 'FT',
+          }],
+          suggestedFollowups: [`And his points?`, `Which games did he start?`],
+          generatedAt: new Date().toISOString(), dataSnapshot: 'OFFICIAL_FPL_HISTORICAL_ACTUALS',
+          llmUsed: false, responseTimeMs: Date.now() - t0,
+        }
+      }
+      if (isHistoricalStatsQuestion(q)) {
+        // A genuine historical-stats question, but the named player
+        // could not be resolved at all -- say so plainly rather than
+        // falling through to an unrelated selection/forecast summary.
+        return na(`Could not resolve the named player against the current eligible pool.`, poolGw, model as ResearchModel)
+      }
     }
   }
 
