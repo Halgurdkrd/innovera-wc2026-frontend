@@ -1663,10 +1663,25 @@ export async function buildResearchGroundedAnswer(
       const altCandidate = altAbove ?? altBelow
       if (altCandidate) {
         const xpDiff = (altCandidate.predicted_xp ?? 0) - (target.predicted_xp ?? 0)
+        const priceDiff = altCandidate.price != null && target.price != null ? altCandidate.price - target.price : null
+        const priceDiffText = priceDiff != null && Math.abs(priceDiff) > 0.05
+          ? (lang === 'ku' ? `، جیاوازی نرخ ${priceDiff >= 0 ? '+' : ''}£${priceDiff.toFixed(1)}m` : `, price difference ${priceDiff >= 0 ? '+' : ''}£${priceDiff.toFixed(1)}m`)
+          : ''
+        // Distinguishes an UNRESTRICTED forecast-only candidate (this
+        // sentence) from a legally affordable replacement (budget/
+        // ownership/free-transfer rules checked) -- these are different
+        // questions, and a bare xP-difference comparison omits the
+        // material budget tradeoff of actually making the swap.
         factsText += lang === 'ku'
-          ? ` نزیکترین بژاردەی هاوپۆزیشن بەپێی پێشبینی: ${altCandidate.name} (xP ${altCandidate.predicted_xp ?? 'n/a'}${xpDiff !== 0 ? `، ${xpDiff >= 0 ? '+' : ''}${xpDiff.toFixed(2)} بەراورد بە ${target.name}` : ''}).`
-          : ` Nearest same-position alternative by forecast: ${altCandidate.name} (xP ${altCandidate.predicted_xp ?? 'n/a'}${xpDiff !== 0 ? `, ${xpDiff >= 0 ? '+' : ''}${xpDiff.toFixed(2)} vs ${target.name}` : ''}).`
+          ? ` نزیکترین بژاردەی هاوپۆزیشن بەپێی پێشبینی (بێ سنوور، بێ پشکنینی یاسایی): ${altCandidate.name} (xP ${altCandidate.predicted_xp ?? 'n/a'}${xpDiff !== 0 ? `، ${xpDiff >= 0 ? '+' : ''}${xpDiff.toFixed(2)} بەراورد بە ${target.name}` : ''}${priceDiffText}). ئەمە یاسایی گواستنەوە (بوودجە/خاوەندارێتی) ناپشکنێت -- بۆ ئەوە داوای \"جێگرەوەی یاسایی\" بکە.`
+          : ` Nearest same-position alternative by forecast (unrestricted, not a legality check): ${altCandidate.name} (xP ${altCandidate.predicted_xp ?? 'n/a'}${xpDiff !== 0 ? `, ${xpDiff >= 0 ? '+' : ''}${xpDiff.toFixed(2)} vs ${target.name}` : ''}${priceDiffText}). This does not check budget/ownership/free-transfer legality -- ask for a "legal transfer" check for that.`
       }
+      // Explicit statement of what evidence supports this explanation vs.
+      // what optimizer rationale (formation/budget tradeoffs actually
+      // weighed at selection time) was never preserved in the export.
+      factsText += lang === 'ku'
+        ? ' ئەم پێداویستییانەی سەرەوە لە کۆگای پارێزراودا هاتوون؛ هۆکاری تەواوی هەڵبژاردنی مۆدێل (وەک بوودجە یان پێکهاتە) لە کۆکراوەی هەناردەکراودا نەپاراستراوە.'
+        : ' The figures above come directly from the preserved forecast/rank/price evidence; the model\'s full selection rationale (e.g. exact formation/budget tradeoffs weighed at selection time) was not preserved in the exported artifact.'
     }
 
     // Official FPL availability vs. model P(start) -- always disclosed when
