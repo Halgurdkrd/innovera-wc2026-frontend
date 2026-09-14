@@ -158,7 +158,10 @@ export class IntentRouter {
       return 'OFFICIAL_FPL_FACT'
     }
 
-    // 6. Live Gameweek Score & Match State
+    // 6. Live Gameweek Score & Match State -- "points so far" / who has
+    // played / who is still to play, always answered from the real
+    // current live-results snapshot (see researchGroundingService's
+    // LIVE_GAMEWEEK branch), never a hardcoded/forecast-only answer.
     if (
       q.includes('how many points does our ai manager') ||
       q.includes('manager score') ||
@@ -167,11 +170,36 @@ export class IntentRouter {
       q.includes('how did haaland do') ||
       q.includes('how many points does haaland have') ||
       (q.includes('points') && (q.includes('haaland') || q.includes('haland') || q.includes('هالاند'))) ||
+      // Name-agnostic "how many points did X get/score" / "how did X do" --
+      // a real gap fixed here: this previously only matched a hardcoded
+      // "haaland" check, so "how many points did Gakpo get?" fell through
+      // to an unrelated generic branch instead of the live-results answer.
+      /\bpoints?\s+did\b/.test(q) ||
+      /\bhow\s+(many|much)\s+points?\s+(does|has|have)\b/.test(q) ||
+      /\bhow\s+did\s+\S+.*\bdo\b/.test(q) ||
+      (q.includes('points') && /\b(got|scored)\b/.test(q)) ||
+      q.includes('چەند خاڵی') ||
       q.includes('who has already played') ||
       q.includes('how many players remain') ||
       q.includes('bench points') ||
       q.includes('finished') ||
-      q.includes('هالاند چەند خاڵی هەیە')
+      q.includes('هالاند چەند خاڵی هەیە') ||
+      q.includes('points so far') ||
+      q.includes('score so far') ||
+      q.includes('how many points do we have') ||
+      q.includes('how many points have we') ||
+      (q.includes('so far') && q.includes('point')) ||
+      q.includes('waiting to play') ||
+      q.includes('still to play') ||
+      q.includes('yet to play') ||
+      q.includes('still waiting') ||
+      q.includes('who is still') ||
+      q.includes('who has played') ||
+      q.includes('who has not played') ||
+      q.includes("who hasn't played") ||
+      q.includes('چەند خاڵمان') ||
+      q.includes('کێ یاری کردووە') ||
+      q.includes('کێ هێشتا یاری نەکردووە')
     ) {
       return 'LIVE_GAMEWEEK'
     }

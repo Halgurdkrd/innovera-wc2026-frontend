@@ -103,6 +103,22 @@ interface PlayerRow {
   prob_15_plus?: number | null
   prob_20_plus?: number | null
   outlook_is_supplemental?: boolean | null
+  // Live/partial-GW results overlay (research_fpl_service._apply_live_overlay) --
+  // only present once an official-results snapshot has been fetched for
+  // this gameweek. 'NOT_STARTED' is distinct from a confirmed 'DID_NOT_PLAY'
+  // zero -- never collapse the two into one "hasResult" boolean.
+  match_status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED_PROVISIONAL' | 'FINISHED_CONFIRMED' | 'DID_NOT_PLAY' | 'NOT_TRACKED' | 'FT' | 'FINISHED' | 'LIVE'
+}
+
+interface LiveResultsMeta {
+  gw_completion_status?: string
+  fixtures_total?: number
+  fixtures_finished_confirmed?: number
+  fixtures_finished_provisional?: number
+  fixtures_in_progress?: number
+  fixtures_not_started?: number
+  last_updated_utc?: string
+  event_officially_finalized?: boolean
 }
 
 interface OwnStartResponse {
@@ -118,6 +134,17 @@ interface OwnStartResponse {
   net_points?: number | null
   predicted_xi_total_xp?: number | null
   artifact_version?: string
+  // Points-so-far overlay (present only once a live snapshot exists for
+  // this gameweek -- see app/services/gw_partial_scoring.py).
+  points_so_far_xi_raw?: number
+  captain_status?: string
+  captain_extra?: number
+  hit_cost_applied?: number
+  points_so_far_total?: number
+  bench_points_so_far_raw?: number
+  dnp_starter_count?: number
+  pending_adjustments?: string[]
+  live_results_meta?: LiveResultsMeta
 }
 
 interface ObjectResponse {
@@ -135,6 +162,14 @@ interface ObjectResponse {
   corrected_points?: number | null
   note?: string
   player_membership?: PlayerRow[] | 'NOT_AVAILABLE'
+  points_so_far_xi_raw?: number
+  captain_status?: string
+  captain_extra?: number
+  points_so_far_total?: number
+  bench_points_so_far_raw?: number
+  dnp_starter_count?: number
+  pending_adjustments?: string[]
+  live_results_meta?: LiveResultsMeta
 }
 
 interface StatusResponse {
@@ -183,7 +218,12 @@ function toFplPlayer(p: PlayerRow, benchIndex?: { outfield: number; isReserveGk:
     is_reserve_gk: benchIndex?.isReserveGk,
     bench_order_unknown: benchIndex?.unknown,
     actual_points: p.actual_points,
-    match_status: hasResult ? 'FT' : 'NOT_TRACKED',
+    // Prefer the real per-player match_status from the live-results
+    // overlay (NOT_STARTED/IN_PROGRESS/FINISHED_PROVISIONAL/
+    // FINISHED_CONFIRMED/DID_NOT_PLAY/NOT_TRACKED) -- only falls back to
+    // the coarse hasResult-based guess for rows that predate this field
+    // (e.g. GW1-3 historical reconstruction rows with no live overlay).
+    match_status: p.match_status ?? (hasResult ? 'FT' : 'NOT_TRACKED'),
     p_sub: p.p_sub ?? null,
     p_dnp: p.p_dnp ?? null,
     // Real fixture data from the frozen source (opponent_resolved/was_home)
@@ -231,6 +271,30 @@ async function fetchObject(gw: number, model: string, object: ObjectLabel): Prom
 async function fetchStatus(): Promise<StatusResponse> {
   const res = await fetch('/api/research-fpl/status', { cache: 'no-store' })
   return res.json()
+}
+
+interface LiveStatusResponse {
+  status: string
+  gameweek?: number
+  gw_completion_status?: string
+}
+
+async function fetchLiveStatus(): Promise<LiveStatusResponse> {
+  const res = await fetch('/api/research-fpl/live-status', { cache: 'no-store' })
+  return res.json()
+}
+
+// "Refresh now" (task requirement) -- triggers an immediate official-
+// results refresh on the backend, then the caller re-fetches own-start/
+// object data via its existing onRetry/load() path. Never blocks longer
+// than the backend route's own bounded timeout.
+async function triggerLiveRefresh(): Promise<void> {
+  try {
+    await fetch('/api/research-fpl/live-status/refresh', { method: 'POST', cache: 'no-store' })
+  } catch {
+    // Best-effort -- onRetry()'s own re-fetch will simply show whatever
+    // the last successful backend snapshot was.
+  }
 }
 
 interface RosterPlayer { stable_player_id: number; name: string; position: string; club: string; price_tenths?: number }
@@ -373,20 +437,93 @@ function formatNote(note: string): string {
 
 function statusBadge(status: string | undefined) {
   const isForecast = status === 'FINAL_FROZEN_FORECAST'
+  const isLive = status === 'LIVE_PROVISIONAL'
   const isEvaluated = status === 'FINALIZED_EVALUATION'
   const isTemporaryFailure = status === 'TEMPORARILY_UNAVAILABLE'
-  const isAvailable = status === 'HISTORICAL_RECONSTRUCTION' || isForecast || isEvaluated
-  return { isForecast, isEvaluated, isAvailable, isTemporaryFailure }
+  const isAvailable = status === 'HISTORICAL_RECONSTRUCTION' || isForecast || isLive || isEvaluated
+  return { isForecast, isLive, isEvaluated, isAvailable, isTemporaryFailure }
+}
+
+function formatUpdateTime(iso: string | undefined, language: Language): string {
+  if (!iso) return '—'
+  try {
+    const d = new Date(iso)
+    return d.toLocaleString(language === 'KU' ? 'en-GB' : 'en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
+  } catch {
+    return iso
+  }
+}
+
+function captainStatusText(status: string | undefined, language: Language): string | null {
+  switch (status) {
+    case 'PENDING_CAPTAIN_HAS_NOT_PLAYED': return tr('captain_status_pending', language)
+    case 'CAPTAIN_DNP_VICE_APPLIED_PROVISIONAL': return tr('captain_status_dnp_vice_applied', language)
+    case 'CAPTAIN_DNP_VICE_PENDING': return tr('captain_status_dnp_vice_pending', language)
+    default: return null
+  }
+}
+
+// Shared "points so far" block for both OWN_START and XI-only objects --
+// only rendered once the backend has actually merged a live snapshot in
+// (points_so_far_total defined), never fabricated from the frozen xP.
+function PointsSoFarBlock({ data, language, onRefresh, refreshing }: {
+  data: { points_so_far_total?: number; points_so_far_xi_raw?: number; captain_status?: string; captain_extra?: number; hit_cost_applied?: number; pending_adjustments?: string[]; live_results_meta?: LiveResultsMeta }
+  language: Language
+  onRefresh?: () => void
+  refreshing?: boolean
+}) {
+  if (data.points_so_far_total === undefined) return null
+  const meta = data.live_results_meta
+  const completed = (meta?.fixtures_finished_confirmed ?? 0) + (meta?.fixtures_finished_provisional ?? 0)
+  const captainText = captainStatusText(data.captain_status, language)
+  return (
+    <div className="bg-amber-950/30 border border-amber-800/50 rounded-lg p-3 mb-3 text-sm">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="text-amber-300 font-semibold">{tr('points_so_far_label', language)}</div>
+        {onRefresh && (
+          <button onClick={onRefresh} disabled={refreshing} className="text-xs px-2 py-0.5 rounded bg-amber-900/60 text-amber-200 hover:bg-amber-800/60 disabled:opacity-50">
+            {refreshing ? '…' : tr('refresh_now_button', language)}
+          </button>
+        )}
+      </div>
+      <div className="text-white font-bold text-lg mt-1">
+        <bdi style={{ unicodeBidi: 'isolate' }}>{data.points_so_far_total}</bdi>
+        <span className="text-neutral-400 text-xs font-normal ml-2">
+          ({tr('points_so_far_total_label', language)}: XI {data.points_so_far_xi_raw} + captain +{data.captain_extra ?? 0}
+          {data.hit_cost_applied ? ` − ${data.hit_cost_applied} hit` : ''})
+        </span>
+      </div>
+      {captainText && <div className="text-amber-200 text-xs mt-1">{captainText}</div>}
+      {(data.pending_adjustments ?? []).map((p, i) => (
+        <div key={i} className="text-amber-200/80 text-xs mt-1">{p}</div>
+      ))}
+      {meta && (
+        <div className="text-neutral-400 text-xs mt-2 flex flex-wrap gap-x-3">
+          <span>{tr('matches_completed_label', language)}: {completed}/{meta.fixtures_total ?? '—'}</span>
+          <span>{tr('matches_remaining_label', language)}: {meta.fixtures_not_started ?? 0}</span>
+          <span>{tr('last_updated_label', language)}: {formatUpdateTime(meta.last_updated_utc, language)}</span>
+        </div>
+      )}
+      <div className="text-neutral-500 text-[11px] mt-1">{tr('final_evaluation_deferred', language)}</div>
+    </div>
+  )
 }
 
 function OwnStartView({ data, onRetry, language }: { data: OwnStartResponse | null; onRetry: () => void; language: Language }) {
-  const { isForecast, isAvailable, isTemporaryFailure } = statusBadge(data?.status)
+  const { isForecast, isLive, isAvailable, isTemporaryFailure } = statusBadge(data?.status)
+  const [refreshing, setRefreshing] = useState(false)
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await triggerLiveRefresh()
+    onRetry()
+    setRefreshing(false)
+  }
   return (
     <div className="bg-neutral-900 rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
         <h2 className="font-semibold">{tabTitle('OWN_START', language)}</h2>
-        <span className={`text-xs px-2 py-0.5 rounded ${isTemporaryFailure ? 'bg-orange-900 text-orange-200' : !isAvailable ? 'bg-red-900 text-red-200' : isForecast ? 'bg-emerald-900 text-emerald-200' : 'bg-amber-900 text-amber-200'}`}>
-          {isTemporaryFailure ? tr('status_connection_issue', language) : !isAvailable ? tr('status_not_available', language) : isForecast ? tr('status_final_frozen', language) : tr('status_historical', language)}
+        <span className={`text-xs px-2 py-0.5 rounded ${isTemporaryFailure ? 'bg-orange-900 text-orange-200' : !isAvailable ? 'bg-red-900 text-red-200' : isForecast ? 'bg-emerald-900 text-emerald-200' : isLive ? 'bg-yellow-600 text-yellow-50' : 'bg-amber-900 text-amber-200'}`}>
+          {isTemporaryFailure ? tr('status_connection_issue', language) : !isAvailable ? tr('status_not_available', language) : isForecast ? tr('status_final_frozen', language) : isLive ? tr('status_live_provisional', language) : tr('status_historical', language)}
         </span>
       </div>
       <p className="text-xs text-neutral-500 mb-3">{tabDescription('OWN_START', language)}</p>
@@ -398,26 +535,24 @@ function OwnStartView({ data, onRetry, language }: { data: OwnStartResponse | nu
       {isAvailable && data?.players && (
         <>
           <div className="text-sm text-neutral-400 mb-2">
-            {isForecast ? (
-              <>
-                {tr('own_start_predicted_xi', language)}: <span className="text-white font-semibold"><bdi style={{ unicodeBidi: 'isolate' }}>{data.predicted_xi_total_xp ?? '—'}</bdi></span>
-                {' '}{language === 'KU'
-                  ? <bdi style={{ unicodeBidi: 'isolate' }}>{`(خاڵی سزا ${data.hit_cost}، گواستنەوەی ئازاد پێش ${data.free_transfers_before ?? '—'})`}</bdi>
-                  : <bdi style={{ unicodeBidi: 'isolate' }}>{`(hit cost ${data.hit_cost}, FT before ${data.free_transfers_before ?? '—'})`}</bdi>}
-                <div className="text-amber-300 text-xs mt-1">{tr('own_start_not_played', language)}</div>
-              </>
-            ) : (
-              <>
+            {tr('own_start_predicted_xi', language)}: <span className="text-white font-semibold"><bdi style={{ unicodeBidi: 'isolate' }}>{data.predicted_xi_total_xp ?? '—'}</bdi></span>
+            {' '}{language === 'KU'
+              ? <bdi style={{ unicodeBidi: 'isolate' }}>{`(خاڵی سزا ${data.hit_cost}، گواستنەوەی ئازاد پێش ${data.free_transfers_before ?? '—'})`}</bdi>
+              : <bdi style={{ unicodeBidi: 'isolate' }}>{`(hit cost ${data.hit_cost}, FT before ${data.free_transfers_before ?? '—'})`}</bdi>}
+            {isForecast && <div className="text-amber-300 text-xs mt-1">{tr('own_start_not_played', language)}</div>}
+            {!isForecast && !isLive && (
+              <div className="mt-1">
                 {tr('own_start_net_points', language)}: <span className="text-white font-semibold"><bdi style={{ unicodeBidi: 'isolate' }}>{data.net_points}</bdi></span>
                 {' '}{language === 'KU'
                   ? <bdi style={{ unicodeBidi: 'isolate' }}>{`(کۆی خاو ${data.gross_points}، خاڵی سزا ${data.hit_cost}، گواستنەوەی ئازاد پێش ${data.free_transfers_before ?? '—'})`}</bdi>
                   : <bdi style={{ unicodeBidi: 'isolate' }}>{`(gross ${data.gross_points}, hit cost ${data.hit_cost}, FT before ${data.free_transfers_before ?? '—'})`}</bdi>}
-              </>
+              </div>
             )}
             {data.transfer_event && (data.transfer_event.player_out || data.transfer_event.player_in) && (
               <div>{tr('own_start_transfer', language)}: <bdi style={{ unicodeBidi: 'isolate' }}>{data.transfer_event.player_out ?? '—'} → {data.transfer_event.player_in ?? '—'}</bdi></div>
             )}
           </div>
+          {isLive && <PointsSoFarBlock data={data} language={language} onRefresh={handleRefresh} refreshing={refreshing} />}
           <PitchVisualization
             formation={computeFormationFromXI(data.players)}
             startingXI={data.players.filter((p) => p.role === 'XI').map((p) => toFplPlayer(p))}
@@ -432,6 +567,8 @@ function OwnStartView({ data, onRetry, language }: { data: OwnStartResponse | nu
           <div className="text-xs text-neutral-500 mt-2">
             Artifact version: {data.artifact_version}. {isForecast
               ? 'Predicted values only -- this gameweek has not been played.'
+              : isLive
+              ? 'Gameweek in progress -- points so far are provisional and will update automatically as official data refreshes.'
               : 'Actual points shown are real, official results for this already-completed gameweek.'}
           </div>
         </>
@@ -441,15 +578,22 @@ function OwnStartView({ data, onRetry, language }: { data: OwnStartResponse | nu
 }
 
 function ObjectView({ tabId, tabTitle, data, onRetry, language }: { tabId: ObjectLabel; tabTitle: string; data: ObjectResponse | null; onRetry: () => void; language: Language }) {
-  const { isForecast, isAvailable, isTemporaryFailure } = statusBadge(data?.status)
+  const { isForecast, isLive, isAvailable, isTemporaryFailure } = statusBadge(data?.status)
   const membership = data?.player_membership
   const hasMembershipList = Array.isArray(membership)
+  const [refreshing, setRefreshing] = useState(false)
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await triggerLiveRefresh()
+    onRetry()
+    setRefreshing(false)
+  }
   return (
     <div className="bg-neutral-900 rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
         <h2 className="font-semibold">{tabTitle}</h2>
-        <span className={`text-xs px-2 py-0.5 rounded ${isTemporaryFailure ? 'bg-orange-900 text-orange-200' : !isAvailable ? 'bg-red-900 text-red-200' : isForecast ? 'bg-emerald-900 text-emerald-200' : 'bg-amber-900 text-amber-200'}`}>
-          {isTemporaryFailure ? tr('status_connection_issue', language) : !isAvailable ? tr('status_not_available', language) : isForecast ? tr('status_final_frozen', language) : tr('status_historical', language)}
+        <span className={`text-xs px-2 py-0.5 rounded ${isTemporaryFailure ? 'bg-orange-900 text-orange-200' : !isAvailable ? 'bg-red-900 text-red-200' : isForecast ? 'bg-emerald-900 text-emerald-200' : isLive ? 'bg-yellow-600 text-yellow-50' : 'bg-amber-900 text-amber-200'}`}>
+          {isTemporaryFailure ? tr('status_connection_issue', language) : !isAvailable ? tr('status_not_available', language) : isForecast ? tr('status_final_frozen', language) : isLive ? tr('status_live_provisional', language) : tr('status_historical', language)}
         </span>
       </div>
       <p className="text-xs text-neutral-500 mb-3">{tabDescription(tabId, language)}</p>
@@ -464,10 +608,15 @@ function ObjectView({ tabId, tabTitle, data, onRetry, language }: { tabId: Objec
             <div>
               {tr('object_predicted_xi_xp', language)}: <bdi style={{ unicodeBidi: 'isolate' }}>{data?.predicted_xi_xp ?? '—'}</bdi>
               {' • '}
-              {tr('object_final_points', language)}: <bdi style={{ unicodeBidi: 'isolate' }}>{isForecast ? tr('object_not_played_yet', language) : (data?.final_points ?? data?.corrected_points ?? '—')}</bdi>
+              {tr('object_final_points', language)}: <bdi style={{ unicodeBidi: 'isolate' }}>
+                {isForecast ? tr('object_not_played_yet', language)
+                  : isLive ? `${data?.points_so_far_total ?? '—'} (${tr('points_so_far_label', language)})`
+                  : (data?.final_points ?? data?.corrected_points ?? '—')}
+              </bdi>
             </div>
             {data?.note && <div className="text-xs text-neutral-500">{formatNote(data.note)}</div>}
           </div>
+          {isLive && data && <PointsSoFarBlock data={data} language={language} onRefresh={handleRefresh} refreshing={refreshing} />}
           {hasMembershipList ? (
             <PitchVisualization
               formation={data?.formation ? formatFormation(data.formation) : computeFormationFromXI(membership as PlayerRow[])}
@@ -503,6 +652,7 @@ function FantasyPageInner() {
   const [gw, setGwState] = useState<number>(hadExplicitGw ? urlGw : HISTORICAL_MAX_GW)
   const [tab, setTabState] = useState<ObjectLabel>(urlTab && TAB_IDS.has(urlTab) ? urlTab : DEFAULT_TAB)
   const [status, setStatus] = useState<StatusResponse | null>(null)
+  const [liveStatus, setLiveStatus] = useState<LiveStatusResponse | null>(null)
   const [ownStart, setOwnStart] = useState<OwnStartResponse | null>(null)
   const [objectData, setObjectData] = useState<ObjectResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -510,7 +660,16 @@ function FantasyPageInner() {
 
   useEffect(() => {
     fetchStatus().then(setStatus).catch(() => setStatus(null))
+    fetchLiveStatus().then(setLiveStatus).catch(() => setLiveStatus(null))
   }, [])
+
+  // The frozen forecast gameweek is "live" once any official fixture data
+  // has been fetched for it and at least one match has started/finished --
+  // used to correct wording that would otherwise wrongly say "not yet
+  // played" once the gameweek is actually underway.
+  const finalGwIsLive = liveStatus?.status === 'AVAILABLE' &&
+    liveStatus.gameweek === status?.final_pair_gameweek &&
+    liveStatus.gw_completion_status !== 'NOT_STARTED'
 
   // Keeps the single, site-wide chat assistant's Fantasy context in sync
   // with this page's own selected gameweek/decision object -- the
@@ -600,13 +759,17 @@ function FantasyPageInner() {
             {language === 'KU' ? (
               <>بە هوشی دەستکردی مۆدێلی <bdi style={{ unicodeBidi: 'isolate' }}>Ennovera</bdi> کاردەکات. GW١-<bdi style={{ unicodeBidi: 'isolate' }}>{HISTORICAL_MAX_GW}</bdi> بازسازیکردنەوەی مێژووییە بۆ هەفتانەی تەواوبووە.
                 {status?.final_pair_registered
-                  ? <> GW<bdi style={{ unicodeBidi: 'isolate' }}>{status.final_pair_gameweek}</bdi> پێشبینییەکی جێگیرکراوی تۆمارکراوە، هێشتا یاری نەکراوە.</>
+                  ? (finalGwIsLive
+                      ? <> GW<bdi style={{ unicodeBidi: 'isolate' }}>{status.final_pair_gameweek}</bdi> ئێستا لە یاریدایە -- خاڵی هەتا ئێستا کاتیین و بەشێوەی خۆکار نوێ دەبنەوە.</>
+                      : <> GW<bdi style={{ unicodeBidi: 'isolate' }}>{status.final_pair_gameweek}</bdi> پێشبینییەکی جێگیرکراوی تۆمارکراوە، هێشتا یاری نەکراوە.</>)
                   : ' هیچ هەفتەیەکی تر پێشبینیی جێگیرکراوی تۆمارکراوی نییە.'}
               </>
             ) : (
               <>Powered by the M3_SHRUNK model. GW1-{HISTORICAL_MAX_GW} is a historical reconstruction of already-completed gameweeks.
                 {status?.final_pair_registered
-                  ? ` GW${status.final_pair_gameweek} is a registered final frozen forecast, not yet played.`
+                  ? (finalGwIsLive
+                      ? ` GW${status.final_pair_gameweek} is currently in progress -- points so far are provisional and refresh automatically as official data updates.`
+                      : ` GW${status.final_pair_gameweek} is a registered final frozen forecast, not yet played.`)
                   : ' No further gameweek has a registered final forecast yet.'}
               </>
             )}
@@ -620,7 +783,7 @@ function FantasyPageInner() {
               onClick={() => setGw(g)}
               className={`px-3 py-1 rounded text-sm ${gw === g ? 'bg-emerald-600' : 'bg-neutral-800'}`}
             >
-              <bdi style={{ unicodeBidi: 'isolate' }}>GW{g}{status?.final_pair_gameweek === g ? (language === 'KU' ? ' (پێشبینی)' : ' (Forecast)') : ''}</bdi>
+              <bdi style={{ unicodeBidi: 'isolate' }}>GW{g}{status?.final_pair_gameweek === g ? (finalGwIsLive ? (language === 'KU' ? ' (لە یاریدایە)' : ' (Live)') : (language === 'KU' ? ' (پێشبینی)' : ' (Forecast)')) : ''}</bdi>
             </button>
           ))}
         </div>

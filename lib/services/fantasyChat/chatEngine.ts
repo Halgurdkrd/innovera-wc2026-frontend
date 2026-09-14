@@ -120,6 +120,12 @@ export class FantasyChatEngine {
     const FANTASY_DOMAIN_INTENTS: typeof intent[] = [
       'RESEARCH_MODEL_QUERY', 'GAMEWEEK_DELTA', 'TEAM_OBJECT_QUERY',
       'SELECTION_EXPLANATION', 'PREDICTION_RECOMMENDATION', 'PLAYER_COMPARISON', 'BUDGET_QUERY',
+      // LIVE_GAMEWEEK ("points so far", "who has played", "who is still to
+      // play") previously fell through to a hardcoded fixed-GW2 demo
+      // answer below -- routed here now so it always uses the real current
+      // results snapshot instead (see researchGroundingService's
+      // LIVE_GAMEWEEK branch).
+      'LIVE_GAMEWEEK',
     ]
     if (FANTASY_DOMAIN_INTENTS.includes(intent)) {
       return buildResearchGroundedAnswer(question, intent, lang, history)
@@ -357,32 +363,6 @@ export class FantasyChatEngine {
           followups = ['How is our AI Manager doing?', 'Who has the highest xP for GW3?']
         } else {
           answer = `Official FPL player records are synchronized directly from Premier League servers.`
-        }
-      } else if (intent === 'LIVE_GAMEWEEK') {
-        if ((q.includes('haaland') || q.includes('haland') || q.includes('هالاند')) && (q.includes('points') || q.includes('point') || q.includes('خاڵ') || q.includes('how did') || q.includes('right now'))) {
-          answer =
-            lang === 'ku'
-              ? 'ئێرلینگ هالاند ٩٠ خولەک یاری کرد بەرامبەر کریستال پالاس، ٢ گۆڵ و ٣ خاڵی بۆنسی تۆمارکرد، و بە ١٣ خاڵی فەرمی یارییەکەی تەواو کرد (٢٦ خاڵ وەک کاپتنی تیمی ئێمە).'
-              : 'Erling Haaland played 90 minutes against Crystal Palace, scoring 2 goals with 3 bonus points to finish on 13 official FPL points (26 points as our 2x captain).'
-          sourceTypes = ['OFFICIAL_FPL']
-          sourceBadge = 'Official FPL Live'
-          followups = ['What was Haaland predicted to score?', 'How many points does our AI Manager have?']
-        } else if (q.includes('remain') || q.includes('finished') || q.includes('played')) {
-          answer =
-            lang === 'ku'
-              ? 'لە تیمی سەرەکی AI Manager دا ٥ یاریزان یارییەکەیان تەواو کردووە (هالاند، ئیساک، گاکپۆ، ئێڤانیلسۆن، تزۆلاکیس) و ٦ یاریزان یارییەکەیان ماوە (پاڵمەر، ساکا، وایت، دی کویپەر، کایۆدێ، ستاخ).'
-              : 'In our GW2 AI Manager starting XI, 5 players have finished their fixtures (Haaland 13, Isak 8, Gakpo 5, Evanilson 5, Tzolakis 10) and 6 players remain to play (Palmer, Saka, White, De Cuyper, Kayode, Stach).'
-          sourceTypes = ['OFFICIAL_FPL', 'ENNOVERA_LIVE_MANAGER']
-          sourceBadge = 'GW2 • Live Official State'
-          followups = ['How many points does our AI Manager have?', 'Why did we captain Haaland?']
-        } else {
-          answer =
-            lang === 'ku'
-              ? 'تیمی AI Manager ئێستا ٥٤ خاڵی ڕاستەوخۆی کۆکردۆتەوە (٤١ خاڵی دەستپێک + ١٣ خاڵی زیادەی کاپتن). پێشبینی پێش دەستپێکردن ٧٤.٠٥ xP بوو. ٥ یاریزان تەواو بوون و ٦ یاریزان ماون.'
-              : 'Our GW2 AI Manager Team currently has 54 official live points (41 raw starters + 13 captain extra bonus), tracking toward a pre-deadline forecast of 74.05 xP. 5 starters have completed their matches and 6 remain.'
-          sourceTypes = ['ENNOVERA_LIVE_MANAGER', 'OFFICIAL_FPL']
-          sourceBadge = 'GW2 • Live Official State'
-          followups = ['Who has already played?', 'Why are Manager and Best £100m different?']
         }
       } else if (intent === 'BUDGET_QUERY') {
         const pos = gwContext.inheritedPosition || 'MID'

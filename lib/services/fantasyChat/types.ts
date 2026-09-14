@@ -33,7 +33,7 @@ export interface ReferencedPlayer {
   predictedXp?: number
   actualPoints?: number | null
   minutes?: number | null
-  matchStatus?: 'FT' | 'LIVE' | 'NOT_STARTED'
+  matchStatus?: 'FT' | 'LIVE' | 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED_PROVISIONAL' | 'FINISHED_CONFIRMED' | 'DID_NOT_PLAY' | 'NOT_TRACKED'
   isCaptain?: boolean
   isViceCaptain?: boolean
   // Set when the source object has no real per-player price/xP (e.g. an

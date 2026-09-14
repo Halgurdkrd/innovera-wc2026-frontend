@@ -12,6 +12,27 @@ function Num({ children }: { children: React.ReactNode }) {
   return <bdi style={{ unicodeBidi: 'isolate' }}>{children}</bdi>
 }
 
+// Player match_status vocabulary accepted here spans two sources: the
+// legacy GW1-3 historical-actuals values ('FT'/'FINISHED'/'LIVE') and the
+// live/partial-GW4 values from gw4_live_results_service.py
+// ('FINISHED_CONFIRMED'/'FINISHED_PROVISIONAL'/'IN_PROGRESS'/'DID_NOT_PLAY').
+// Centralized here so all three render sites (bench card, pitch card,
+// detail modal) classify identically -- no separate maintained string list.
+function isFinishedMatchStatus(s: string | undefined): boolean {
+  return s === 'FT' || s === 'FINISHED' || s === 'FINISHED_CONFIRMED' || s === 'FINISHED_PROVISIONAL' || s === 'DID_NOT_PLAY'
+}
+function isLiveMatchStatus(s: string | undefined): boolean {
+  return s === 'LIVE' || s === 'IN_PROGRESS'
+}
+function isUntrackedMatchStatus(s: string | undefined): boolean {
+  return s === 'NOT_TRACKED'
+}
+// Distinct from "finished" -- points exist but bonus/official checks may
+// still change them. Never conflated with a confirmed final result.
+function isProvisionalMatchStatus(s: string | undefined): boolean {
+  return s === 'FINISHED_PROVISIONAL' || s === 'IN_PROGRESS'
+}
+
 export interface PitchVisualizationProps {
   formation: string
   startingXI: FPLPlayer[]
@@ -226,9 +247,10 @@ export function PitchVisualization({
             {bench.map((player) => {
               const actualPts = (player as any).actual_points
               const matchSt = (player as any).match_status
-              const isFT = matchSt === 'FT' || matchSt === 'FINISHED' || matchSt === 'DID_NOT_PLAY'
-              const isLive = matchSt === 'LIVE'
-              const isUntracked = matchSt === 'NOT_TRACKED'
+              const isFT = isFinishedMatchStatus(matchSt)
+              const isLive = isLiveMatchStatus(matchSt)
+              const isUntracked = isUntrackedMatchStatus(matchSt)
+              const isProvisional = isProvisionalMatchStatus(matchSt)
 
               return (
                 <div
@@ -261,8 +283,8 @@ export function PitchVisualization({
                         {player.xp_unavailable ? 'xP —' : <Num>{`${(player.expected_points ?? (player as any).predicted_xp ?? 0).toFixed(2)} xP`}</Num>}
                       </span>
                       {isFT && actualPts !== null && actualPts !== undefined ? (
-                        <span className="font-black px-1 rounded bg-[#58A6FF]/20 text-[#58A6FF]">
-                          {actualPts} pts
+                        <span className={`font-black px-1 rounded ${isProvisional ? 'bg-amber-500/20 text-amber-400' : 'bg-[#58A6FF]/20 text-[#58A6FF]'}`} title={isProvisional ? 'Provisional -- pending official bonus/checks' : 'Official, checked result'}>
+                          {actualPts} pts{isProvisional ? '*' : ''}
                         </span>
                       ) : isUntracked ? (
                         <span className="font-semibold text-[#8B949E]" title="No live match-state evidence for this forecast">
@@ -301,9 +323,10 @@ function PlayerPitchCard({ player, onClick, researchMode = false, language = 'EN
   const expPoints = player.expected_points ?? (player as any).predicted_xp ?? 0
   const actualPoints = (player as any).actual_points
   const matchStatus = (player as any).match_status || (actualPoints !== null && actualPoints !== undefined ? 'FINISHED' : 'NOT_STARTED')
-  const isFinished = matchStatus === 'FT' || matchStatus === 'FINISHED' || matchStatus === 'DID_NOT_PLAY'
-  const isLive = matchStatus === 'LIVE'
-  const isUntracked = matchStatus === 'NOT_TRACKED'
+  const isFinished = isFinishedMatchStatus(matchStatus)
+  const isLive = isLiveMatchStatus(matchStatus)
+  const isUntracked = isUntrackedMatchStatus(matchStatus)
+  const isProvisional = isProvisionalMatchStatus(matchStatus)
 
   // Home/away is only shown when the source genuinely has it -- never
   // guessed as "Home" by default, which would misrepresent an unknown
@@ -375,8 +398,8 @@ function PlayerPitchCard({ player, onClick, researchMode = false, language = 'EN
             {player.xp_unavailable ? 'xP —' : <Num>{`${expPoints.toFixed(2)} xP`}</Num>}
           </span>
           {isFinished && actualPoints !== null && actualPoints !== undefined ? (
-            <span className="text-[9px] font-black px-1 rounded bg-[#58A6FF]/20 text-[#58A6FF]" title={isCap ? `Player points: ${actualPoints}. Captain doubles this to ${actualPoints * 2}.` : 'Match Finished'}>
-              <Num>{isCap ? `${actualPoints}→${actualPoints * 2} pts` : `${actualPoints} pts`}</Num>
+            <span className={`text-[9px] font-black px-1 rounded ${isProvisional ? 'bg-amber-500/20 text-amber-400' : 'bg-[#58A6FF]/20 text-[#58A6FF]'}`} title={(isCap ? `Player points: ${actualPoints}. Captain doubles this to ${actualPoints * 2}. ` : '') + (isProvisional ? 'Provisional -- pending official bonus/checks.' : 'Official, checked result.')}>
+              <Num>{(isCap ? `${actualPoints}→${actualPoints * 2} pts` : `${actualPoints} pts`) + (isProvisional ? '*' : '')}</Num>
             </span>
           ) : isLive && actualPoints !== null && actualPoints !== undefined ? (
             <span className="text-[9px] font-black px-1 rounded bg-[#F0A500]/20 text-[#F0A500]" title={isCap ? `Player points: ${actualPoints}. Captain doubles this to ${actualPoints * 2}.` : 'Match Live'}>
@@ -442,8 +465,10 @@ function PlayerDetailModal({
   const probabilitySumPct = pStartPct != null && pSubPct != null && pDnpPct != null ? pStartPct + pSubPct + pDnpPct : null
   const actualPts = (player as any).actual_points
   const matchStatus = (player as any).match_status || (actualPts !== null && actualPts !== undefined ? 'FINISHED' : 'NOT_STARTED')
-  const isFT = matchStatus === 'FT' || matchStatus === 'FINISHED' || matchStatus === 'DID_NOT_PLAY'
-  const isUntracked = matchStatus === 'NOT_TRACKED'
+  const isFT = isFinishedMatchStatus(matchStatus)
+  const isUntracked = isUntrackedMatchStatus(matchStatus)
+  const isProvisional = isProvisionalMatchStatus(matchStatus)
+  const isDidNotPlay = matchStatus === 'DID_NOT_PLAY'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
@@ -501,12 +526,12 @@ function PlayerDetailModal({
           </div>
           <div>
             {isFT ? (
-              <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 bg-[#3FB950]/20 text-[#3FB950] border border-[#3FB950]/40 rounded" title={player.is_captain && actualPts != null ? `Player points: ${actualPts}. Captain doubles this to ${actualPts * 2}.` : undefined}>
-                FT: <Num>{actualPts !== null && actualPts !== undefined
-                  ? (player.is_captain ? `${actualPts}→${actualPts * 2} pts (captain)` : `${actualPts} pts`)
+              <span className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded border ${isProvisional ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' : 'bg-[#3FB950]/20 text-[#3FB950] border-[#3FB950]/40'}`} title={(player.is_captain && actualPts != null ? `Player points: ${actualPts}. Captain doubles this to ${actualPts * 2}. ` : '') + (isDidNotPlay ? 'Confirmed: did not play.' : isProvisional ? 'Provisional -- pending official bonus/checks.' : 'Official, checked result.')}>
+                {isProvisional ? 'FT (provisional)' : 'FT'}: <Num>{actualPts !== null && actualPts !== undefined
+                  ? (isDidNotPlay ? `${actualPts} pts (did not play)` : player.is_captain ? `${actualPts}→${actualPts * 2} pts (captain)` : `${actualPts} pts`)
                   : 'Finished'}</Num>
               </span>
-            ) : matchStatus === 'LIVE' ? (
+            ) : matchStatus === 'LIVE' || matchStatus === 'IN_PROGRESS' ? (
               <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 bg-[#F0A500]/20 text-[#F0A500] border border-[#F0A500]/40 rounded" title={player.is_captain && actualPts != null ? `Player points: ${actualPts}. Captain doubles this to ${actualPts * 2}.` : undefined}>
                 LIVE: <Num>{actualPts != null && player.is_captain ? `${actualPts}→${actualPts * 2} pts (captain)` : `${actualPts ?? 0} pts`}</Num>
               </span>
@@ -515,8 +540,8 @@ function PlayerDetailModal({
                 {tr('pitch_forecast_badge', language)} {language === 'KU' ? '(هێشتا یاری نەکراوە)' : '(not yet played)'}
               </span>
             ) : (
-              <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 bg-[#30363D]/60 text-[#8B949E] border border-[#30363D] rounded">
-                {tr('pitch_not_started', language)}
+              <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 bg-[#30363D]/60 text-[#8B949E] border border-[#30363D] rounded" title="This fixture has not kicked off yet -- no points can exist, this is not a confirmed zero">
+                {language === 'KU' ? 'هێشتا یاری نەکراوە' : 'Yet to play'}
               </span>
             )}
           </div>
