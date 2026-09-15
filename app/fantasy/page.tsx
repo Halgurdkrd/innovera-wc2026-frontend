@@ -284,6 +284,18 @@ async function fetchLiveStatus(): Promise<LiveStatusResponse> {
   return res.json()
 }
 
+interface EarlyStatusResponse {
+  status: string
+  target_gw?: number
+  generated_at_utc?: string
+  hours_before_deadline?: number
+}
+
+async function fetchEarlyStatus(): Promise<EarlyStatusResponse> {
+  const res = await fetch('/api/research-fpl/early-status', { cache: 'no-store' })
+  return res.json()
+}
+
 // "Refresh now" (task requirement) -- triggers an immediate official-
 // results refresh on the backend, then the caller re-fetches own-start/
 // object data via its existing onRetry/load() path. Never blocks longer
@@ -438,10 +450,11 @@ function formatNote(note: string): string {
 function statusBadge(status: string | undefined) {
   const isForecast = status === 'FINAL_FROZEN_FORECAST'
   const isLive = status === 'LIVE_PROVISIONAL'
+  const isEarly = status === 'EARLY_FORECAST_SUBJECT_TO_UPDATE'
   const isEvaluated = status === 'FINALIZED_EVALUATION'
   const isTemporaryFailure = status === 'TEMPORARILY_UNAVAILABLE'
-  const isAvailable = status === 'HISTORICAL_RECONSTRUCTION' || isForecast || isLive || isEvaluated
-  return { isForecast, isLive, isEvaluated, isAvailable, isTemporaryFailure }
+  const isAvailable = status === 'HISTORICAL_RECONSTRUCTION' || isForecast || isLive || isEarly || isEvaluated
+  return { isForecast, isLive, isEarly, isEvaluated, isAvailable, isTemporaryFailure }
 }
 
 function formatUpdateTime(iso: string | undefined, language: Language): string {
@@ -510,7 +523,7 @@ function PointsSoFarBlock({ data, language, onRefresh, refreshing }: {
 }
 
 function OwnStartView({ data, onRetry, language }: { data: OwnStartResponse | null; onRetry: () => void; language: Language }) {
-  const { isForecast, isLive, isAvailable, isTemporaryFailure } = statusBadge(data?.status)
+  const { isForecast, isLive, isEarly, isAvailable, isTemporaryFailure } = statusBadge(data?.status)
   const [refreshing, setRefreshing] = useState(false)
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -522,8 +535,8 @@ function OwnStartView({ data, onRetry, language }: { data: OwnStartResponse | nu
     <div className="bg-neutral-900 rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
         <h2 className="font-semibold">{tabTitle('OWN_START', language)}</h2>
-        <span className={`text-xs px-2 py-0.5 rounded ${isTemporaryFailure ? 'bg-orange-900 text-orange-200' : !isAvailable ? 'bg-red-900 text-red-200' : isForecast ? 'bg-emerald-900 text-emerald-200' : isLive ? 'bg-yellow-600 text-yellow-50' : 'bg-amber-900 text-amber-200'}`}>
-          {isTemporaryFailure ? tr('status_connection_issue', language) : !isAvailable ? tr('status_not_available', language) : isForecast ? tr('status_final_frozen', language) : isLive ? tr('status_live_provisional', language) : tr('status_historical', language)}
+        <span className={`text-xs px-2 py-0.5 rounded ${isTemporaryFailure ? 'bg-orange-900 text-orange-200' : !isAvailable ? 'bg-red-900 text-red-200' : isForecast ? 'bg-emerald-900 text-emerald-200' : isLive ? 'bg-yellow-600 text-yellow-50' : isEarly ? 'bg-sky-800 text-sky-100' : 'bg-amber-900 text-amber-200'}`}>
+          {isTemporaryFailure ? tr('status_connection_issue', language) : !isAvailable ? tr('status_not_available', language) : isForecast ? tr('status_final_frozen', language) : isLive ? tr('status_live_provisional', language) : isEarly ? tr('status_early_forecast', language) : tr('status_historical', language)}
         </span>
       </div>
       <p className="text-xs text-neutral-500 mb-3">{tabDescription('OWN_START', language)}</p>
@@ -539,8 +552,9 @@ function OwnStartView({ data, onRetry, language }: { data: OwnStartResponse | nu
             {' '}{language === 'KU'
               ? <bdi style={{ unicodeBidi: 'isolate' }}>{`(خاڵی سزا ${data.hit_cost}، گواستنەوەی ئازاد پێش ${data.free_transfers_before ?? '—'})`}</bdi>
               : <bdi style={{ unicodeBidi: 'isolate' }}>{`(hit cost ${data.hit_cost}, FT before ${data.free_transfers_before ?? '—'})`}</bdi>}
-            {isForecast && <div className="text-amber-300 text-xs mt-1">{tr('own_start_not_played', language)}</div>}
-            {!isForecast && !isLive && (
+            {(isForecast || isEarly) && <div className="text-amber-300 text-xs mt-1">{tr('own_start_not_played', language)}</div>}
+            {isEarly && <div className="text-sky-300 text-xs mt-1">{tr('early_forecast_note', language)}</div>}
+            {!isForecast && !isLive && !isEarly && (
               <div className="mt-1">
                 {tr('own_start_net_points', language)}: <span className="text-white font-semibold"><bdi style={{ unicodeBidi: 'isolate' }}>{data.net_points}</bdi></span>
                 {' '}{language === 'KU'
@@ -569,6 +583,8 @@ function OwnStartView({ data, onRetry, language }: { data: OwnStartResponse | nu
               ? 'Predicted values only -- this gameweek has not been played.'
               : isLive
               ? 'Gameweek in progress -- points so far are provisional and will update automatically as official data refreshes.'
+              : isEarly
+              ? tr('early_forecast_note', language)
               : 'Actual points shown are real, official results for this already-completed gameweek.'}
           </div>
         </>
@@ -578,7 +594,7 @@ function OwnStartView({ data, onRetry, language }: { data: OwnStartResponse | nu
 }
 
 function ObjectView({ tabId, tabTitle, data, onRetry, language }: { tabId: ObjectLabel; tabTitle: string; data: ObjectResponse | null; onRetry: () => void; language: Language }) {
-  const { isForecast, isLive, isAvailable, isTemporaryFailure } = statusBadge(data?.status)
+  const { isForecast, isLive, isEarly, isAvailable, isTemporaryFailure } = statusBadge(data?.status)
   const membership = data?.player_membership
   const hasMembershipList = Array.isArray(membership)
   const [refreshing, setRefreshing] = useState(false)
@@ -592,8 +608,8 @@ function ObjectView({ tabId, tabTitle, data, onRetry, language }: { tabId: Objec
     <div className="bg-neutral-900 rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
         <h2 className="font-semibold">{tabTitle}</h2>
-        <span className={`text-xs px-2 py-0.5 rounded ${isTemporaryFailure ? 'bg-orange-900 text-orange-200' : !isAvailable ? 'bg-red-900 text-red-200' : isForecast ? 'bg-emerald-900 text-emerald-200' : isLive ? 'bg-yellow-600 text-yellow-50' : 'bg-amber-900 text-amber-200'}`}>
-          {isTemporaryFailure ? tr('status_connection_issue', language) : !isAvailable ? tr('status_not_available', language) : isForecast ? tr('status_final_frozen', language) : isLive ? tr('status_live_provisional', language) : tr('status_historical', language)}
+        <span className={`text-xs px-2 py-0.5 rounded ${isTemporaryFailure ? 'bg-orange-900 text-orange-200' : !isAvailable ? 'bg-red-900 text-red-200' : isForecast ? 'bg-emerald-900 text-emerald-200' : isLive ? 'bg-yellow-600 text-yellow-50' : isEarly ? 'bg-sky-800 text-sky-100' : 'bg-amber-900 text-amber-200'}`}>
+          {isTemporaryFailure ? tr('status_connection_issue', language) : !isAvailable ? tr('status_not_available', language) : isForecast ? tr('status_final_frozen', language) : isLive ? tr('status_live_provisional', language) : isEarly ? tr('status_early_forecast', language) : tr('status_historical', language)}
         </span>
       </div>
       <p className="text-xs text-neutral-500 mb-3">{tabDescription(tabId, language)}</p>
@@ -609,11 +625,12 @@ function ObjectView({ tabId, tabTitle, data, onRetry, language }: { tabId: Objec
               {tr('object_predicted_xi_xp', language)}: <bdi style={{ unicodeBidi: 'isolate' }}>{data?.predicted_xi_xp ?? '—'}</bdi>
               {' • '}
               {tr('object_final_points', language)}: <bdi style={{ unicodeBidi: 'isolate' }}>
-                {isForecast ? tr('object_not_played_yet', language)
+                {(isForecast || isEarly) ? tr('object_not_played_yet', language)
                   : isLive ? `${data?.points_so_far_total ?? '—'} (${tr('points_so_far_label', language)})`
                   : (data?.final_points ?? data?.corrected_points ?? '—')}
               </bdi>
             </div>
+            {isEarly && <div className="text-xs text-sky-300">{tr('early_forecast_note', language)}</div>}
             {data?.note && <div className="text-xs text-neutral-500">{formatNote(data.note)}</div>}
           </div>
           {isLive && data && <PointsSoFarBlock data={data} language={language} onRefresh={handleRefresh} refreshing={refreshing} />}
@@ -648,11 +665,16 @@ function FantasyPageInner() {
 
   const urlGw = parseInt(searchParams.get('gw') || '', 10)
   const urlTab = searchParams.get('tab') as ObjectLabel | null
-  const hadExplicitGw = urlGw >= 1 && urlGw <= 4
+  // Not hardcoded to GW4: an explicit URL gw is honored up to GW5 now
+  // that an early forecast can exist there too -- this cap should track
+  // whichever gameweek is currently the furthest real, servable one
+  // (final pair or early forecast), not a fixed number.
+  const hadExplicitGw = urlGw >= 1 && urlGw <= 5
   const [gw, setGwState] = useState<number>(hadExplicitGw ? urlGw : HISTORICAL_MAX_GW)
   const [tab, setTabState] = useState<ObjectLabel>(urlTab && TAB_IDS.has(urlTab) ? urlTab : DEFAULT_TAB)
   const [status, setStatus] = useState<StatusResponse | null>(null)
   const [liveStatus, setLiveStatus] = useState<LiveStatusResponse | null>(null)
+  const [earlyStatus, setEarlyStatus] = useState<EarlyStatusResponse | null>(null)
   const [ownStart, setOwnStart] = useState<OwnStartResponse | null>(null)
   const [objectData, setObjectData] = useState<ObjectResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -661,6 +683,7 @@ function FantasyPageInner() {
   useEffect(() => {
     fetchStatus().then(setStatus).catch(() => setStatus(null))
     fetchLiveStatus().then(setLiveStatus).catch(() => setLiveStatus(null))
+    fetchEarlyStatus().then(setEarlyStatus).catch(() => setEarlyStatus(null))
   }, [])
 
   // The frozen forecast gameweek is "live" once any official fixture data
@@ -744,8 +767,10 @@ function FantasyPageInner() {
     const base = [1, 2, 3]
     const finalGw = status?.final_pair_gameweek
     if (finalGw && !base.includes(finalGw)) base.push(finalGw)
+    const earlyGw = earlyStatus?.status === 'AVAILABLE' ? earlyStatus.target_gw : null
+    if (earlyGw && !base.includes(earlyGw)) base.push(earlyGw)
     return base.sort((a, b) => a - b)
-  }, [status])
+  }, [status, earlyStatus])
 
   const activeTabTitle = tabTitle(tab, language)
 
@@ -783,7 +808,11 @@ function FantasyPageInner() {
               onClick={() => setGw(g)}
               className={`px-3 py-1 rounded text-sm ${gw === g ? 'bg-emerald-600' : 'bg-neutral-800'}`}
             >
-              <bdi style={{ unicodeBidi: 'isolate' }}>GW{g}{status?.final_pair_gameweek === g ? (finalGwIsLive ? (language === 'KU' ? ' (لە یاریدایە)' : ' (Live)') : (language === 'KU' ? ' (پێشبینی)' : ' (Forecast)')) : ''}</bdi>
+              <bdi style={{ unicodeBidi: 'isolate' }}>GW{g}{
+                status?.final_pair_gameweek === g
+                  ? (finalGwIsLive ? (language === 'KU' ? ' (لە یاریدایە)' : ' (Live)') : (language === 'KU' ? ' (پێشبینی)' : ' (Forecast)'))
+                  : (earlyStatus?.status === 'AVAILABLE' && earlyStatus.target_gw === g ? (language === 'KU' ? ' (زوو)' : ' (Early)') : '')
+              }</bdi>
             </button>
           ))}
         </div>

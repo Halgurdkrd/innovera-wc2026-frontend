@@ -133,7 +133,16 @@ interface ObjectResponse {
 // of a dozen separately-maintained equality chains.
 function isKnownResearchStatus(status: string | undefined): boolean {
   return status === 'HISTORICAL_RECONSTRUCTION' || status === 'FINAL_FROZEN_FORECAST' ||
-    status === 'LIVE_PROVISIONAL' || status === 'FINALIZED_EVALUATION'
+    status === 'LIVE_PROVISIONAL' || status === 'FINALIZED_EVALUATION' ||
+    status === 'EARLY_FORECAST_SUBJECT_TO_UPDATE'
+}
+
+// True only for the one status this project's own governance forbids
+// ever presenting as final/registered -- used to keep chat wording
+// honest ("early, subject to update", never "final frozen forecast")
+// without scattering this specific string comparison everywhere.
+function isEarlyForecastStatus(status: string | undefined): boolean {
+  return status === 'EARLY_FORECAST_SUBJECT_TO_UPDATE'
 }
 
 const OBJECT_LABELS: Record<ObjectLabel, string> = {
@@ -335,13 +344,13 @@ function extractExplicitGameweeks(q: string): number[] {
     for (let i = Math.min(a, b); i <= Math.max(a, b); i++) found.add(i)
   }
   // Explicit lists: "gameweeks 1, 2 and 3", "GW1, GW2, GW3", bare "gw2"
-  const listMatches = Array.from(q.matchAll(/\bgw\s*([1-4])\b/gi))
+  const listMatches = Array.from(q.matchAll(/\bgw\s*([1-5])\b/gi))
   for (const m of listMatches) found.add(parseInt(m[1], 10))
   if (found.size === 0) {
     // "gameweeks 1, 2 and 3" without repeating "gw" per number
     const gwListPrefix = q.match(/\bgameweeks?\b([\s,and\d]+)/i)
     if (gwListPrefix) {
-      const nums = Array.from(gwListPrefix[1].matchAll(/[1-4]/g)).map((m) => parseInt(m[0], 10))
+      const nums = Array.from(gwListPrefix[1].matchAll(/[1-5]/g)).map((m) => parseInt(m[0], 10))
       nums.forEach((n) => found.add(n))
     }
   }
@@ -384,7 +393,7 @@ function publicModelLabel(model: ResearchModel, lang: 'en' | 'ku'): string {
 }
 
 function parseGameweek(q: string, fallback: number): number {
-  const m = q.match(/\bgw\s*([1-4])\b/) || q.match(/\bgame\s*[\s-]?\s*week\s*([1-4])\b/)
+  const m = q.match(/\bgw\s*([1-5])\b/) || q.match(/\bgame\s*[\s-]?\s*week\s*([1-5])\b/)
   return m ? parseInt(m[1], 10) : fallback
 }
 
@@ -407,7 +416,7 @@ function lastGwMentionIn(text: string): number | null {
   // gameweek the conversation is now newly focused on LAST, and a plain
   // first-match regex was picking up the earlier, now-superseded GW3
   // mention instead, defeating stickiness entirely.
-  const matches = Array.from(text.matchAll(/\bgw\s*([1-4])\b|\bgame\s*[\s-]?\s*week\s*([1-4])\b/gi))
+  const matches = Array.from(text.matchAll(/\bgw\s*([1-5])\b|\bgame\s*[\s-]?\s*week\s*([1-5])\b/gi))
   if (matches.length === 0) return null
   const last = matches[matches.length - 1]
   return parseInt(last[1] || last[2], 10)
@@ -722,7 +731,7 @@ function parseObject(q: string, fallback: ObjectLabel): ObjectLabel {
 }
 
 function parseTwoGameweeks(q: string, fallback: number): [number, number] {
-  const gwNums = Array.from(q.matchAll(/(?:gw|gameweek)\s*([1-4])\b/g)).map((m) => parseInt(m[1], 10))
+  const gwNums = Array.from(q.matchAll(/(?:gw|gameweek)\s*([1-5])\b/g)).map((m) => parseInt(m[1], 10))
   if (gwNums.length >= 2 && gwNums[0] !== gwNums[1]) return [gwNums[0], gwNums[1]]
   const single = parseGameweek(q, fallback)
   return [Math.max(1, single - 1), single]
@@ -1326,7 +1335,7 @@ export async function buildResearchGroundedAnswer(
     const allPlayers: (OwnStartPlayer | ObjectMember)[] =
       objectSel === 'OWN_START' ? ((resp as OwnStartResponse).players || []) : (Array.isArray((resp as ObjectResponse).player_membership) ? (resp as ObjectResponse).player_membership as ObjectMember[] : [])
 
-    if (resp.status === 'FINAL_FROZEN_FORECAST') {
+    if (resp.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(resp.status)) {
       const totalXp = objectSel === 'OWN_START' ? (resp as OwnStartResponse).predicted_xi_total_xp : (resp as ObjectResponse).predicted_xi_xp
       const answer = lang === 'ku'
         ? `گەڕی ${gw} بۆ ${objLabel} (${publicModelLabel(model, 'ku')}) هێشتا دەستی پێنەکردووە -- هیچ خاڵی ڕاستەقینە بەردەست نییە. کۆی خاڵی پێشبینیکراو ${totalXp ?? 'نەزانراو'} خاڵە (پێشبینی، نەک ئەنجامی ڕاستەقینە).`
@@ -1477,8 +1486,8 @@ export async function buildResearchGroundedAnswer(
       const capB = respB.players?.find((p) => p.is_captain)
       const viceA = respA.players?.find((p) => p.is_vice)
       const viceB = respB.players?.find((p) => p.is_vice)
-      const isFutureB = respB.status === 'FINAL_FROZEN_FORECAST'
-      const isFutureA = respA.status === 'FINAL_FROZEN_FORECAST'
+      const isFutureB = respB.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(respB.status)
+      const isFutureA = respA.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(respA.status)
       const isLiveA = respA.status === 'LIVE_PROVISIONAL'
       const isLiveB = respB.status === 'LIVE_PROVISIONAL'
       const pointsSideText = (isFuture: boolean, isLive: boolean, resp: OwnStartResponse) =>
@@ -1545,8 +1554,8 @@ export async function buildResearchGroundedAnswer(
     const namesB = new Set(memB.map((p) => p.name))
     const outNames = memA.filter((p) => !namesB.has(p.name))
     const inNames = memB.filter((p) => !namesA.has(p.name))
-    const isFutureB = objB.status === 'FINAL_FROZEN_FORECAST'
-    const isFutureA = objA.status === 'FINAL_FROZEN_FORECAST'
+    const isFutureB = objB.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(objB.status)
+    const isFutureA = objA.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(objA.status)
     const isLiveA = objA.status === 'LIVE_PROVISIONAL'
     const isLiveB = objB.status === 'LIVE_PROVISIONAL'
 
@@ -1594,7 +1603,7 @@ export async function buildResearchGroundedAnswer(
   // REGISTERED gameweek (see app/fantasy/page.tsx) rather than a stale
   // hardcoded value -- the answer states which GW was actually used
   // (gwWasExplicit) whenever that resolution wasn't spelled out by the user.
-  const gwExplicitInMessage = /\bgw\s*([1-4])\b/.test(q) || /\bgame\s*[\s-]?\s*week\s*([1-4])\b/.test(q)
+  const gwExplicitInMessage = /\bgw\s*([1-5])\b/.test(q) || /\bgame\s*[\s-]?\s*week\s*([1-5])\b/.test(q)
   const gw = await resolveEffectiveGameweek(q, pageContext?.gameweek, history)
   const gwUsedNote = (lang: 'en' | 'ku') => gwExplicitInMessage ? '' : (lang === 'ku' ? '، دوایین هەفتەی تۆمارکراو' : ', the latest registered gameweek')
   const objectSel = parseObject(q, pageContext?.object ?? 'OWN_START')
@@ -2099,7 +2108,7 @@ export async function buildResearchGroundedAnswer(
     const onlyV0 = (v0.players || []).filter((p) => !m3Ids.has(p.stable_player_id))
 
     const pointsFor = (r: OwnStartResponse) =>
-      r.status === 'FINAL_FROZEN_FORECAST' ? 'forecast only, not played yet'
+      (r.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(r.status)) ? 'forecast only, not played yet'
       : r.status === 'LIVE_PROVISIONAL' ? `${r.points_so_far_total ?? 'not available'} points so far (provisional)`
       : (r.net_points ?? 'not available')
     const lines = [
@@ -2198,8 +2207,8 @@ export async function buildResearchGroundedAnswer(
     })
 
     const isFutureForecast = ownStartAvailable
-      ? ownStartResp.status === 'FINAL_FROZEN_FORECAST'
-      : otherResps.some((r) => r.status === 'FINAL_FROZEN_FORECAST')
+      ? (ownStartResp.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(ownStartResp.status))
+      : otherResps.some((r) => r.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(r.status))
     const isWhyQuestion = /\bwhy\b|\bselect/.test(q) || q.includes('بۆچی') || q.includes('هەڵبژار')
     // Positional rank/count, not the whole (all-positions) pool -- a real
     // bug: "#81 of 494 MIDs" previously paired an OVERALL rank/count
@@ -2353,8 +2362,10 @@ export async function buildResearchGroundedAnswer(
     if (objResp.formation) lines.push(`- Formation: ${formatFormation(objResp.formation)}`)
     lines.push(`- Predicted XI xP: ${objResp.predicted_xi_xp ?? 'n/a'}`)
     const finalPts = objResp.final_points ?? objResp.corrected_points
-    lines.push(objResp.status === 'FINAL_FROZEN_FORECAST'
-      ? '- This gameweek has not been played yet -- no final points exist.'
+    lines.push((objResp.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(objResp.status))
+      ? (isEarlyForecastStatus(objResp.status)
+          ? '- This gameweek has not been played yet -- no final points exist. This is an early forecast, subject to update before the deadline, not the registered final forecast.'
+          : '- This gameweek has not been played yet -- no final points exist.')
       : objResp.status === 'LIVE_PROVISIONAL'
       ? `- Points so far (provisional, gameweek in progress): ${objResp.points_so_far_total ?? 'n/a'}.${objResp.pending_adjustments?.length ? ' ' + objResp.pending_adjustments.join(' ') : ''}`
       : `- Final points: ${finalPts ?? 'n/a'}`)
@@ -2425,7 +2436,7 @@ export async function buildResearchGroundedAnswer(
   let referencedPlayers: ReferencedPlayer[]
   let llmUsedForAnswer = false
 
-  const isFutureForecast = resp.status === 'FINAL_FROZEN_FORECAST'
+  const isFutureForecast = resp.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(resp.status)
   const modelLabel = publicModelLabel(model, lang)
 
   if (mentioned) {

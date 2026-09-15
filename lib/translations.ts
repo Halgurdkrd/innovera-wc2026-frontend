@@ -188,6 +188,8 @@ const translations = {
   status_final_frozen:     { EN: 'Final frozen forecast',   KU: 'پێشبینی کۆتایی جێگیرکراو' },
   status_historical:       { EN: 'Historical reconstruction', KU: 'دووبارەبنیادنانی مێژوویی' },
   status_live_provisional: { EN: 'Gameweek in progress -- provisional', KU: 'هەفتەکە لە یاریدایە -- کاتیی' },
+  status_early_forecast: { EN: 'Early forecast -- subject to update', KU: 'پێشبینی زوو -- گۆڕانی لەسەرە' },
+  early_forecast_note: { EN: 'This is an early prospective forecast, generated before the final pre-deadline window -- it will be refreshed and may change before the deadline. It is not the registered final forecast.', KU: 'ئەمە پێشبینییەکی زووی چاوەڕوانکراوە، پێش کاتی کۆتایی دروستکراوە -- لەوانەیە پێش کۆتایی بگۆڕدرێت. ئەمە پێشبینی کۆتایی تۆمارکراو نییە.' },
   points_so_far_label:     { EN: 'Points so far -- provisional', KU: 'خاڵی هەتا ئێستا -- کاتیی' },
   points_so_far_total_label: { EN: 'Total so far',          KU: 'کۆی هەتا ئێستا' },
   last_updated_label:      { EN: 'Last official-data update', KU: 'دوایین نوێکردنەوەی داتای فەرمی' },
