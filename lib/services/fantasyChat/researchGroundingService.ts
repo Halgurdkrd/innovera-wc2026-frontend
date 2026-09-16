@@ -145,6 +145,24 @@ function isEarlyForecastStatus(status: string | undefined): boolean {
   return status === 'EARLY_FORECAST_SUBJECT_TO_UPDATE'
 }
 
+// REAL BUG FOUND AND FIXED: every full-pool call site (fetchFullPool's
+// FullPoolResponse) checked the LITERAL string 'AVAILABLE' for success --
+// but get_early_full_pool() (backend) genuinely succeeds with
+// status='EARLY_FORECAST_SUBJECT_TO_UPDATE' (the correct status for a
+// gameweek like GW5 that has no registered final pair yet, per
+// research_fpl_service.py's own _early_forecast_for_gw branch). A strict
+// '=== AVAILABLE' check silently treated that real, data-filled response
+// as unavailable, so "top five forwards for GW5 under £8m" and every
+// other full-pool ranking query always answered "not available" for any
+// gameweek served only as an early forecast -- confirmed live against
+// production before this fix. isKnownResearchStatus() (above) is the
+// wrong helper for this specific response shape (it never included plain
+// 'AVAILABLE', which final_pair's full-pool DOES return) -- this is a
+// second, pool-specific helper accepting both real success statuses.
+function isKnownPoolStatus(status: string | undefined): boolean {
+  return status === 'AVAILABLE' || status === 'EARLY_FORECAST_SUBJECT_TO_UPDATE'
+}
+
 const OBJECT_LABELS: Record<ObjectLabel, string> = {
   OWN_START: 'AI Manager',
   A_BLANK_SLATE: 'Blank-Slate Squad',
@@ -495,6 +513,75 @@ function extractRequestedCount(q: string): number {
     if (/^[a-z]+$/.test(word) ? new RegExp(`\\b${word}\\b`).test(q) : qWords.includes(word)) return n
   }
   return 5
+}
+
+// REAL BUG FOUND AND FIXED: the position-ranking branch below only fired
+// when isRankingQuestion(q) matched a "best/highest/top/good choices"
+// word, or isNarrowingCorrection(q) matched a correction phrase ("only",
+// "not all", "I said", …). A bare follow-up like "now show ten
+// midfielders" (a real test case from the governing task) contains
+// neither -- it has an explicit count ("ten") tied to a position, which
+// is just as unambiguous a ranking request, but fell through the whole
+// function to a generic/incomplete answer instead of the full-pool
+// ranked list. Mirrors extractRequestedCount's own count-detection
+// regex/word-list exactly, but reports whether a match was actually
+// found rather than defaulting to 5.
+function hasExplicitCount(q: string): boolean {
+  if (/\btop\s*(\d{1,2})\b/.test(q) || /\b(\d{1,2})\s+(?:midfielders?|defenders?|forwards?|attackers?|strikers?|goalkeepers?|players?|mids?|defs?|fwds?|gks?|diffeders?|atatckers?)\b/.test(q)) return true
+  const qWords = q.split(/\s+/)
+  for (const word of Object.keys(WORD_NUMBERS)) {
+    if (/^[a-z]+$/.test(word) ? new RegExp(`\\b${word}\\b`).test(q) : qWords.includes(word)) return true
+  }
+  return false
+}
+
+// REAL BUG FOUND AND FIXED: "compare the first two" (a real test case
+// from the governing task, following a message that just listed ranked
+// players) named no player at all -- findAllDistinctPlayerMentions(q,
+// pool.players) always returned 0 matches for it, so the comparison
+// branch fell through with no result. Resolves an ORDINAL back-reference
+// ("the first two/three", "those two") against the immediately preceding
+// assistant message's own player list -- the same "- Name (Club) ..."
+// line format every full-pool/ranking answer already uses -- rather than
+// guessing or re-querying. Returns [] (never a guess) if the message
+// isn't an ordinal reference, there's no prior assistant list, or fewer
+// than 2 names can be resolved against the current pool.
+function isOrdinalBackReference(q: string): boolean {
+  return /\b(the\s+)?first\s+(two|three|four|five|\d{1,2})\b/i.test(q) ||
+    /\b(those|these)\s+(two|three|four|five|\d{1,2})\b/i.test(q) ||
+    q.includes('یەکەم')
+}
+
+function extractOrdinalCount(q: string): number {
+  const m = q.match(/\bfirst\s+(two|three|four|five|\d{1,2})\b/i) || q.match(/\b(?:those|these)\s+(two|three|four|five|\d{1,2})\b/i)
+  if (m) {
+    const raw = m[1].toLowerCase()
+    if (/^\d+$/.test(raw)) return Math.min(10, Math.max(1, parseInt(raw, 10)))
+    return WORD_NUMBERS[raw] ?? 2
+  }
+  return 2
+}
+
+function extractPlayerNamesFromListAnswer(text: string): string[] {
+  const names: string[] = []
+  const re = /^-\s*([^(:]+?)\s*\(/gm
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text)) !== null) names.push(m[1].trim())
+  return names
+}
+
+function resolveOrdinalPlayersFromHistory<T extends NamedEntity>(q: string, history: ConversationTurn[], pool: T[]): T[] {
+  if (!isOrdinalBackReference(q)) return []
+  const lastAssistant = [...history].reverse().find((h) => h.role === 'assistant')
+  if (!lastAssistant) return []
+  const count = extractOrdinalCount(q)
+  const names = extractPlayerNamesFromListAnswer(lastAssistant.content).slice(0, count)
+  const resolved: T[] = []
+  for (const name of names) {
+    const found = pool.find((p) => (p as unknown as { name: string }).name === name)
+    if (found) resolved.push(found)
+  }
+  return resolved.length >= 2 ? resolved : []
 }
 
 // A short correction phrase narrowing an earlier broader request ("I said
@@ -1222,7 +1309,7 @@ export async function buildResearchGroundedAnswer(
       const poolGw = await fetchLatestRegisteredGameweek() ?? 3
       const pool = await fetchFullPool(poolGw, model, undefined, 500)
       let target: FullPoolPlayer | null = null
-      if (pool.status === 'AVAILABLE' && pool.players) {
+      if (isKnownPoolStatus(pool.status) && pool.players) {
         const mention = resolvePlayerMention(question, pool.players)
         if (mention.kind === 'AMBIGUOUS') {
           const names = mention.candidates.map((p) => p.name).join(', ')
@@ -1239,7 +1326,7 @@ export async function buildResearchGroundedAnswer(
       // Follow-up with no new player named -- reuse the prior player by
       // re-resolving their name from the prior reply (never guessing a
       // stable ID that wasn't actually re-verified against the pool).
-      if (!target && priorHistorical && pool.status === 'AVAILABLE' && pool.players) {
+      if (!target && priorHistorical && isKnownPoolStatus(pool.status) && pool.players) {
         const priorName = priorHistorical[1]
         target = pool.players.find((p) => p.name === priorName) ?? null
       }
@@ -1673,8 +1760,12 @@ export async function buildResearchGroundedAnswer(
   if (modelSel !== 'BOTH' && (/\bcompare\b|\bvs\.?\b|\bversus\b|which (one )?is better\b|better than\b|\bor\b/i.test(q) || q.includes('بەراورد') || q.includes('یان'))) {
     const model = modelSel as ResearchModel
     const pool = await fetchFullPool(gw, model, undefined, 500)
-    if (pool.status === 'AVAILABLE' && pool.players) {
-      const mentioned = findAllDistinctPlayerMentions(q, pool.players)
+    if (isKnownPoolStatus(pool.status) && pool.players) {
+      let mentioned = findAllDistinctPlayerMentions(q, pool.players)
+      if (mentioned.length < 2) {
+        const ordinalResolved = resolveOrdinalPlayersFromHistory(q, history, pool.players)
+        if (ordinalResolved.length >= 2) mentioned = ordinalResolved
+      }
       if (mentioned.length >= 2) {
         const rows = mentioned.slice(0, 4)
         const lines = [`Comparison for GW${gw}${gwUsedNote(lang)}:`]
@@ -1725,7 +1816,7 @@ export async function buildResearchGroundedAnswer(
     const priceCeiling = priceMatch ? parseFloat(priceMatch[1]) : null
     const count = extractRequestedCount(q)
     const pool = await fetchFullPool(gw, model, pos, 500)
-    if (pool.status !== 'AVAILABLE' || !pool.players) {
+    if (!isKnownPoolStatus(pool.status) || !pool.players) {
       return na(pool.reason || `Full player pool unavailable for GW${gw} -- a complete candidate pool exists only for the currently registered final pair, not every historical gameweek.`, gw, model, pool.status)
     }
     const filtered = (priceCeiling != null ? pool.players.filter((p) => p.price != null && p.price <= priceCeiling) : pool.players).slice(0, count)
@@ -1767,7 +1858,7 @@ export async function buildResearchGroundedAnswer(
   if (modelSel !== 'BOTH') {
     const model = modelSel as ResearchModel
     const fullPoolForAlts = await fetchFullPool(gw, model, undefined, 500)
-    const altIntent = fullPoolForAlts.status === 'AVAILABLE' && fullPoolForAlts.players
+    const altIntent = isKnownPoolStatus(fullPoolForAlts.status) && fullPoolForAlts.players
       ? detectAlternativesQuery(q, fullPoolForAlts.players)
       : detectAlternativesQuery(q, [] as FullPoolPlayer[])
     if (altIntent && altIntent.kind === 'AMBIGUOUS_PLAYER') {
@@ -1820,7 +1911,7 @@ export async function buildResearchGroundedAnswer(
         const bank = ownStartForAlts.bank_after ?? 0
         const budget = bank + (target.price ?? 0)
         const pool = await fetchFullPool(gw, model, target.position, 50)
-        if (pool.status !== 'AVAILABLE') return na(pool.reason || 'Full player pool unavailable.', gw, model, pool.status)
+        if (!isKnownPoolStatus(pool.status)) return na(pool.reason || 'Full player pool unavailable.', gw, model, pool.status)
         const ownedIds = new Set(altsPlayers.map((p) => p.stable_player_id))
         const affordable = (pool.players || [])
           .filter((p) => !ownedIds.has(p.stable_player_id) && (p.price ?? Infinity) <= budget)
@@ -1853,7 +1944,7 @@ export async function buildResearchGroundedAnswer(
         const target = fullPoolForAlts.players?.find((p) => p.stable_player_id === altIntent.stablePlayerId)
         if (!target) return na(`Could not resolve "${altIntent.playerName}".`, gw, model)
         const pool = await fetchFullPool(gw, model, target.position, 30)
-        if (pool.status !== 'AVAILABLE') return na(pool.reason || 'Full player pool unavailable.', gw, model, pool.status)
+        if (!isKnownPoolStatus(pool.status)) return na(pool.reason || 'Full player pool unavailable.', gw, model, pool.status)
         const others = (pool.players || []).filter((p) => p.stable_player_id !== target.stable_player_id).slice(0, 5)
         const lines = [
           `Alternative ${POS_NAME[target.position]}s to ${target.name} (predicted xP ${target.predicted_xp ?? 'n/a'}, £${(target.price ?? 0).toFixed(1)}m), ranked league-wide by predicted xP:`,
@@ -1919,11 +2010,11 @@ export async function buildResearchGroundedAnswer(
   // ranking within the resolved decision object -- clearly labeled as
   // such -- for GW1-3, which never had a full-pool export.
   const positions = matchAllPositions(q)
-  if (modelSel !== 'BOTH' && positions.length > 0 && (isRankingQuestion(q) || isNarrowingCorrection(q))) {
+  if (modelSel !== 'BOTH' && positions.length > 0 && (isRankingQuestion(q) || isNarrowingCorrection(q) || hasExplicitCount(q))) {
     const model = modelSel as ResearchModel
     const count = extractRequestedCount(q)
     const poolResults = await Promise.all(positions.map((pos) => fetchFullPool(gw, model, pos, count)))
-    const allAvailable = poolResults.every((r) => r.status === 'AVAILABLE')
+    const allAvailable = poolResults.every((r) => isKnownPoolStatus(r.status))
 
     if (allAvailable) {
       const lines: string[] = [`Top ${count} by predicted xP for GW${gw}${gwUsedNote(lang)} (full eligible player pool, not just one squad/lineup):`]
@@ -2023,7 +2114,7 @@ export async function buildResearchGroundedAnswer(
   if (modelSel !== 'BOTH' && isAverageVsUpsideQuestion(q)) {
     const model = modelSel as ResearchModel
     const pool = await fetchFullPool(gw, model, undefined, 500)
-    if (pool.status !== 'AVAILABLE' || !pool.players) {
+    if (!isKnownPoolStatus(pool.status) || !pool.players) {
       return na(pool.reason || 'Full player pool unavailable.', gw, model, pool.status)
     }
     // Uses the same resolvePlayerMention as every other named-player path
@@ -2162,7 +2253,7 @@ export async function buildResearchGroundedAnswer(
   // resolution now always runs first; the object-dump/summary fallback
   // further below is reached only when no player is named in the message.
   const fullPoolForMention = await fetchFullPool(gw, model, undefined, 500)
-  const poolPlayers = fullPoolForMention.status === 'AVAILABLE' ? (fullPoolForMention.players || []) : []
+  const poolPlayers = isKnownPoolStatus(fullPoolForMention.status) ? (fullPoolForMention.players || []) : []
   const globalMention: PlayerMentionResult<FullPoolPlayer> = poolPlayers.length > 0 ? resolvePlayerMention(question, poolPlayers) : { kind: 'NONE' }
 
   if (globalMention.kind === 'AMBIGUOUS') {
@@ -2465,7 +2556,7 @@ export async function buildResearchGroundedAnswer(
       // registered final pair; never fabricated for GW1-3).
       let leagueRankText = ''
       const pool = await fetchFullPool(gw, model, mentioned.position, 500)
-      if (pool.status === 'AVAILABLE' && pool.players) {
+      if (isKnownPoolStatus(pool.status) && pool.players) {
         const leagueIdx = pool.players.findIndex((p) => p.stable_player_id === mentioned.stable_player_id)
         if (leagueIdx >= 0) {
           leagueRankText = `, and #${leagueIdx + 1} of ${pool.total_matching_filter} ${mentioned.position}s league-wide by predicted xP`
