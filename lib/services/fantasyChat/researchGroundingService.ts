@@ -1599,7 +1599,14 @@ export async function buildResearchGroundedAnswer(
         lines.push(`- Captain: ${capA?.name ?? 'unknown'} → ${capB?.name ?? 'unknown'}; Vice: ${viceA?.name ?? 'unknown'} → ${viceB?.name ?? 'unknown'}`)
       }
       if (respA.hit_cost != null || respB.hit_cost != null || respA.free_transfers_before != null || respB.free_transfers_before != null) {
-        lines.push(`- Hit cost: ${respA.hit_cost ?? 'n/a'} → ${respB.hit_cost ?? 'n/a'}; Free transfers before: ${respA.free_transfers_before ?? 'n/a'} → ${respB.free_transfers_before ?? 'n/a'}; Bank after: ${respA.bank_after ?? 'n/a'} → ${respB.bank_after ?? 'n/a'}`)
+        // REAL BUG FOUND AND FIXED: bank_after is a £m value (the backend
+        // now converts it from raw tenths -- see discover_final_pair.py's
+        // own fix), but was printed with no currency formatting at all,
+        // reading as a bare, unit-less integer easily misread as £m when
+        // it briefly WAS still raw tenths (a real 10x-magnitude defect
+        // upstream of this line, now fixed at the source).
+        const bankText = (v: number | null | undefined) => v != null ? `£${v.toFixed(1)}m` : 'n/a'
+        lines.push(`- Hit cost: ${respA.hit_cost ?? 'n/a'} → ${respB.hit_cost ?? 'n/a'}; Free transfers before: ${respA.free_transfers_before ?? 'n/a'} → ${respB.free_transfers_before ?? 'n/a'}; Bank after: ${bankText(respA.bank_after)} → ${bankText(respB.bank_after)}`)
       }
       // Never present a forecast-vs-actual gap as a "measured improvement" --
       // only compares two like-for-like quantities, and states plainly
