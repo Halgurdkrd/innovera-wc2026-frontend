@@ -14,10 +14,20 @@
 // for retrieval, ranking, legality, or arithmetic.
 
 import type { ChatIntent, ConversationTurn, DataSourceType, FantasyChatResponse, ReferencedPlayer } from './types'
+import {
+  deriveRowRelease,
+  forecastLabel,
+  resolveForecastStatus,
+  resultsLabel,
+  type PlayerResultFields,
+  type ReleaseRowFields,
+  type ReleaseStatusResponse,
+} from '../../fantasy/releaseStatus'
+import { buildReleaseAnswerText, classifyReleaseQuestion, isTeamLevelQuestion, type ReleaseAnswerRow, type ReleaseQuestionKind } from './releaseQuestions'
 
 export type ResearchModel = 'M3_SHRUNK' | 'V0_CONTROL'
 
-interface OwnStartPlayer {
+interface OwnStartPlayer extends PlayerResultFields {
   stable_player_id: number
   name: string
   web_name?: string | null
@@ -54,7 +64,7 @@ interface OwnStartPlayer {
   outlook_is_supplemental?: boolean | null
 }
 
-interface OwnStartResponse {
+interface OwnStartResponse extends ReleaseRowFields {
   status: string
   reason?: string
   model?: ResearchModel
@@ -90,7 +100,7 @@ interface OwnStartResponse {
 
 export type ObjectLabel = 'OWN_START' | 'A_BLANK_SLATE' | 'B_LEGAL_BEST_XI' | 'PRIMARY' | 'OPTIONAL_XI_1' | 'OPTIONAL_XI_2' | 'OPTIONAL_XI_3' | 'OPTIONAL_XI_4'
 
-interface ObjectMember {
+interface ObjectMember extends PlayerResultFields {
   stable_player_id: number | null
   name: string
   web_name?: string | null
@@ -101,9 +111,10 @@ interface ObjectMember {
   match_status?: string
   is_captain?: boolean
   is_vice?: boolean
+  role?: string
 }
 
-interface ObjectResponse {
+interface ObjectResponse extends ReleaseRowFields {
   status: string
   reason?: string
   formation?: string | null
@@ -137,12 +148,30 @@ function isKnownResearchStatus(status: string | undefined): boolean {
     status === 'EARLY_FORECAST_SUBJECT_TO_UPDATE'
 }
 
-// True only for the one status this project's own governance forbids
-// ever presenting as final/registered -- used to keep chat wording
-// honest ("early, subject to update", never "final frozen forecast")
-// without scattering this specific string comparison everywhere.
-function isEarlyForecastStatus(status: string | undefined): boolean {
-  return status === 'EARLY_FORECAST_SUBJECT_TO_UPDATE'
+// Row-level helpers built on the release model: forecast_status and
+// results_status are independent (a frozen forecast stays "final frozen"
+// after kickoff; results move on their own). They prefer the new row
+// fields and fall back to the legacy single `status` when those are absent.
+// "Early" = the forecast itself is early (never "final"), regardless of results.
+function isEarlyRow(r: ReleaseRowFields): boolean {
+  return resolveForecastStatus(r) === 'EARLY'
+}
+// "Future" = a forecast (early or final frozen) with nothing scored against it.
+function isFutureRow(r: ReleaseRowFields): boolean {
+  const d = deriveRowRelease(r)
+  return (d.forecast === 'EARLY' || d.forecast === 'FINAL_FROZEN') && !d.tracked
+}
+// "Live" = results are tracked for this release (in progress, provisional or final).
+function isLiveRow(r: ReleaseRowFields): boolean {
+  return deriveRowRelease(r).tracked
+}
+function livePointsText(pts: number | null | undefined, r: ReleaseRowFields): string {
+  const d = deriveRowRelease(r)
+  const v = pts ?? 'not available'
+  if (d.final) return `${v} points (final)`
+  return d.results === 'PROVISIONAL'
+    ? `${v} points so far (provisional, matches complete -- pending official confirmation)`
+    : `${v} points so far (provisional, gameweek in progress)`
 }
 
 // REAL BUG FOUND AND FIXED: every full-pool call site (fetchFullPool's
@@ -215,6 +244,25 @@ async function fetchObjectData(gw: number, model: ResearchModel, object: ObjectL
     return await res.json()
   } catch {
     return { status: 'TEMPORARILY_UNAVAILABLE', reason: 'Research API unreachable.' }
+  }
+}
+
+// GET /release-status?gw= -- the same endpoint the page polls. Best-effort:
+// the row itself already carries release id / results revision / update
+// time, so a failure here only loses supplementary fields (forecast
+// generation time, fixture counts, official-finalized flag).
+async function fetchReleaseStatus(gw: number): Promise<ReleaseStatusResponse | null> {
+  const url = `${upstreamBase()}/api/v1/research-fpl/release-status?gw=${gw}`
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 3000)
+    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' })
+    clearTimeout(timeoutId)
+    if (!res.ok) return null
+    const data = await res.json()
+    return data && data.status === 'AVAILABLE' ? (data as ReleaseStatusResponse) : null
+  } catch {
+    return null
   }
 }
 
@@ -1414,7 +1462,10 @@ export async function buildResearchGroundedAnswer(
     const model: ResearchModel = 'M3_SHRUNK'
     const objectSel: ObjectLabel = pageContext?.object ?? 'OWN_START'
     const gw = await resolveEffectiveGameweek(q, pageContext?.gameweek, history)
-    const resp = objectSel === 'OWN_START' ? await fetchOwnStart(gw, model) : await fetchObjectData(gw, model, objectSel)
+    const [resp, releaseStatus] = await Promise.all([
+      objectSel === 'OWN_START' ? fetchOwnStart(gw, model) : fetchObjectData(gw, model, objectSel),
+      fetchReleaseStatus(gw),
+    ])
     if (!isKnownResearchStatus(resp.status)) {
       return na(resp.reason || `${model} GW${gw} is not available.`, gw, model, resp.status)
     }
@@ -1422,19 +1473,35 @@ export async function buildResearchGroundedAnswer(
     const allPlayers: (OwnStartPlayer | ObjectMember)[] =
       objectSel === 'OWN_START' ? ((resp as OwnStartResponse).players || []) : (Array.isArray((resp as ObjectResponse).player_membership) ? (resp as ObjectResponse).player_membership as ObjectMember[] : [])
 
-    if (resp.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(resp.status)) {
-      const totalXp = objectSel === 'OWN_START' ? (resp as OwnStartResponse).predicted_xi_total_xp : (resp as ObjectResponse).predicted_xi_xp
-      const answer = lang === 'ku'
-        ? `گەڕی ${gw} بۆ ${objLabel} (${publicModelLabel(model, 'ku')}) هێشتا دەستی پێنەکردووە -- هیچ خاڵی ڕاستەقینە بەردەست نییە. کۆی خاڵی پێشبینیکراو ${totalXp ?? 'نەزانراو'} خاڵە (پێشبینی، نەک ئەنجامی ڕاستەقینە).`
-        : `GW${gw} for ${objLabel} (${publicModelLabel(model, 'en')}) has not started yet -- there are no actual points so far. The predicted total is ${totalXp ?? 'not available'} xP (a forecast, not a realized result).`
+    // Release-aware answers (forecast status and results status are
+    // independent; everything comes from the SAME row the page renders, so
+    // the release id / results revision match). Every answer states
+    // gameweek, decision object, forecast status and results update time.
+    const rel = deriveRowRelease(resp)
+    const releaseKind: ReleaseQuestionKind | null = classifyReleaseQuestion(q)
+    const releaseReply = (kind: ReleaseQuestionKind): FantasyChatResponse => {
+      const answer = buildReleaseAnswerText({ kind, lang, gw, objectLabel: objLabel, row: resp as unknown as ReleaseAnswerRow, releaseStatus })
+      const referenced = kind === 'YET_TO_PLAY'
+        ? allPlayers.filter((p) => p.yet_to_play === true || p.match_status === 'IN_PROGRESS').slice(0, 15)
+        : allPlayers.filter((p) => p.match_status === 'FINISHED_PROVISIONAL' || p.match_status === 'FINISHED_CONFIRMED' || p.match_status === 'IN_PROGRESS').slice(0, 5)
       return {
         answer, intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
-        sourceBadge: `${citation(model, gw)} • Not started`,
-        referencedPlayers: [], suggestedFollowups: ['Who should I captain?', `Show ${objLabel} for GW${gw}`],
-        generatedAt: new Date().toISOString(), dataSnapshot: 'RESEARCH_ARTIFACT_FINAL_FROZEN_FORECAST',
-        llmUsed: false, responseTimeMs: Date.now() - t0, researchModel: model, researchGameweek: gw, researchArtifactStatus: resp.status,
+        sourceBadge: `${citation(model, gw)} • ${forecastLabel(rel.forecast, 'EN')} • ${resultsLabel(rel.results, 'EN')}`,
+        referencedPlayers: referenced.map((p) => toReferencedPlayer(p as OwnStartPlayer)),
+        suggestedFollowups: ['How many actual points do we have so far?', 'Who still has to play?', 'Are these points final?'],
+        generatedAt: new Date().toISOString(), dataSnapshot: 'GW_LIVE_RESULTS', llmUsed: false, responseTimeMs: Date.now() - t0,
+        researchModel: model, researchGameweek: gw, researchArtifactStatus: resp.status,
       }
     }
+    // Expected points are the frozen forecast total -- valid for every
+    // forecast, played or not, and never merged with actual points.
+    if (releaseKind === 'EXPECTED_POINTS') return releaseReply('EXPECTED_POINTS')
+    // An early forecast never has results scored against it, whatever the
+    // fixtures are doing -- say so plainly instead of guessing at points.
+    if (!rel.historical && rel.early && !rel.tracked) return releaseReply(releaseKind ?? 'ACTUAL_SO_FAR')
+    // Team-level release questions skip named-player resolution.
+    const teamLevelRelease = !rel.historical && releaseKind !== null && isTeamLevelQuestion(q)
+    if (teamLevelRelease && releaseKind) return releaseReply(releaseKind)
 
     // Named-player question ("how many points did Haaland get?") --
     // resolved against this object's own player list first.
@@ -1457,13 +1524,18 @@ export async function buildResearchGroundedAnswer(
     }
     if (mention.kind === 'FOUND') {
       const p = mention.player
-      const statusText = p.match_status === 'NOT_STARTED'
+      // New per-player fields first (data_missing / yet_to_play / points_final),
+      // legacy match_status as fallback. A missing value is never a zero.
+      const finishedButNotFinal = (p.match_status === 'FINISHED_CONFIRMED' || p.match_status === 'FINISHED_PROVISIONAL') && p.points_final === false
+      const statusText = (p.data_missing === true && p.actual_points == null)
+        ? (lang === 'ku' ? 'داتای فەرمی بۆ ئەم یاریزانە بەردەست نییە (داتا نییە، ئەمە سفر نییە).' : 'has no official data available (missing data -- this is not a zero).')
+        : (p.match_status === 'NOT_STARTED' || (p.yet_to_play === true && p.match_status !== 'IN_PROGRESS' && p.actual_points == null))
         ? (lang === 'ku' ? 'هێشتا یاری نەکردووە -- یارییەکەی دەستی پێنەکردووە.' : 'has not played yet -- their fixture has not kicked off.')
         : p.match_status === 'DID_NOT_PLAY'
         ? (lang === 'ku' ? `یاری نەکرد، ${p.actual_points ?? 0} خاڵ.` : `did not play, confirmed ${p.actual_points ?? 0} points.`)
         : p.match_status === 'IN_PROGRESS'
         ? (lang === 'ku' ? `ئێستا ${p.actual_points ?? 0} خاڵی هەیە (یارییەکە بەردەوامە، کاتیی).` : `has ${p.actual_points ?? 0} points so far (match in progress, provisional).`)
-        : p.match_status === 'FINISHED_PROVISIONAL'
+        : (p.match_status === 'FINISHED_PROVISIONAL' || finishedButNotFinal)
         ? (lang === 'ku' ? `${p.actual_points ?? 0} خاڵی وەرگرت (کاتیی، چاوەڕوانی بۆنسی فەرمییە).` : `scored ${p.actual_points ?? 0} points (provisional, pending official bonus/checks).`)
         : (lang === 'ku' ? `${p.actual_points ?? 0} خاڵی وەرگرت (پشتڕاستکراوە).` : `scored ${p.actual_points ?? 0} points (confirmed).`)
       const captainNote = p.is_captain ? (lang === 'ku' ? ' (کاپتنە، دووبارە دەکرێتەوە)' : ' (captain -- doubled in the team total)') : ''
@@ -1480,12 +1552,17 @@ export async function buildResearchGroundedAnswer(
       }
     }
 
+    // Any remaining release question (e.g. "who still has to play?" without a
+    // team-level word) is answered release-aware, not from the legacy lists.
+    if (!rel.historical && releaseKind) return releaseReply(releaseKind)
+
     // "Who has played" / "who is still to play" -- explicit lists.
     const stillToPlay = allPlayers.filter((p) => p.match_status === 'NOT_STARTED' || p.match_status === undefined)
     const alreadyPlayed = allPlayers.filter((p) => p.match_status && p.match_status !== 'NOT_STARTED' && p.match_status !== 'NOT_TRACKED')
     const asksWhoWaiting = /waiting to play|still to play|yet to play|still waiting|who is still/.test(q) || q.includes('کێ هێشتا')
     const asksWhoPlayed = /who has (already )?played|who has not played|who hasn't played/.test(q) || q.includes('کێ یاری کردووە')
 
+    if (asksWhoWaiting && !asksWhoPlayed && !rel.historical) return releaseReply('YET_TO_PLAY')
     if (asksWhoWaiting && !asksWhoPlayed) {
       const names = stillToPlay.map((p) => p.name).join(', ') || (lang === 'ku' ? 'هیچ کەس' : 'no one')
       const answer = lang === 'ku'
@@ -1515,7 +1592,9 @@ export async function buildResearchGroundedAnswer(
       }
     }
 
-    // Default: overall points-so-far subtotal.
+    // Default: overall points-so-far subtotal -- release-aware (results
+    // status, update time, reconciliation) for every non-historical row.
+    if (!rel.historical) return releaseReply('ACTUAL_SO_FAR')
     const totalSoFar = objectSel === 'OWN_START' ? (resp as OwnStartResponse).points_so_far_total : (resp as ObjectResponse).points_so_far_total
     const captainStatus = objectSel === 'OWN_START' ? (resp as OwnStartResponse).captain_status : (resp as ObjectResponse).captain_status
     const pending = objectSel === 'OWN_START' ? (resp as OwnStartResponse).pending_adjustments : (resp as ObjectResponse).pending_adjustments
@@ -1573,13 +1652,13 @@ export async function buildResearchGroundedAnswer(
       const capB = respB.players?.find((p) => p.is_captain)
       const viceA = respA.players?.find((p) => p.is_vice)
       const viceB = respB.players?.find((p) => p.is_vice)
-      const isFutureB = respB.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(respB.status)
-      const isFutureA = respA.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(respA.status)
-      const isLiveA = respA.status === 'LIVE_PROVISIONAL'
-      const isLiveB = respB.status === 'LIVE_PROVISIONAL'
+      const isFutureB = isFutureRow(respB)
+      const isFutureA = isFutureRow(respA)
+      const isLiveA = isLiveRow(respA)
+      const isLiveB = isLiveRow(respB)
       const pointsSideText = (isFuture: boolean, isLive: boolean, resp: OwnStartResponse) =>
         isFuture ? 'forecast only, gameweek not yet played'
-        : isLive ? `${resp.points_so_far_total ?? 'not available'} points so far (provisional, gameweek in progress)`
+        : isLive ? livePointsText(resp.points_so_far_total, resp)
         : (resp.net_points ?? 'not available')
 
       const lines: string[] = [lang === 'ku'
@@ -1648,10 +1727,10 @@ export async function buildResearchGroundedAnswer(
     const namesB = new Set(memB.map((p) => p.name))
     const outNames = memA.filter((p) => !namesB.has(p.name))
     const inNames = memB.filter((p) => !namesA.has(p.name))
-    const isFutureB = objB.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(objB.status)
-    const isFutureA = objA.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(objA.status)
-    const isLiveA = objA.status === 'LIVE_PROVISIONAL'
-    const isLiveB = objB.status === 'LIVE_PROVISIONAL'
+    const isFutureB = isFutureRow(objB)
+    const isFutureA = isFutureRow(objA)
+    const isLiveA = isLiveRow(objA)
+    const isLiveB = isLiveRow(objB)
 
     const lines: string[] = [`Selection changes in ${objLabel} (${model}) from GW${gwA} to GW${gwB} -- a fresh independent selection each gameweek, not a manager's transfers:`]
     lines.push(`- Formation: ${formatFormation(objA.formation)} → ${formatFormation(objB.formation)}`)
@@ -1669,7 +1748,7 @@ export async function buildResearchGroundedAnswer(
       lines.push(`- Final points (both actual): GW${gwA}=${finalA ?? 'n/a'} → GW${gwB}=${finalB ?? 'n/a'}`)
     } else if (isLiveA || isLiveB) {
       const sideText = (isFuture: boolean, isLive: boolean, obj: ObjectResponse) =>
-        isFuture ? 'forecast, not played' : isLive ? `${obj.points_so_far_total ?? 'not available'} points so far (provisional)` : (obj.final_points ?? obj.corrected_points ?? 'n/a')
+        isFuture ? 'forecast, not played' : isLive ? livePointsText(obj.points_so_far_total, obj) : (obj.final_points ?? obj.corrected_points ?? 'n/a')
       lines.push(`- Points: GW${gwA}=${sideText(isFutureA, isLiveA, objA)}, GW${gwB}=${sideText(isFutureB, isLiveB, objB)} -- not directly comparable while either side is a forecast or still in progress.`)
     } else {
       lines.push(`- Predicted XI xP: GW${gwA}=${objA.predicted_xi_xp ?? 'n/a'}${isFutureA ? ' (forecast, not played)' : ''}, GW${gwB}=${objB.predicted_xi_xp ?? 'n/a'}${isFutureB ? ' (forecast, not played)' : ''} -- not comparable to a realized points total when either side is still a forecast.`)
@@ -2206,8 +2285,8 @@ export async function buildResearchGroundedAnswer(
     const onlyV0 = (v0.players || []).filter((p) => !m3Ids.has(p.stable_player_id))
 
     const pointsFor = (r: OwnStartResponse) =>
-      (r.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(r.status)) ? 'forecast only, not played yet'
-      : r.status === 'LIVE_PROVISIONAL' ? `${r.points_so_far_total ?? 'not available'} points so far (provisional)`
+      isFutureRow(r) ? 'forecast only, not played yet'
+      : isLiveRow(r) ? livePointsText(r.points_so_far_total, r)
       : (r.net_points ?? 'not available')
     const lines = [
       lang === 'ku'
@@ -2216,7 +2295,7 @@ export async function buildResearchGroundedAnswer(
       `- Points: M3_SHRUNK=${pointsFor(m3)}, V0_CONTROL=${pointsFor(v0)}`,
       `- Players unique to M3_SHRUNK: ${onlyM3.map((p) => p.name).join(', ') || 'none'}`,
       `- Players unique to V0_CONTROL: ${onlyV0.map((p) => p.name).join(', ') || 'none'}`,
-      m3.status === 'LIVE_PROVISIONAL' || v0.status === 'LIVE_PROVISIONAL'
+      isLiveRow(m3) || isLiveRow(v0)
         ? 'This gameweek is currently in progress -- figures above are provisional and will update as official results are confirmed.'
         : 'This is a historical reconstruction of an already-completed gameweek, not a live or prospective forecast.',
     ]
@@ -2305,8 +2384,8 @@ export async function buildResearchGroundedAnswer(
     })
 
     const isFutureForecast = ownStartAvailable
-      ? (ownStartResp.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(ownStartResp.status))
-      : otherResps.some((r) => r.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(r.status))
+      ? isFutureRow(ownStartResp)
+      : otherResps.some((r) => isFutureRow(r))
     const isWhyQuestion = /\bwhy\b|\bselect/.test(q) || q.includes('بۆچی') || q.includes('هەڵبژار')
     // Positional rank/count, not the whole (all-positions) pool -- a real
     // bug: "#81 of 494 MIDs" previously paired an OVERALL rank/count
@@ -2460,12 +2539,12 @@ export async function buildResearchGroundedAnswer(
     if (objResp.formation) lines.push(`- Formation: ${formatFormation(objResp.formation)}`)
     lines.push(`- Predicted XI xP: ${objResp.predicted_xi_xp ?? 'n/a'}`)
     const finalPts = objResp.final_points ?? objResp.corrected_points
-    lines.push((objResp.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(objResp.status))
-      ? (isEarlyForecastStatus(objResp.status)
+    lines.push(isFutureRow(objResp)
+      ? (isEarlyRow(objResp)
           ? '- This gameweek has not been played yet -- no final points exist. This is an early forecast, subject to update before the deadline, not the registered final forecast.'
           : '- This gameweek has not been played yet -- no final points exist.')
-      : objResp.status === 'LIVE_PROVISIONAL'
-      ? `- Points so far (provisional, gameweek in progress): ${objResp.points_so_far_total ?? 'n/a'}.${objResp.pending_adjustments?.length ? ' ' + objResp.pending_adjustments.join(' ') : ''}`
+      : isLiveRow(objResp)
+      ? `- ${livePointsText(objResp.points_so_far_total, objResp)}.${objResp.pending_adjustments?.length ? ' ' + objResp.pending_adjustments.join(' ') : ''}`
       : `- Final points: ${finalPts ?? 'n/a'}`)
     if (membership) {
       lines.push(`- Players: ${membership.map((p) => p.name).join(', ')}`)
@@ -2534,7 +2613,7 @@ export async function buildResearchGroundedAnswer(
   let referencedPlayers: ReferencedPlayer[]
   let llmUsedForAnswer = false
 
-  const isFutureForecast = resp.status === 'FINAL_FROZEN_FORECAST' || isEarlyForecastStatus(resp.status)
+  const isFutureForecast = isFutureRow(resp)
   const modelLabel = publicModelLabel(model, lang)
 
   if (mentioned) {
@@ -2625,11 +2704,11 @@ export async function buildResearchGroundedAnswer(
     const xi = players.filter((p) => p.role === 'XI').sort((a, b) => b.predicted_xp - a.predicted_xp)
     const captain = players.find((p) => p.is_captain)
     const list = xi.slice(0, 5).map((p) => `${p.name} (${p.position}, xP=${p.predicted_xp}${p.actual_points !== null ? `, actual=${p.actual_points}` : ''})`)
-    const isLiveNow = resp.status === 'LIVE_PROVISIONAL'
+    const isLiveNow = isLiveRow(resp)
     const pointsText = isFutureForecast
       ? 'Actual points are not available yet (this gameweek has not been played).'
       : isLiveNow
-      ? `Points so far (provisional, gameweek in progress): ${resp.points_so_far_total ?? 'not available'}.`
+      ? `${livePointsText(resp.points_so_far_total, resp)}.`
       : `Net points: ${resp.net_points ?? 'not available'} (gross ${resp.gross_points ?? 'not available'}).`
     const pointsTextKu = isFutureForecast
       ? 'هێشتا خاڵی ڕاستەقینە بەردەست نییە.'

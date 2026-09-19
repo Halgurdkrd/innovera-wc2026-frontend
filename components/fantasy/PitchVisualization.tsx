@@ -32,6 +32,16 @@ function isUntrackedMatchStatus(s: string | undefined): boolean {
 function isProvisionalMatchStatus(s: string | undefined): boolean {
   return s === 'FINISHED_PROVISIONAL' || s === 'IN_PROGRESS'
 }
+// Release-model per-player flags. A null actual_points is either "yet to
+// play" or "data missing" -- never a zero; a finished match whose points are
+// not yet final (points_final === false) is provisional even if the coarse
+// match_status says confirmed.
+function isNoData(player: FPLPlayer): boolean {
+  return player.data_missing === true && (player.actual_points === null || player.actual_points === undefined)
+}
+function isPointsNotFinal(player: FPLPlayer, matchStatus: string | undefined): boolean {
+  return isFinishedMatchStatus(matchStatus) && player.points_final === false
+}
 
 export interface PitchVisualizationProps {
   formation: string
@@ -250,7 +260,8 @@ export function PitchVisualization({
               const isFT = isFinishedMatchStatus(matchSt)
               const isLive = isLiveMatchStatus(matchSt)
               const isUntracked = isUntrackedMatchStatus(matchSt)
-              const isProvisional = isProvisionalMatchStatus(matchSt)
+              const isProvisional = isProvisionalMatchStatus(matchSt) || isPointsNotFinal(player, matchSt)
+              const noData = isNoData(player)
 
               return (
                 <div
@@ -282,7 +293,11 @@ export function PitchVisualization({
                       <span className="font-bold text-[#3FB950]">
                         {player.xp_unavailable ? 'xP —' : <Num>{`${(player.expected_points ?? (player as any).predicted_xp ?? 0).toFixed(2)} xP`}</Num>}
                       </span>
-                      {isFT && actualPts !== null && actualPts !== undefined ? (
+                      {noData ? (
+                        <span className="font-semibold text-orange-300" title={tr('release_no_data_title', language)}>
+                          {tr('release_no_data', language)}
+                        </span>
+                      ) : isFT && actualPts !== null && actualPts !== undefined ? (
                         <span className={`font-black px-1 rounded ${isProvisional ? 'bg-amber-500/20 text-amber-400' : 'bg-[#58A6FF]/20 text-[#58A6FF]'}`} title={isProvisional ? 'Provisional -- pending official bonus/checks' : 'Official, checked result'}>
                           {actualPts} pts{isProvisional ? '*' : ''}
                         </span>
@@ -326,7 +341,8 @@ function PlayerPitchCard({ player, onClick, researchMode = false, language = 'EN
   const isFinished = isFinishedMatchStatus(matchStatus)
   const isLive = isLiveMatchStatus(matchStatus)
   const isUntracked = isUntrackedMatchStatus(matchStatus)
-  const isProvisional = isProvisionalMatchStatus(matchStatus)
+  const isProvisional = isProvisionalMatchStatus(matchStatus) || isPointsNotFinal(player, matchStatus)
+  const noData = isNoData(player)
 
   // Home/away is only shown when the source genuinely has it -- never
   // guessed as "Home" by default, which would misrepresent an unknown
@@ -397,7 +413,11 @@ function PlayerPitchCard({ player, onClick, researchMode = false, language = 'EN
           <span className="text-[10px] sm:text-[11px] font-extrabold text-[#3FB950]" title={player.xp_unavailable ? 'Per-player xP not available for this decision object' : undefined}>
             {player.xp_unavailable ? 'xP —' : <Num>{`${expPoints.toFixed(2)} xP`}</Num>}
           </span>
-          {isFinished && actualPoints !== null && actualPoints !== undefined ? (
+          {noData ? (
+            <span className="text-[9px] font-bold px-1 rounded bg-orange-500/15 text-orange-300" title={tr('release_no_data_title', language)}>
+              {tr('release_no_data', language)}
+            </span>
+          ) : isFinished && actualPoints !== null && actualPoints !== undefined ? (
             <span className={`text-[9px] font-black px-1 rounded ${isProvisional ? 'bg-amber-500/20 text-amber-400' : 'bg-[#58A6FF]/20 text-[#58A6FF]'}`} title={(isCap ? `Player points: ${actualPoints}. Captain doubles this to ${actualPoints * 2}. ` : '') + (isProvisional ? 'Provisional -- pending official bonus/checks.' : 'Official, checked result.')}>
               <Num>{(isCap ? `${actualPoints}→${actualPoints * 2} pts` : `${actualPoints} pts`) + (isProvisional ? '*' : '')}</Num>
             </span>
@@ -467,8 +487,9 @@ function PlayerDetailModal({
   const matchStatus = (player as any).match_status || (actualPts !== null && actualPts !== undefined ? 'FINISHED' : 'NOT_STARTED')
   const isFT = isFinishedMatchStatus(matchStatus)
   const isUntracked = isUntrackedMatchStatus(matchStatus)
-  const isProvisional = isProvisionalMatchStatus(matchStatus)
+  const isProvisional = isProvisionalMatchStatus(matchStatus) || isPointsNotFinal(player, matchStatus)
   const isDidNotPlay = matchStatus === 'DID_NOT_PLAY'
+  const noData = isNoData(player)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
@@ -525,7 +546,11 @@ function PlayerDetailModal({
             </span>
           </div>
           <div>
-            {isFT ? (
+            {noData ? (
+              <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded border bg-orange-500/15 text-orange-300 border-orange-500/40" title={tr('release_no_data_title', language)}>
+                {tr('release_no_data', language)}
+              </span>
+            ) : isFT ? (
               <span className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded border ${isProvisional ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' : 'bg-[#3FB950]/20 text-[#3FB950] border-[#3FB950]/40'}`} title={(player.is_captain && actualPts != null ? `Player points: ${actualPts}. Captain doubles this to ${actualPts * 2}. ` : '') + (isDidNotPlay ? 'Confirmed: did not play.' : isProvisional ? 'Provisional -- pending official bonus/checks.' : 'Official, checked result.')}>
                 {isProvisional ? 'FT (provisional)' : 'FT'}: <Num>{actualPts !== null && actualPts !== undefined
                   ? (isDidNotPlay ? `${actualPts} pts (did not play)` : player.is_captain ? `${actualPts}→${actualPts * 2} pts (captain)` : `${actualPts} pts`)
@@ -541,11 +566,19 @@ function PlayerDetailModal({
               </span>
             ) : (
               <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 bg-[#30363D]/60 text-[#8B949E] border border-[#30363D] rounded" title="This fixture has not kicked off yet -- no points can exist, this is not a confirmed zero">
-                {language === 'KU' ? 'هێشتا یاری نەکراوە' : 'Yet to play'}
+                {player.yet_to_play ? tr('release_yet_to_play', language) : (language === 'KU' ? 'هێشتا یاری نەکراوە' : 'Yet to play')}
               </span>
             )}
           </div>
         </div>
+        {/* Provisional-bonus caveat: the match has finished but not all of
+            this player's fixtures are confirmed, so bonus points can still change. */}
+        {isFT && isProvisional && actualPts !== null && actualPts !== undefined && (
+          <div className="text-[11px] text-amber-400 -mt-2" data-testid="provisional-bonus-caveat">
+            {tr('release_provisional_bonus', language)}
+            {player.bonus_points != null && <> (<Num>{`+${player.bonus_points}`}</Num>)</>}
+          </div>
+        )}
 
         {/* Primary Expected Points & Likely Range */}
         <div className="grid grid-cols-2 gap-3">

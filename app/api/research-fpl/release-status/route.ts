@@ -2,22 +2,24 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-// Proxies to app/routers/research_fpl.py's /live-status -- official-
-// results completion summary (fixtures not-started/in-progress/finished-
-// provisional/finished-confirmed, last refresh time) for the registered
-// final-pair gameweek. Distinct from ../status (forecast-artifact
-// availability), see that route's own comments for the upstreamBase()
-// fallback rationale (matches it exactly).
+// Proxies to app/routers/research_fpl.py's /release-status -- the single
+// source for BOTH independent facts about a gameweek's published release:
+// the FORECAST status (EARLY / FINAL_FROZEN / NONE, never changes when
+// matches start) and the RESULTS status (NOT_STARTED / IN_PROGRESS /
+// PROVISIONAL / FINAL / NOT_TRACKED), plus release identity
+// (release_id/manifest_hash/results revision) used by the page's bounded
+// background refresh to detect a swapped or updated release. `gw` is
+// optional (backend resolves the active gameweek when absent).
+// See ../status for the upstreamBase() fallback rationale (matches it).
 function upstreamBase(): string {
   return (process.env.BACKEND_INTERNAL_URL || process.env.VPS_BACKEND_URL || 'http://72.62.35.32').trim().replace(/\/+$/, '')
 }
 
 export async function GET(request: Request) {
-  // Optional `gw` is forwarded so the summary can describe any gameweek
-  // (backend defaults to the active/registered one when absent).
-  const gw = new URL(request.url).searchParams.get('gw')
+  const { searchParams } = new URL(request.url)
+  const gw = searchParams.get('gw')
   const qs = gw && /^\d{1,2}$/.test(gw) ? `?gw=${gw}` : ''
-  const upstreamUrl = upstreamBase() + '/api/v1/research-fpl/live-status' + qs
+  const upstreamUrl = upstreamBase() + '/api/v1/research-fpl/release-status' + qs
   try {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 2500)
@@ -27,7 +29,7 @@ export async function GET(request: Request) {
       return NextResponse.json(await res.json())
     }
     return NextResponse.json({ status: 'TEMPORARILY_UNAVAILABLE', reason: `Upstream returned HTTP ${res.status}` }, { status: 200 })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ status: 'TEMPORARILY_UNAVAILABLE', reason: 'Research API unreachable.' }, { status: 200 })
   }
 }

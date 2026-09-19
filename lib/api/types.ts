@@ -109,6 +109,15 @@ export interface FPLPlayer {
   // gameweek) -- distinct from 'NOT_STARTED', which existing live pages
   // use for a match that IS being tracked but has not kicked off yet.
   match_status?: 'FT' | 'FINISHED' | 'DID_NOT_PLAY' | 'LIVE' | 'NOT_STARTED' | 'NOT_TRACKED' | 'IN_PROGRESS' | 'FINISHED_PROVISIONAL' | 'FINISHED_CONFIRMED'
+  // Release-model per-player result fields (see lib/fantasy/releaseStatus.ts).
+  // A null actual_points means yet to play OR data missing -- never a zero.
+  yet_to_play?: boolean
+  data_missing?: boolean
+  // False while any of the player's fixtures is not yet confirmed (bonus
+  // points may still change the total).
+  points_final?: boolean
+  bonus_points?: number
+  fixtures_remaining?: number
   // Real research probability-card fields (distinct from starting_prob's
   // dual use above) -- only ever set from a source artifact, never derived.
   p_sub?: number | null

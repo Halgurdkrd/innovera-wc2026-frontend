@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import { PitchVisualization } from '@/components/fantasy/PitchVisualization'
@@ -9,6 +9,18 @@ import { useLanguage } from '@/hooks/useLanguage'
 import { useFantasyChatContext } from '@/context/FantasyChatContext'
 import { tr, type Language, type TranslationKey } from '@/lib/translations'
 import type { FPLPlayer } from '@/lib/api/types'
+import { useReleasePolling } from '@/hooks/useReleasePolling'
+import { ForecastBadge, ReleaseBadges, ReleaseNotices, ReleaseSwapBanner } from '@/components/fantasy/ReleaseStatusPanel'
+import {
+  deriveRowRelease,
+  isXiOnlyObject,
+  objectHasBench,
+  reconciliationLine,
+  reconciliationParts,
+  type ReleaseRowFields,
+  type ReleaseStatusResponse,
+  type RowRelease,
+} from '@/lib/fantasy/releaseStatus'
 
 // Ennovera Fantasy -- the M3_SHRUNK-backed public fantasy experience.
 // V0_CONTROL and FPL-03 remain in the codebase/backend for internal
@@ -108,6 +120,13 @@ interface PlayerRow {
   // this gameweek. 'NOT_STARTED' is distinct from a confirmed 'DID_NOT_PLAY'
   // zero -- never collapse the two into one "hasResult" boolean.
   match_status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED_PROVISIONAL' | 'FINISHED_CONFIRMED' | 'DID_NOT_PLAY' | 'NOT_TRACKED' | 'FT' | 'FINISHED' | 'LIVE'
+  // Release-model per-player result fields: null actual_points means yet to
+  // play OR data missing -- never a zero.
+  yet_to_play?: boolean | null
+  data_missing?: boolean | null
+  points_final?: boolean | null
+  bonus_points?: number | null
+  fixtures_remaining?: number | null
 }
 
 interface LiveResultsMeta {
@@ -121,7 +140,7 @@ interface LiveResultsMeta {
   event_officially_finalized?: boolean
 }
 
-interface OwnStartResponse {
+interface OwnStartResponse extends ReleaseRowFields {
   status: string
   reason?: string
   model?: string
@@ -147,7 +166,7 @@ interface OwnStartResponse {
   live_results_meta?: LiveResultsMeta
 }
 
-interface ObjectResponse {
+interface ObjectResponse extends ReleaseRowFields {
   status: string
   reason?: string
   model?: string
@@ -176,6 +195,7 @@ interface StatusResponse {
   status: string
   final_pair_registered?: boolean
   final_pair_gameweek?: number | null
+  published_final_pairs?: { gameweek: number; freeze_id: string; release_hash?: string }[]
 }
 
 // A bare NaN never reaches here (the export pipeline now refuses to publish
@@ -224,6 +244,11 @@ function toFplPlayer(p: PlayerRow, benchIndex?: { outfield: number; isReserveGk:
     // the coarse hasResult-based guess for rows that predate this field
     // (e.g. GW1-3 historical reconstruction rows with no live overlay).
     match_status: p.match_status ?? (hasResult ? 'FT' : 'NOT_TRACKED'),
+    yet_to_play: p.yet_to_play ?? undefined,
+    data_missing: p.data_missing ?? undefined,
+    points_final: p.points_final ?? undefined,
+    bonus_points: p.bonus_points ?? undefined,
+    fixtures_remaining: p.fixtures_remaining ?? undefined,
     p_sub: p.p_sub ?? null,
     p_dnp: p.p_dnp ?? null,
     // Real fixture data from the frozen source (opponent_resolved/was_home)
@@ -277,10 +302,14 @@ interface LiveStatusResponse {
   status: string
   gameweek?: number
   gw_completion_status?: string
+  // Release-model fields (same shape as release-status `results`).
+  results_status?: string
+  finalized?: boolean
+  next_kickoff_utc?: string | null
 }
 
-async function fetchLiveStatus(): Promise<LiveStatusResponse> {
-  const res = await fetch('/api/research-fpl/live-status', { cache: 'no-store' })
+async function fetchLiveStatus(gw?: number): Promise<LiveStatusResponse> {
+  const res = await fetch(gw ? `/api/research-fpl/live-status?gw=${gw}` : '/api/research-fpl/live-status', { cache: 'no-store' })
   return res.json()
 }
 
@@ -378,7 +407,7 @@ function SquadOutlookPanel({ gw, tab, model, language }: { gw: number; tab: Obje
       {obj.raw_starting_xi_total && (
         <div className="text-[11px] text-neutral-400 mb-1">{tr('squad_outlook_raw_xi_note', language)}</div>
       )}
-      {obj.bench_reconstruction?.status === 'VERIFIED_MATCH' && (
+      {!isXiOnlyObject(tab) && obj.bench_reconstruction?.status === 'VERIFIED_MATCH' && (
         <div className="mt-2 mb-2 p-2 rounded border border-neutral-700 bg-neutral-900/60">
           <div className="text-[11px] font-semibold text-neutral-300 mb-1">
             {language === 'KU' ? `دانانی یاریزانان: ${obj.formation ?? '—'}` : `Formation: ${obj.formation ?? '—'}`}
@@ -447,14 +476,14 @@ function formatNote(note: string): string {
   return NOTE_TEXT[note] ?? note
 }
 
+// Legacy `status` is now used ONLY for availability (is there data to show?).
+// The forecast label and the results state come from the release model
+// (forecast_status / results_status), which never conflate the two.
 function statusBadge(status: string | undefined) {
-  const isForecast = status === 'FINAL_FROZEN_FORECAST'
-  const isLive = status === 'LIVE_PROVISIONAL'
-  const isEarly = status === 'EARLY_FORECAST_SUBJECT_TO_UPDATE'
-  const isEvaluated = status === 'FINALIZED_EVALUATION'
   const isTemporaryFailure = status === 'TEMPORARILY_UNAVAILABLE'
-  const isAvailable = status === 'HISTORICAL_RECONSTRUCTION' || isForecast || isLive || isEarly || isEvaluated
-  return { isForecast, isLive, isEarly, isEvaluated, isAvailable, isTemporaryFailure }
+  const isAvailable = status === 'HISTORICAL_RECONSTRUCTION' || status === 'FINAL_FROZEN_FORECAST' || status === 'LIVE_PROVISIONAL' ||
+    status === 'EARLY_FORECAST_SUBJECT_TO_UPDATE' || status === 'FINALIZED_EVALUATION'
+  return { isAvailable, isTemporaryFailure }
 }
 
 function formatUpdateTime(iso: string | undefined, language: Language): string {
@@ -476,24 +505,57 @@ function captainStatusText(status: string | undefined, language: Language): stri
   }
 }
 
-// Shared "points so far" block for both OWN_START and XI-only objects --
-// only rendered once the backend has actually merged a live snapshot in
-// (points_so_far_total defined), never fabricated from the frozen xP.
-function PointsSoFarBlock({ data, language, onRefresh, refreshing }: {
-  data: { points_so_far_total?: number; points_so_far_xi_raw?: number; captain_status?: string; captain_extra?: number; hit_cost_applied?: number; pending_adjustments?: string[]; live_results_meta?: LiveResultsMeta }
+const AUTOSUB_KEYS = {
+  PENDING_UNRESOLVED_FIXTURES: 'release_autosub_PENDING_UNRESOLVED_FIXTURES',
+  NOT_APPLICABLE_XI_ONLY: 'release_autosub_NOT_APPLICABLE_XI_ONLY',
+  APPLIED_PROVISIONAL: 'release_autosub_APPLIED_PROVISIONAL',
+  APPLIED_FINAL: 'release_autosub_APPLIED_FINAL',
+  NONE_NEEDED: 'release_autosub_NONE_NEEDED',
+} as const
+
+// Footer wording per state -- never claims a gameweek "has not been played"
+// once its matches have started, and never relabels a frozen forecast.
+function releaseFootnote(rel: RowRelease, language: Language): string {
+  if (rel.early) return tr('early_forecast_note', language)
+  if (rel.historical) return 'Actual points shown are real, official results for this already-completed gameweek.'
+  if (rel.final) return 'Final points -- the gameweek has been finalized.'
+  if (rel.live) return 'Points so far are provisional and will update automatically as official data refreshes.'
+  return 'Predicted values only -- this gameweek has not been played.'
+}
+
+// Shared "actual points so far / final" block for OWN_START and XI-only
+// objects -- SEPARATE from the frozen expected points shown elsewhere, only
+// rendered when results are scored against this release (never for an early
+// forecast) and a total exists; never fabricated from predicted xP.
+function PointsSoFarBlock({ data, rel, releaseStatus, language, onRefresh, refreshing }: {
+  data: ReleaseRowFields
+  rel: RowRelease
+  releaseStatus: ReleaseStatusResponse | null
   language: Language
   onRefresh?: () => void
   refreshing?: boolean
 }) {
-  if (data.points_so_far_total === undefined) return null
-  const meta = data.live_results_meta
-  const completed = (meta?.fixtures_finished_confirmed ?? 0) + (meta?.fixtures_finished_provisional ?? 0)
-  const captainText = captainStatusText(data.captain_status, language)
+  if (!rel.tracked || data.points_so_far_total == null) return null
+  const meta = data.live_results_meta ?? undefined
+  const rsr = releaseStatus?.results
+  const total = rsr?.fixtures_total ?? meta?.fixtures_total
+  const notStarted = rsr?.fixtures_not_started ?? meta?.fixtures_not_started
+  const completed = rsr
+    ? (rsr.fixtures_finished_confirmed ?? 0) + (rsr.fixtures_finished_provisional ?? 0)
+    : (meta?.fixtures_finished_confirmed ?? 0) + (meta?.fixtures_finished_provisional ?? 0)
+  const lastUpdated = rel.lastUpdatedUtc ?? rsr?.last_updated_utc ?? meta?.last_updated_utc ?? undefined
+  const captainText = captainStatusText(data.captain_status ?? undefined, language)
+  const recLine = reconciliationLine(data, language)
+  const recParts = reconciliationParts(data)
+  const autosubKey = data.autosub_status ? AUTOSUB_KEYS[data.autosub_status as keyof typeof AUTOSUB_KEYS] : undefined
+  const yetToPlay = data.players_yet_to_play ?? []
+  const pending = data.pending_adjustments ?? []
+  const fin = data.finalization
   return (
-    <div className="bg-amber-950/30 border border-amber-800/50 rounded-lg p-3 mb-3 text-sm">
+    <div className="bg-amber-950/30 border border-amber-800/50 rounded-lg p-3 mb-3 text-sm" data-testid="points-so-far">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="text-amber-300 font-semibold">{tr('points_so_far_label', language)}</div>
-        {onRefresh && (
+        <div className="text-amber-300 font-semibold">{rel.final ? tr('release_actual_final_label', language) : tr('points_so_far_label', language)}</div>
+        {onRefresh && !rel.final && (
           <button onClick={onRefresh} disabled={refreshing} className="text-xs px-2 py-0.5 rounded bg-amber-900/60 text-amber-200 hover:bg-amber-800/60 disabled:opacity-50">
             {refreshing ? '…' : tr('refresh_now_button', language)}
           </button>
@@ -501,45 +563,73 @@ function PointsSoFarBlock({ data, language, onRefresh, refreshing }: {
       </div>
       <div className="text-white font-bold text-lg mt-1">
         <bdi style={{ unicodeBidi: 'isolate' }}>{data.points_so_far_total}</bdi>
-        <span className="text-neutral-400 text-xs font-normal ml-2">
-          ({tr('points_so_far_total_label', language)}: XI {data.points_so_far_xi_raw} + captain +{data.captain_extra ?? 0}
-          {data.hit_cost_applied ? ` − ${data.hit_cost_applied} hit` : ''})
-        </span>
       </div>
-      {captainText && <div className="text-amber-200 text-xs mt-1">{captainText}</div>}
-      {(data.pending_adjustments ?? []).map((p, i) => (
-        <div key={i} className="text-amber-200/80 text-xs mt-1">{p}</div>
-      ))}
-      {meta && (
-        <div className="text-neutral-400 text-xs mt-2 flex flex-wrap gap-x-3">
-          <span>{tr('matches_completed_label', language)}: {completed}/{meta.fixtures_total ?? '—'}</span>
-          <span>{tr('matches_remaining_label', language)}: {meta.fixtures_not_started ?? 0}</span>
-          <span>{tr('last_updated_label', language)}: {formatUpdateTime(meta.last_updated_utc, language)}</span>
+      {recLine && (
+        <div className="text-neutral-300 text-xs mt-1" data-testid="reconciliation-line">
+          <bdi style={{ unicodeBidi: 'isolate' }}>{recLine}</bdi>
         </div>
       )}
-      <div className="text-neutral-500 text-[11px] mt-1">{tr('final_evaluation_deferred', language)}</div>
+      {recParts?.ok === false && <div className="text-orange-300 text-xs mt-1">{tr('release_reconciliation_mismatch', language)}</div>}
+      {fin?.status === 'FINALIZED' && (
+        <div className="text-emerald-300 text-xs mt-1">
+          <bdi style={{ unicodeBidi: 'isolate' }}>{`${tr('release_results_final', language)}: ${fin.net_points ?? '—'}${fin.gross_points != null ? ` (gross ${fin.gross_points})` : ''}`}</bdi>
+        </div>
+      )}
+      {captainText && <div className="text-amber-200 text-xs mt-1">{captainText}</div>}
+      {autosubKey && <div className="text-amber-200/90 text-xs mt-1">{tr(autosubKey, language)}</div>}
+      {pending.length > 0 && (
+        <div className="mt-1">
+          <div className="text-amber-200/90 text-[11px] font-semibold">{tr('release_pending_adjustments', language)}</div>
+          {pending.map((p, i) => (
+            <div key={i} className="text-amber-200/80 text-xs">{p}</div>
+          ))}
+        </div>
+      )}
+      {yetToPlay.length > 0 && (
+        <div className="text-neutral-300 text-xs mt-1">
+          {tr('release_yet_to_play_list', language)}: <bdi style={{ unicodeBidi: 'isolate' }}>{yetToPlay.join(', ')}</bdi>
+        </div>
+      )}
+      {(total !== undefined || lastUpdated) && (
+        <div className="text-neutral-400 text-xs mt-2 flex flex-wrap gap-x-3">
+          {total !== undefined && <span>{tr('matches_completed_label', language)}: {completed}/{total}</span>}
+          {notStarted !== undefined && <span>{tr('matches_remaining_label', language)}: {notStarted}</span>}
+          {lastUpdated && <span>{tr('last_updated_label', language)}: {formatUpdateTime(lastUpdated, language)}</span>}
+        </div>
+      )}
+      {!rel.final && <div className="text-neutral-500 text-[11px] mt-1">{tr('release_provisional_legend', language)}</div>}
+      {!rel.final && <div className="text-neutral-500 text-[11px] mt-1">{tr('final_evaluation_deferred', language)}</div>}
     </div>
   )
 }
 
-function OwnStartView({ data, onRetry, language }: { data: OwnStartResponse | null; onRetry: () => void; language: Language }) {
-  const { isForecast, isLive, isEarly, isAvailable, isTemporaryFailure } = statusBadge(data?.status)
+function OwnStartView({ data, onRetry, onRefreshStatus, language, releaseStatus }: { data: OwnStartResponse | null; onRetry: () => void; onRefreshStatus: () => void; language: Language; releaseStatus: ReleaseStatusResponse | null }) {
+  const { isAvailable, isTemporaryFailure } = statusBadge(data?.status)
+  const rel = deriveRowRelease(data)
   const [refreshing, setRefreshing] = useState(false)
   const handleRefresh = async () => {
     setRefreshing(true)
     await triggerLiveRefresh()
     onRetry()
+    onRefreshStatus()
     setRefreshing(false)
   }
+  // Only claim "not played yet" while no fixture has actually started.
+  const fx = releaseStatus?.results
+  const gwStarted = rel.tracked || (fx ? (fx.fixtures_not_started ?? 0) < (fx.fixtures_total ?? 0) : false)
+  const showNotPlayed = !gwStarted && !rel.historical && rel.forecast !== null
   return (
     <div className="bg-neutral-900 rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
         <h2 className="font-semibold">{tabTitle('OWN_START', language)}</h2>
-        <span className={`text-xs px-2 py-0.5 rounded ${isTemporaryFailure ? 'bg-orange-900 text-orange-200' : !isAvailable ? 'bg-red-900 text-red-200' : isForecast ? 'bg-emerald-900 text-emerald-200' : isLive ? 'bg-yellow-600 text-yellow-50' : isEarly ? 'bg-sky-800 text-sky-100' : 'bg-amber-900 text-amber-200'}`}>
-          {isTemporaryFailure ? tr('status_connection_issue', language) : !isAvailable ? tr('status_not_available', language) : isForecast ? tr('status_final_frozen', language) : isLive ? tr('status_live_provisional', language) : isEarly ? tr('status_early_forecast', language) : tr('status_historical', language)}
-        </span>
+        {(isTemporaryFailure || !isAvailable)
+          ? <span className={`text-xs px-2 py-0.5 rounded ${isTemporaryFailure ? 'bg-orange-900 text-orange-200' : 'bg-red-900 text-red-200'}`}>
+              {isTemporaryFailure ? tr('status_connection_issue', language) : tr('status_not_available', language)}
+            </span>
+          : <ForecastBadge forecast={rel.forecast} language={language} />}
       </div>
       <p className="text-xs text-neutral-500 mb-3">{tabDescription('OWN_START', language)}</p>
+      {isAvailable && <ReleaseBadges rel={rel} releaseStatus={releaseStatus} language={language} />}
       {isTemporaryFailure ? (
         <ErrorState message={language === 'KU' ? tr('fantasy_temp_unavailable', language) : 'Temporarily unable to load data. This is a connectivity issue, not a missing forecast.'} onRetry={onRetry} />
       ) : !isAvailable && (
@@ -552,9 +642,9 @@ function OwnStartView({ data, onRetry, language }: { data: OwnStartResponse | nu
             {' '}{language === 'KU'
               ? <bdi style={{ unicodeBidi: 'isolate' }}>{`(خاڵی سزا ${data.hit_cost}، گواستنەوەی ئازاد پێش ${data.free_transfers_before ?? '—'})`}</bdi>
               : <bdi style={{ unicodeBidi: 'isolate' }}>{`(hit cost ${data.hit_cost}, FT before ${data.free_transfers_before ?? '—'})`}</bdi>}
-            {(isForecast || isEarly) && <div className="text-amber-300 text-xs mt-1">{tr('own_start_not_played', language)}</div>}
-            {isEarly && <div className="text-sky-300 text-xs mt-1">{tr('early_forecast_note', language)}</div>}
-            {!isForecast && !isLive && !isEarly && (
+            {showNotPlayed && <div className="text-amber-300 text-xs mt-1">{tr('own_start_not_played', language)}</div>}
+            {rel.early && <div className="text-sky-300 text-xs mt-1">{tr('early_forecast_note', language)}</div>}
+            {rel.historical && (
               <div className="mt-1">
                 {tr('own_start_net_points', language)}: <span className="text-white font-semibold"><bdi style={{ unicodeBidi: 'isolate' }}>{data.net_points}</bdi></span>
                 {' '}{language === 'KU'
@@ -566,11 +656,11 @@ function OwnStartView({ data, onRetry, language }: { data: OwnStartResponse | nu
               <div>{tr('own_start_transfer', language)}: <bdi style={{ unicodeBidi: 'isolate' }}>{data.transfer_event.player_out ?? '—'} → {data.transfer_event.player_in ?? '—'}</bdi></div>
             )}
           </div>
-          {isLive && <PointsSoFarBlock data={data} language={language} onRefresh={handleRefresh} refreshing={refreshing} />}
+          <PointsSoFarBlock data={data} rel={rel} releaseStatus={releaseStatus} language={language} onRefresh={handleRefresh} refreshing={refreshing} />
           <PitchVisualization
             formation={computeFormationFromXI(data.players)}
             startingXI={data.players.filter((p) => p.role === 'XI').map((p) => toFplPlayer(p))}
-            bench={benchWithPriorities(data.players.filter((p) => p.role === 'BENCH'))}
+            bench={objectHasBench('OWN_START', data.players) ? benchWithPriorities(data.players.filter((p) => p.role === 'BENCH')) : []}
             researchMode
             language={language}
             provenance={{
@@ -579,13 +669,7 @@ function OwnStartView({ data, onRetry, language }: { data: OwnStartResponse | nu
             }}
           />
           <div className="text-xs text-neutral-500 mt-2">
-            Artifact version: {data.artifact_version}. {isForecast
-              ? 'Predicted values only -- this gameweek has not been played.'
-              : isLive
-              ? 'Gameweek in progress -- points so far are provisional and will update automatically as official data refreshes.'
-              : isEarly
-              ? tr('early_forecast_note', language)
-              : 'Actual points shown are real, official results for this already-completed gameweek.'}
+            Artifact version: {data.artifact_version}. {releaseFootnote(rel, language)}
           </div>
         </>
       )}
@@ -593,8 +677,9 @@ function OwnStartView({ data, onRetry, language }: { data: OwnStartResponse | nu
   )
 }
 
-function ObjectView({ tabId, tabTitle, data, onRetry, language }: { tabId: ObjectLabel; tabTitle: string; data: ObjectResponse | null; onRetry: () => void; language: Language }) {
-  const { isForecast, isLive, isEarly, isAvailable, isTemporaryFailure } = statusBadge(data?.status)
+function ObjectView({ tabId, tabTitle, data, onRetry, onRefreshStatus, language, releaseStatus }: { tabId: ObjectLabel; tabTitle: string; data: ObjectResponse | null; onRetry: () => void; onRefreshStatus: () => void; language: Language; releaseStatus: ReleaseStatusResponse | null }) {
+  const { isAvailable, isTemporaryFailure } = statusBadge(data?.status)
+  const rel = deriveRowRelease(data)
   const membership = data?.player_membership
   const hasMembershipList = Array.isArray(membership)
   const [refreshing, setRefreshing] = useState(false)
@@ -602,17 +687,30 @@ function ObjectView({ tabId, tabTitle, data, onRetry, language }: { tabId: Objec
     setRefreshing(true)
     await triggerLiveRefresh()
     onRetry()
+    onRefreshStatus()
     setRefreshing(false)
   }
+  // Actual/results cell: never merged with the frozen expected points.
+  const resultsCell = rel.historical || !rel.forecast
+    ? (data?.final_points ?? data?.corrected_points ?? '—')
+    : rel.final
+    ? (data?.finalization?.net_points ?? data?.points_so_far_total ?? '—')
+    : rel.live
+    ? `${data?.points_so_far_total ?? '—'} (${tr('points_so_far_label', language)})`
+    : tr('object_not_played_yet', language)
+  const resultsLabelText = rel.live || rel.final ? tr(rel.final ? 'release_actual_final_label' : 'release_actual_label', language) : tr('object_final_points', language)
   return (
     <div className="bg-neutral-900 rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
         <h2 className="font-semibold">{tabTitle}</h2>
-        <span className={`text-xs px-2 py-0.5 rounded ${isTemporaryFailure ? 'bg-orange-900 text-orange-200' : !isAvailable ? 'bg-red-900 text-red-200' : isForecast ? 'bg-emerald-900 text-emerald-200' : isLive ? 'bg-yellow-600 text-yellow-50' : isEarly ? 'bg-sky-800 text-sky-100' : 'bg-amber-900 text-amber-200'}`}>
-          {isTemporaryFailure ? tr('status_connection_issue', language) : !isAvailable ? tr('status_not_available', language) : isForecast ? tr('status_final_frozen', language) : isLive ? tr('status_live_provisional', language) : isEarly ? tr('status_early_forecast', language) : tr('status_historical', language)}
-        </span>
+        {(isTemporaryFailure || !isAvailable)
+          ? <span className={`text-xs px-2 py-0.5 rounded ${isTemporaryFailure ? 'bg-orange-900 text-orange-200' : 'bg-red-900 text-red-200'}`}>
+              {isTemporaryFailure ? tr('status_connection_issue', language) : tr('status_not_available', language)}
+            </span>
+          : <ForecastBadge forecast={rel.forecast} language={language} />}
       </div>
       <p className="text-xs text-neutral-500 mb-3">{tabDescription(tabId, language)}</p>
+      {isAvailable && <ReleaseBadges rel={rel} releaseStatus={releaseStatus} language={language} />}
       {isTemporaryFailure ? (
         <ErrorState message={language === 'KU' ? tr('fantasy_temp_unavailable', language) : 'Temporarily unable to load data. This is a connectivity issue, not a missing forecast.'} onRetry={onRetry} />
       ) : !isAvailable && <div className="text-neutral-400 text-sm py-8 text-center">{tr('final_forecast_not_available', language)}: {data?.reason}</div>}
@@ -624,21 +722,19 @@ function ObjectView({ tabId, tabTitle, data, onRetry, language }: { tabId: Objec
             <div>
               {tr('object_predicted_xi_xp', language)}: <bdi style={{ unicodeBidi: 'isolate' }}>{data?.predicted_xi_xp ?? '—'}</bdi>
               {' • '}
-              {tr('object_final_points', language)}: <bdi style={{ unicodeBidi: 'isolate' }}>
-                {(isForecast || isEarly) ? tr('object_not_played_yet', language)
-                  : isLive ? `${data?.points_so_far_total ?? '—'} (${tr('points_so_far_label', language)})`
-                  : (data?.final_points ?? data?.corrected_points ?? '—')}
-              </bdi>
+              {resultsLabelText}: <bdi style={{ unicodeBidi: 'isolate' }}>{resultsCell}</bdi>
             </div>
-            {isEarly && <div className="text-xs text-sky-300">{tr('early_forecast_note', language)}</div>}
+            {rel.early && <div className="text-xs text-sky-300">{tr('early_forecast_note', language)}</div>}
             {data?.note && <div className="text-xs text-neutral-500">{formatNote(data.note)}</div>}
           </div>
-          {isLive && data && <PointsSoFarBlock data={data} language={language} onRefresh={handleRefresh} refreshing={refreshing} />}
+          {data && <PointsSoFarBlock data={data} rel={rel} releaseStatus={releaseStatus} language={language} onRefresh={handleRefresh} refreshing={refreshing} />}
           {hasMembershipList ? (
             <PitchVisualization
               formation={data?.formation ? formatFormation(data.formation) : computeFormationFromXI(membership as PlayerRow[])}
               startingXI={(membership as PlayerRow[]).filter((p) => p.role !== 'BENCH').map((p) => toFplPlayer(p))}
-              bench={benchWithPriorities((membership as PlayerRow[]).filter((p) => p.role === 'BENCH'))}
+              // XI-only objects (Primary/Optional XI) and any object with no
+              // BENCH-role players render no bench at all.
+              bench={objectHasBench(tabId, membership as PlayerRow[]) ? benchWithPriorities((membership as PlayerRow[]).filter((p) => p.role === 'BENCH')) : []}
               researchMode
               language={language}
               provenance={{
@@ -669,22 +765,41 @@ function FantasyPageInner() {
   // that an early forecast can exist there too -- this cap should track
   // whichever gameweek is currently the furthest real, servable one
   // (final pair or early forecast), not a fixed number.
-  const hadExplicitGw = urlGw >= 1 && urlGw <= 5
+  const hadExplicitGw = urlGw >= 1 && urlGw <= 38
   const [gw, setGwState] = useState<number>(hadExplicitGw ? urlGw : HISTORICAL_MAX_GW)
   const [tab, setTabState] = useState<ObjectLabel>(urlTab && TAB_IDS.has(urlTab) ? urlTab : DEFAULT_TAB)
   const [status, setStatus] = useState<StatusResponse | null>(null)
   const [liveStatus, setLiveStatus] = useState<LiveStatusResponse | null>(null)
   const [earlyStatus, setEarlyStatus] = useState<EarlyStatusResponse | null>(null)
+  const [activeRelease, setActiveRelease] = useState<ReleaseStatusResponse | null>(null)
+  useEffect(() => {
+    const ctrl = new AbortController()
+    fetch('/api/research-fpl/release-status', { cache: 'no-store', signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => setActiveRelease(j && j.status === 'AVAILABLE' ? j : null))
+      .catch(() => setActiveRelease(null))
+    return () => ctrl.abort()
+  }, [])
   const [ownStart, setOwnStart] = useState<OwnStartResponse | null>(null)
   const [objectData, setObjectData] = useState<ObjectResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchStatus().then(setStatus).catch(() => setStatus(null))
-    fetchLiveStatus().then(setLiveStatus).catch(() => setLiveStatus(null))
+  const refreshPageStatuses = useCallback(() => {
+    // Results state is fetched for the FINAL-PAIR gameweek (what the header/tab
+    // wording describes), not the backend's default active gameweek.
+    fetchStatus()
+      .then((st) => {
+        setStatus(st)
+        return fetchLiveStatus(st?.final_pair_gameweek ?? undefined).then(setLiveStatus)
+      })
+      .catch(() => { setStatus(null); setLiveStatus(null) })
     fetchEarlyStatus().then(setEarlyStatus).catch(() => setEarlyStatus(null))
   }, [])
+
+  useEffect(() => {
+    refreshPageStatuses()
+  }, [refreshPageStatuses])
 
   // The frozen forecast gameweek is "live" once any official fixture data
   // has been fetched for it and at least one match has started/finished --
@@ -693,6 +808,9 @@ function FantasyPageInner() {
   const finalGwIsLive = liveStatus?.status === 'AVAILABLE' &&
     liveStatus.gameweek === status?.final_pair_gameweek &&
     liveStatus.gw_completion_status !== 'NOT_STARTED'
+  // Results state of the registered final gameweek (independent of its
+  // forecast label, which stays "final frozen forecast" throughout).
+  const finalGwResults: string = liveStatus?.results_status ?? (finalGwIsLive ? 'IN_PROGRESS' : 'NOT_STARTED')
 
   // Keeps the single, site-wide chat assistant's Fantasy context in sync
   // with this page's own selected gameweek/decision object -- the
@@ -721,11 +839,17 @@ function FantasyPageInner() {
   // user did NOT explicitly choose a GW via the URL, so an explicit link
   // to an older gameweek is still respected.
   useEffect(() => {
-    if (!hadExplicitGw && status?.final_pair_gameweek && status.final_pair_gameweek !== gw) {
-      setGwState(status.final_pair_gameweek)
+    // Default to the ACTIVE gameweek when it has a servable release (final or
+    // early) -- gameweek-aware, so it advances on its own (GW6, GW7...) --
+    // otherwise to the latest registered final pair.
+    const activeGw = activeRelease?.gameweek
+    const activeServable = activeRelease?.forecast?.status === 'FINAL_FROZEN' || activeRelease?.forecast?.status === 'EARLY'
+    const target = activeGw && activeServable ? activeGw : status?.final_pair_gameweek
+    if (!hadExplicitGw && target && target !== gw) {
+      setGwState(target)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, hadExplicitGw])
+  }, [status, activeRelease, hadExplicitGw])
 
   const setGw = useCallback((g: number) => {
     setGwState(g)
@@ -743,19 +867,29 @@ function FantasyPageInner() {
     router.replace(`/fantasy?${params.toString()}`, { scroll: false })
   }, [router, searchParams, gw])
 
-  const load = useCallback(async (targetGw: number, targetTab: ObjectLabel) => {
-    setLoading(true)
-    setError(null)
+  // A normal load shows the loading state; a silent load (background
+  // refresh after the release/results revision changed) swaps the data in
+  // place without flashing, and is dropped if the user navigated meanwhile.
+  const navSeq = useRef(0)
+  const load = useCallback(async (targetGw: number, targetTab: ObjectLabel, opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true
+    const seq = silent ? navSeq.current : ++navSeq.current
+    if (!silent) {
+      setLoading(true)
+      setError(null)
+    }
     try {
       if (targetTab === 'OWN_START') {
-        setOwnStart(await fetchOwnStart(targetGw, MODEL))
+        const d = await fetchOwnStart(targetGw, MODEL)
+        if (seq === navSeq.current) setOwnStart(d)
       } else {
-        setObjectData(await fetchObject(targetGw, MODEL, targetTab))
+        const d = await fetchObject(targetGw, MODEL, targetTab)
+        if (seq === navSeq.current) setObjectData(d)
       }
-    } catch (e) {
-      setError('Could not reach the Ennovera Fantasy service.')
+    } catch {
+      if (!silent && seq === navSeq.current) setError('Could not reach the Ennovera Fantasy service.')
     } finally {
-      setLoading(false)
+      if (!silent && seq === navSeq.current) setLoading(false)
     }
   }, [])
 
@@ -763,10 +897,34 @@ function FantasyPageInner() {
     load(gw, tab)
   }, [gw, tab, load])
 
+  // Bounded background refresh of the release/results state (adaptive
+  // cadence, paused while hidden, stops once finalized -- see
+  // hooks/useReleasePolling.ts). Only gameweeks past the historical range
+  // have a live release to track.
+  const [swapNotice, setSwapNotice] = useState<'final' | 'generic' | null>(null)
+  const swapTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (swapTimer.current) clearTimeout(swapTimer.current) }, [])
+  const { status: releaseStatus, refreshNow: refreshReleaseStatus } = useReleasePolling({
+    gw,
+    enabled: gw > HISTORICAL_MAX_GW,
+    onChange: (next, prev) => {
+      // Re-fetch the displayed object (new results revision / manifest / release).
+      load(gw, tab, { silent: true })
+      if (prev.forecast?.release_id !== next.forecast?.release_id) {
+        refreshPageStatuses()
+        setSwapNotice(prev.forecast?.status === 'EARLY' && next.forecast?.status === 'FINAL_FROZEN' ? 'final' : 'generic')
+        if (swapTimer.current) clearTimeout(swapTimer.current)
+        swapTimer.current = setTimeout(() => setSwapNotice(null), 10000)
+      }
+    },
+  })
+
+  const finalGwSet = useMemo(() => new Set<number>((status?.published_final_pairs?.map((p) => p.gameweek) ?? []).concat(status?.final_pair_gameweek ? [status.final_pair_gameweek] : [])), [status])
+
   const gwButtons = useMemo(() => {
     const base = [1, 2, 3]
-    const finalGw = status?.final_pair_gameweek
-    if (finalGw && !base.includes(finalGw)) base.push(finalGw)
+    const finals = (status?.published_final_pairs?.map((p) => p.gameweek) ?? []).concat(status?.final_pair_gameweek ? [status.final_pair_gameweek] : [])
+    for (const finalGw of finals) if (finalGw && !base.includes(finalGw)) base.push(finalGw)
     const earlyGw = earlyStatus?.status === 'AVAILABLE' ? earlyStatus.target_gw : null
     if (earlyGw && !base.includes(earlyGw)) base.push(earlyGw)
     return base.sort((a, b) => a - b)
@@ -784,22 +942,33 @@ function FantasyPageInner() {
             {language === 'KU' ? (
               <>بە هوشی دەستکردی مۆدێلی <bdi style={{ unicodeBidi: 'isolate' }}>Ennovera</bdi> کاردەکات. GW١-<bdi style={{ unicodeBidi: 'isolate' }}>{HISTORICAL_MAX_GW}</bdi> بازسازیکردنەوەی مێژووییە بۆ هەفتانەی تەواوبووە.
                 {status?.final_pair_registered
-                  ? (finalGwIsLive
-                      ? <> GW<bdi style={{ unicodeBidi: 'isolate' }}>{status.final_pair_gameweek}</bdi> ئێستا لە یاریدایە -- خاڵی هەتا ئێستا کاتیین و بەشێوەی خۆکار نوێ دەبنەوە.</>
+                  ? (finalGwResults === 'FINAL'
+                      ? <> GW<bdi style={{ unicodeBidi: 'isolate' }}>{status.final_pair_gameweek}</bdi> پێشبینییەکی کۆتایی جێگیرکراوە و خاڵەکان کۆتاییان هاتووە.</>
+                      : finalGwResults === 'PROVISIONAL'
+                      ? <> GW<bdi style={{ unicodeBidi: 'isolate' }}>{status.final_pair_gameweek}</bdi> پێشبینییەکی کۆتایی جێگیرکراوە؛ یارییەکان تەواوبوون و خاڵەکان کاتیین.</>
+                      : finalGwIsLive
+                      ? <> GW<bdi style={{ unicodeBidi: 'isolate' }}>{status.final_pair_gameweek}</bdi> پێشبینییەکی کۆتایی جێگیرکراوە و یارییەکانی ئێستا لە یاریدان -- خاڵی هەتا ئێستا کاتیین و بەشێوەی خۆکار نوێ دەبنەوە.</>
                       : <> GW<bdi style={{ unicodeBidi: 'isolate' }}>{status.final_pair_gameweek}</bdi> پێشبینییەکی جێگیرکراوی تۆمارکراوە، هێشتا یاری نەکراوە.</>)
                   : ' هیچ هەفتەیەکی تر پێشبینیی جێگیرکراوی تۆمارکراوی نییە.'}
               </>
             ) : (
               <>Powered by the M3_SHRUNK model. GW1-{HISTORICAL_MAX_GW} is a historical reconstruction of already-completed gameweeks.
                 {status?.final_pair_registered
-                  ? (finalGwIsLive
-                      ? ` GW${status.final_pair_gameweek} is currently in progress -- points so far are provisional and refresh automatically as official data updates.`
+                  ? (finalGwResults === 'FINAL'
+                      ? ` GW${status.final_pair_gameweek} is a final frozen forecast and its points are final.`
+                      : finalGwResults === 'PROVISIONAL'
+                      ? ` GW${status.final_pair_gameweek} is a final frozen forecast; all its matches are complete and points are provisional until officially confirmed.`
+                      : finalGwIsLive
+                      ? ` GW${status.final_pair_gameweek} is a final frozen forecast and its matches are under way -- points so far are provisional and refresh automatically as official data updates.`
                       : ` GW${status.final_pair_gameweek} is a registered final frozen forecast, not yet played.`)
                   : ' No further gameweek has a registered final forecast yet.'}
               </>
             )}
           </p>
         </div>
+
+        <ReleaseSwapBanner kind={swapNotice} language={language} />
+        <ReleaseNotices status={releaseStatus} language={language} />
 
         <div className="flex gap-2 mb-3 flex-wrap">
           {gwButtons.map((g) => (
@@ -809,8 +978,8 @@ function FantasyPageInner() {
               className={`px-3 py-1 rounded text-sm ${gw === g ? 'bg-emerald-600' : 'bg-neutral-800'}`}
             >
               <bdi style={{ unicodeBidi: 'isolate' }}>GW{g}{
-                status?.final_pair_gameweek === g
-                  ? (finalGwIsLive ? (language === 'KU' ? ' (لە یاریدایە)' : ' (Live)') : (language === 'KU' ? ' (پێشبینی)' : ' (Forecast)'))
+                (finalGwSet.has(g))
+                  ? (language === 'KU' ? ' (پێشبینی' : ' (Forecast') + (g === status?.final_pair_gameweek && finalGwResults === 'IN_PROGRESS' ? (language === 'KU' ? ' • لە یاریدایە' : ' • Live') : '') + ')'
                   : (earlyStatus?.status === 'AVAILABLE' && earlyStatus.target_gw === g ? (language === 'KU' ? ' (زوو)' : ' (Early)') : '')
               }</bdi>
             </button>
@@ -836,8 +1005,8 @@ function FantasyPageInner() {
 
         {!loading && !error && (
           tab === 'OWN_START'
-            ? <OwnStartView data={ownStart} onRetry={() => load(gw, tab)} language={language} />
-            : <ObjectView tabId={tab} tabTitle={activeTabTitle} data={objectData} onRetry={() => load(gw, tab)} language={language} />
+            ? <OwnStartView data={ownStart} onRetry={() => load(gw, tab)} onRefreshStatus={refreshReleaseStatus} language={language} releaseStatus={releaseStatus} />
+            : <ObjectView tabId={tab} tabTitle={activeTabTitle} data={objectData} onRetry={() => load(gw, tab)} onRefreshStatus={refreshReleaseStatus} language={language} releaseStatus={releaseStatus} />
         )}
       </div>
     </div>

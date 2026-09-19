@@ -1,4 +1,5 @@
 import { ChatIntent, ConversationTurn } from './types'
+import { classifyReleaseQuestion } from './releaseQuestions'
 
 export class IntentRouter {
   static routeIntent(question: string, history: ConversationTurn[] = []): ChatIntent {
@@ -56,6 +57,15 @@ export class IntentRouter {
       (q.includes('between') || q.includes('from') || q.includes('to'))
     ) {
       return 'GAMEWEEK_DELTA'
+    }
+
+    // Release/results questions ("what are our expected points?", "how many
+    // actual points do we have so far?", "who still has to play?", "are these
+    // points final?") -- answered from the release the page displays, ahead of
+    // the generic research-model routing so a stray "M3" mention cannot divert
+    // them. Team-level wording only (see classifyReleaseQuestion).
+    if (classifyReleaseQuestion(q) !== null) {
+      return 'LIVE_GAMEWEEK'
     }
 
     if (mentionsResearchModel) {
