@@ -427,3 +427,11 @@ and `/h2h/*` are all still WC-hardcoded (H2H rounds even have 2026 WC dates, `/h
 
 ## Next: S24
 <!-- S24 instructions will be pasted here -->
+
+---
+## 2026-09-19 — GW5 "still early" investigation + release/results lifecycle
+
+- **Finding:** GW5 was never frozen. Final-freeze window (24h–12h before the 2026-09-18T17:30Z deadline) closed with no registered final pair; the freeze runner is manual and nothing monitored it. The site correctly served the last early forecast (2026-09-16). No GW5 freeze was created or backdated.
+- **Frontend:** independent Forecast (EARLY | FINAL_FROZEN) and Results (NOT_STARTED | IN_PROGRESS | PROVISIONAL | FINAL) badges from `/api/research-fpl/release-status`; localized EN/Sorani notices; adaptive bounded polling (`hooks/useReleasePolling.ts`); "Yet to play"/"No data"; reconciliation line; default gameweek = active gameweek; multi-final-pair tabs; chat answers for expected / actual / yet-to-play / final questions. Tests: `node scripts/test_release_model.js` (43), browser check: `scripts/verify_release_lifecycle_browser.js`.
+- **Backend (see backend progress.md):** canonical release resolver, per-gameweek adaptive results refresh, `scripts/forecast_lifecycle.py` orchestrator.
+- **Open decisions for the owner:** (1) how GW5→GW6 manager state is handled since GW5 has no frozen result; (2) whether final-freeze creation should be automated (`freeze-final --allow-final-freeze` exists, off by default); (3) installing the Windows scheduled tasks (`scripts/register_lifecycle_task.ps1 -Install`, not installed).
