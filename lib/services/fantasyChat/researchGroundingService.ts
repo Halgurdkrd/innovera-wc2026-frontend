@@ -17,6 +17,7 @@ import type { ChatIntent, ConversationTurn, DataSourceType, FantasyChatResponse,
 import {
   deriveRowRelease,
   forecastLabel,
+  formatUtc,
   resolveForecastStatus,
   resultsLabel,
   type PlayerResultFields,
@@ -410,13 +411,13 @@ function extractExplicitGameweeks(q: string): number[] {
     for (let i = Math.min(a, b); i <= Math.max(a, b); i++) found.add(i)
   }
   // Explicit lists: "gameweeks 1, 2 and 3", "GW1, GW2, GW3", bare "gw2"
-  const listMatches = Array.from(q.matchAll(/\bgw\s*([1-5])\b/gi))
+  const listMatches = Array.from(q.matchAll(/\bgw\s*([1-9][0-9]?)\b/gi))
   for (const m of listMatches) found.add(parseInt(m[1], 10))
   if (found.size === 0) {
     // "gameweeks 1, 2 and 3" without repeating "gw" per number
     const gwListPrefix = q.match(/\bgameweeks?\b([\s,and\d]+)/i)
     if (gwListPrefix) {
-      const nums = Array.from(gwListPrefix[1].matchAll(/[1-5]/g)).map((m) => parseInt(m[0], 10))
+      const nums = Array.from(gwListPrefix[1].matchAll(/[1-9][0-9]?/g)).map((m) => parseInt(m[0], 10))
       nums.forEach((n) => found.add(n))
     }
   }
@@ -459,7 +460,7 @@ function publicModelLabel(model: ResearchModel, lang: 'en' | 'ku'): string {
 }
 
 function parseGameweek(q: string, fallback: number): number {
-  const m = q.match(/\bgw\s*([1-5])\b/) || q.match(/\bgame\s*[\s-]?\s*week\s*([1-5])\b/)
+  const m = q.match(/\bgw\s*([1-9][0-9]?)\b/) || q.match(/\bgame\s*[\s-]?\s*week\s*([1-9][0-9]?)\b/)
   return m ? parseInt(m[1], 10) : fallback
 }
 
@@ -482,7 +483,7 @@ function lastGwMentionIn(text: string): number | null {
   // gameweek the conversation is now newly focused on LAST, and a plain
   // first-match regex was picking up the earlier, now-superseded GW3
   // mention instead, defeating stickiness entirely.
-  const matches = Array.from(text.matchAll(/\bgw\s*([1-5])\b|\bgame\s*[\s-]?\s*week\s*([1-5])\b/gi))
+  const matches = Array.from(text.matchAll(/\bgw\s*([1-9][0-9]?)\b|\bgame\s*[\s-]?\s*week\s*([1-9][0-9]?)\b/gi))
   if (matches.length === 0) return null
   const last = matches[matches.length - 1]
   return parseInt(last[1] || last[2], 10)
@@ -866,7 +867,7 @@ function parseObject(q: string, fallback: ObjectLabel): ObjectLabel {
 }
 
 function parseTwoGameweeks(q: string, fallback: number): [number, number] {
-  const gwNums = Array.from(q.matchAll(/(?:gw|gameweek)\s*([1-5])\b/g)).map((m) => parseInt(m[1], 10))
+  const gwNums = Array.from(q.matchAll(/(?:gw|gameweek)\s*([1-9][0-9]?)\b/g)).map((m) => parseInt(m[1], 10))
   if (gwNums.length >= 2 && gwNums[0] !== gwNums[1]) return [gwNums[0], gwNums[1]]
   const single = parseGameweek(q, fallback)
   return [Math.max(1, single - 1), single]
@@ -1220,6 +1221,17 @@ const formatNote = (note: string): string => NOTE_TEXT[note] ?? note
 const citation = (model: ResearchModel, gw: number, artifactVersion?: string) =>
   `${model} GW${gw}${artifactVersion ? ` (artifact ${artifactVersion})` : ''}`
 
+// A question is only "technical" (and gets the raw model/artifact citation
+// instead of a plain one) when it explicitly asks for that kind of detail --
+// matching the same signal words the rest of the app already reserves for
+// provenance answers.
+function wantsTechnicalDetail(q: string): boolean {
+  return /\bmodel\b|\bhash\b|\btechnical\b|\bprovenance\b|freeze\s*id|which\s+model|\bregistry\b|\bartifact\b|\bclassification\b/i.test(q)
+}
+
+const plainCitation = (model: ResearchModel, gw: number, q: string) =>
+  wantsTechnicalDetail(q) ? citation(model, gw) : `GW${gw} • AI Manager`
+
 // Never surface raw formation JSON/repr in a chat answer -- reduce to a
 // human-readable "DEF-MID-FWD" string (GK implicit), matching the page's
 // own formatFormation.
@@ -1478,6 +1490,31 @@ export async function buildResearchGroundedAnswer(
     // the release id / results revision match). Every answer states
     // gameweek, decision object, forecast status and results update time.
     const rel = deriveRowRelease(resp)
+
+    // "Why does GW5 say published lineup?" -- a provenance question, so a
+    // fuller (still concise) explanation is appropriate here, unlike the
+    // plain-language default elsewhere. Only fires for a genuinely-recovered
+    // release; never invents this explanation for a normal EARLY/FINAL one.
+    if (rel.recovered && /\bwhy\b.*\b(publish|recover|missed|no final)/i.test(q) || (rel.recovered && /بۆچی.*بڵاوکراو/.test(q))) {
+      const evidence = releaseStatus?.forecast as { generated_at_utc?: string | null } | undefined
+      const when = evidence?.generated_at_utc ? formatUtc(evidence.generated_at_utc) : null
+      const answer = lang === 'ku'
+        ? `پەنجەرەی جێگیرکردنی کۆتایی GW${gw} (کاتی ١٢-٢٤ کاژێر پێش کاتی کۆتایی کە پێشبینی کۆتایی فەرمی تێیدا تۆمار دەکرێت) داخرا بەبێ ئەوەی هیچ پێشبینییەک تۆمار بکرێت. `
+          + `بۆیە دوایین دانانی بڵاوکراوە کە پێش کاتی کۆتایی لە ماڵپەڕەکە بڵاوکرابووەوە${when ? ` (دروستکراوە لە ${when})` : ''} بەکارهات و هەڵسەنگێنرا -- `
+          + `ئەمە دانانێکی ڕاستەقینەی بڵاوکراوەیە، نەک جێگیرکردنێکی کۆتایی فەرمی.`
+        : `GW${gw}'s final-freeze window (the 12-24h pre-deadline period when the official final lineup is normally registered) closed without one being registered. `
+          + `So the last lineup that was actually published to the site before the deadline${when ? ` (generated ${when})` : ''} was used and scored instead -- `
+          + `it is a real, published lineup, not a formal final freeze.`
+      return {
+        answer, intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
+        sourceBadge: `${citation(model, gw)} • EARLY_PUBLISHED_RECOVERY`,
+        referencedPlayers: [],
+        suggestedFollowups: ['What was our GW' + gw + ' final score?', 'What is the latest forecast?'],
+        generatedAt: new Date().toISOString(), dataSnapshot: 'GW_LIVE_RESULTS', llmUsed: false, responseTimeMs: Date.now() - t0,
+        researchModel: model, researchGameweek: gw, researchArtifactStatus: resp.status,
+      }
+    }
+
     const releaseKind: ReleaseQuestionKind | null = classifyReleaseQuestion(q)
     const releaseReply = (kind: ReleaseQuestionKind): FantasyChatResponse => {
       const answer = buildReleaseAnswerText({ kind, lang, gw, objectLabel: objLabel, row: resp as unknown as ReleaseAnswerRow, releaseStatus })
@@ -1486,7 +1523,7 @@ export async function buildResearchGroundedAnswer(
         : allPlayers.filter((p) => p.match_status === 'FINISHED_PROVISIONAL' || p.match_status === 'FINISHED_CONFIRMED' || p.match_status === 'IN_PROGRESS').slice(0, 5)
       return {
         answer, intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
-        sourceBadge: `${citation(model, gw)} • ${forecastLabel(rel.forecast, 'EN')} • ${resultsLabel(rel.results, 'EN')}`,
+        sourceBadge: `${plainCitation(model, gw, q)} • ${forecastLabel(rel.forecast, 'EN')} • ${resultsLabel(rel.results, 'EN')}`,
         referencedPlayers: referenced.map((p) => toReferencedPlayer(p as OwnStartPlayer)),
         suggestedFollowups: ['How many actual points do we have so far?', 'Who still has to play?', 'Are these points final?'],
         generatedAt: new Date().toISOString(), dataSnapshot: 'GW_LIVE_RESULTS', llmUsed: false, responseTimeMs: Date.now() - t0,
@@ -1544,7 +1581,7 @@ export async function buildResearchGroundedAnswer(
         : `${p.name}${captainNote} ${statusText}${updateNote}`
       return {
         answer, intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
-        sourceBadge: `${citation(model, gw)} • Live results`,
+        sourceBadge: `${plainCitation(model, gw, q)} • Live results`,
         referencedPlayers: [toReferencedPlayer(p)],
         suggestedFollowups: ['How many points do we have so far?', 'Who is still waiting to play?'],
         generatedAt: new Date().toISOString(), dataSnapshot: 'GW_LIVE_RESULTS', llmUsed: false, responseTimeMs: Date.now() - t0,
@@ -1570,7 +1607,7 @@ export async function buildResearchGroundedAnswer(
         : `In ${objLabel}, still to play: ${names}${updateNote}`
       return {
         answer, intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
-        sourceBadge: `${citation(model, gw)} • Live results`,
+        sourceBadge: `${plainCitation(model, gw, q)} • Live results`,
         referencedPlayers: stillToPlay.slice(0, 15).map((p) => toReferencedPlayer(p as OwnStartPlayer)),
         suggestedFollowups: ['Who has already played?', 'How many points do we have so far?'],
         generatedAt: new Date().toISOString(), dataSnapshot: 'GW_LIVE_RESULTS', llmUsed: false, responseTimeMs: Date.now() - t0,
@@ -1584,7 +1621,7 @@ export async function buildResearchGroundedAnswer(
         : `In ${objLabel}, already played: ${list}${updateNote}. (* = provisional)`
       return {
         answer, intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
-        sourceBadge: `${citation(model, gw)} • Live results`,
+        sourceBadge: `${plainCitation(model, gw, q)} • Live results`,
         referencedPlayers: alreadyPlayed.slice(0, 15).map((p) => toReferencedPlayer(p as OwnStartPlayer)),
         suggestedFollowups: ['Who is still waiting to play?', 'How many points do we have so far?'],
         generatedAt: new Date().toISOString(), dataSnapshot: 'GW_LIVE_RESULTS', llmUsed: false, responseTimeMs: Date.now() - t0,
@@ -1613,7 +1650,7 @@ export async function buildResearchGroundedAnswer(
       : `Points so far for ${objLabel} (${publicModelLabel(model, 'en')}) GW${gw}: ${totalSoFar ?? 'not available'} (provisional).${captainNote}${pendingNote} Matches completed: ${completed}/${meta?.fixtures_total ?? '—'}. Matches remaining: ${meta?.fixtures_not_started ?? 0}.${updateNote}`
     return {
       answer, intent, requestedGameweek: gw, contextStatus: 'GENERAL', sourceTypes,
-      sourceBadge: `${citation(model, gw)} • Live results, provisional`,
+      sourceBadge: `${plainCitation(model, gw, q)} • Live results, provisional`,
       referencedPlayers: allPlayers.filter((p) => p.match_status === 'FINISHED_PROVISIONAL' || p.match_status === 'FINISHED_CONFIRMED' || p.match_status === 'IN_PROGRESS').slice(0, 5).map((p) => toReferencedPlayer(p as OwnStartPlayer)),
       suggestedFollowups: ['Who has already played?', 'Who is still waiting to play?'],
       generatedAt: new Date().toISOString(), dataSnapshot: 'GW_LIVE_RESULTS', llmUsed: false, responseTimeMs: Date.now() - t0,
@@ -1776,7 +1813,7 @@ export async function buildResearchGroundedAnswer(
   // REGISTERED gameweek (see app/fantasy/page.tsx) rather than a stale
   // hardcoded value -- the answer states which GW was actually used
   // (gwWasExplicit) whenever that resolution wasn't spelled out by the user.
-  const gwExplicitInMessage = /\bgw\s*([1-5])\b/.test(q) || /\bgame\s*[\s-]?\s*week\s*([1-5])\b/.test(q)
+  const gwExplicitInMessage = /\bgw\s*([1-9][0-9]?)\b/.test(q) || /\bgame\s*[\s-]?\s*week\s*([1-9][0-9]?)\b/.test(q)
   const gw = await resolveEffectiveGameweek(q, pageContext?.gameweek, history)
   const gwUsedNote = (lang: 'en' | 'ku') => gwExplicitInMessage ? '' : (lang === 'ku' ? '، دوایین هەفتەی تۆمارکراو' : ', the latest registered gameweek')
   const objectSel = parseObject(q, pageContext?.object ?? 'OWN_START')

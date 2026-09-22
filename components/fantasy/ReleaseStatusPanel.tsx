@@ -31,6 +31,7 @@ const FORECAST_STYLE: Record<ForecastStatus, string> = {
   EARLY: 'bg-sky-800 text-sky-100',
   FINAL_FROZEN: 'bg-emerald-900 text-emerald-200',
   HISTORICAL_RECONSTRUCTION: 'bg-amber-900 text-amber-200',
+  EARLY_PUBLISHED_RECOVERY: 'bg-amber-800 text-amber-100',
 }
 
 export function ForecastBadge({ forecast, language }: { forecast: ForecastStatus | null; language: Language }) {

@@ -216,6 +216,7 @@ const translations = {
   release_forecast_early:    { EN: 'Early forecast -- subject to update', KU: 'پێشبینی زوو -- گۆڕانی لەسەرە' },
   release_forecast_final:    { EN: 'Final frozen forecast',        KU: 'پێشبینی کۆتایی جێگیرکراو' },
   release_forecast_historical: { EN: 'Historical reconstruction',  KU: 'دووبارەبنیادنانی مێژوویی' },
+  release_forecast_recovery:  { EN: 'Published lineup (recovered)', KU: 'دانانی بڵاوکراوە (گەڕێندراوەتەوە)' },
   release_forecast_none:     { EN: 'No forecast',                  KU: 'پێشبینی نییە' },
   release_forecast_updated:  { EN: 'Last successful forecast update: {time}', KU: 'دوایین نوێکردنەوەی سەرکەوتووی پێشبینی: {time}' },
   release_results_not_started: { EN: 'Not started',                KU: 'دەستی پێنەکردووە' },
@@ -256,6 +257,16 @@ const translations = {
   release_next_kickoff:      { EN: 'Next kickoff {time}',          KU: 'دەستپێکی یاریی داهاتوو {time}' },
   release_not_scored_early:  { EN: 'Points are not scored against an early forecast.', KU: 'خاڵ بەراورد ناکرێت لەگەڵ پێشبینی زوو.' },
   release_unknown_time:      { EN: 'an unknown time',              KU: 'کاتێکی نەزانراو' },
+  release_notice_GW_RECOVERED_FROM_PUBLISHED_EARLY_FORECAST: { EN: 'This gameweek\'s final-freeze window closed without a registered final release, so the last lineup published before the deadline was used.', KU: 'پەنجەرەی جێگیرکردنی کۆتایی ئەم هەفتەیە داخرا بەبێ بڵاوکردنەوەیەکی کۆتایی تۆمارکراو، بۆیە دوایین دانانی بڵاوکراوە پێش کاتی کۆتایی بەکارهات.' },
+  // ── Simplified page header/status line + "About this gameweek" ────────────
+  fantasy_status_forecast_updated: { EN: 'Forecast updated {time}.', KU: 'پێشبینی نوێکرایەوە {time}.' },
+  fantasy_status_live_points: { EN: 'Live points • Updated {time}.', KU: 'خاڵی ڕاستەوخۆ • نوێکرایەوە {time}.' },
+  fantasy_status_provisional: { EN: 'Points are provisional while official checks finish.', KU: 'خاڵەکان کاتیین هەتا پشکنینی فەرمی تەواو بێت.' },
+  fantasy_status_final: { EN: 'Final points confirmed.', KU: 'خاڵی کۆتایی پشتڕاستکرایەوە.' },
+  fantasy_status_recovery: { EN: 'GW{gw} uses the last lineup published before the deadline.', KU: 'GW{gw} دوایین دانانی بڵاوکراوە پێش کاتی کۆتایی بەکاردەهێنێت.' },
+  fantasy_about_toggle: { EN: 'About this gameweek', KU: 'دەربارەی ئەم هەفتەیە' },
+  fantasy_about_final: { EN: 'This is the final, frozen prediction for GW{gw}.', KU: 'ئەمە پێشبینی کۆتایی و جێگیرکراوی GW{gw}ـە.' },
+  fantasy_about_recovery: { EN: 'This lineup was published before the deadline. A formal final lineup was not saved for GW{gw}.', KU: 'ئەم دانانە پێش کاتی کۆتایی بڵاوکراوەتەوە. دانانێکی فەرمی کۆتایی بۆ GW{gw} پاشەکەوت نەکرا.' },
 } as const
 
 export type TranslationKey = keyof typeof translations

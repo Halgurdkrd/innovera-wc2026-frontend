@@ -12,7 +12,12 @@
 
 import { tr, type Language, type TranslationKey } from '../translations'
 
-export type ForecastStatus = 'EARLY' | 'FINAL_FROZEN' | 'HISTORICAL_RECONSTRUCTION'
+// EARLY_PUBLISHED_RECOVERY: the formal final-freeze window closed without a
+// registered final release, so the last lineup PUBLICLY PUBLISHED before the
+// deadline was scored instead (see ..._PUBLIC_SERVICE_EVIDENCE.json on the
+// backend). Unlike a plain EARLY forecast, this IS scored -- results_status
+// moves and real points are shown, exactly like FINAL_FROZEN.
+export type ForecastStatus = 'EARLY' | 'FINAL_FROZEN' | 'HISTORICAL_RECONSTRUCTION' | 'EARLY_PUBLISHED_RECOVERY'
 export type ResultsStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'PROVISIONAL' | 'FINAL' | 'NOT_TRACKED'
 
 export type AutosubStatus =
@@ -83,7 +88,7 @@ export interface PlayerResultFields {
   fixtures_remaining?: number | null
 }
 
-const FORECAST_VALUES = new Set(['EARLY', 'FINAL_FROZEN', 'HISTORICAL_RECONSTRUCTION'])
+const FORECAST_VALUES = new Set(['EARLY', 'FINAL_FROZEN', 'HISTORICAL_RECONSTRUCTION', 'EARLY_PUBLISHED_RECOVERY'])
 const RESULTS_VALUES = new Set(['NOT_STARTED', 'IN_PROGRESS', 'PROVISIONAL', 'FINAL', 'NOT_TRACKED'])
 
 // ---------------------------------------------------------------------------
@@ -138,6 +143,7 @@ export interface RowRelease {
   final: boolean
   early: boolean
   historical: boolean
+  recovered: boolean
   releaseId: string | null
   revision: number | null
   lastUpdatedUtc: string | null
@@ -156,6 +162,7 @@ export function deriveRowRelease(row: ReleaseRowFields | null | undefined): RowR
     final: results === 'FINAL',
     early: forecast === 'EARLY',
     historical: forecast === 'HISTORICAL_RECONSTRUCTION',
+    recovered: forecast === 'EARLY_PUBLISHED_RECOVERY',
     releaseId: row?.release_id ?? null,
     revision: row?.results_revision ?? null,
     lastUpdatedUtc: row?.results_last_updated_utc ?? row?.live_results_meta?.last_updated_utc ?? null,
@@ -172,6 +179,7 @@ export function forecastLabel(f: ForecastStatus | 'NONE' | null | undefined, lan
     case 'EARLY': return tr('release_forecast_early', lang)
     case 'FINAL_FROZEN': return tr('release_forecast_final', lang)
     case 'HISTORICAL_RECONSTRUCTION': return tr('release_forecast_historical', lang)
+    case 'EARLY_PUBLISHED_RECOVERY': return tr('release_forecast_recovery', lang)
     default: return tr('release_forecast_none', lang)
   }
 }
@@ -280,6 +288,7 @@ const NOTICE_KEYS = {
   MATCHES_COMPLETE_POINTS_PROVISIONAL: 'release_notice_MATCHES_COMPLETE_POINTS_PROVISIONAL',
   FINAL_REGISTRATION_PENDING_PUBLICATION: 'release_notice_FINAL_REGISTRATION_PENDING_PUBLICATION',
   RESULTS_NOT_SCORED_AGAINST_EARLY_FORECAST: 'release_notice_RESULTS_NOT_SCORED_AGAINST_EARLY_FORECAST',
+  GW_RECOVERED_FROM_PUBLISHED_EARLY_FORECAST: 'release_notice_GW_RECOVERED_FROM_PUBLISHED_EARLY_FORECAST',
 } as const
 
 export function localizeNotice(n: ReleaseNotice, s: ReleaseStatusResponse | null | undefined, lang: Language, formatTime: (iso: string | null | undefined) => string): string {

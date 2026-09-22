@@ -49,7 +49,7 @@ export class IntentRouter {
     // and requires actual evidence of TWO distinct gameweek numbers (not
     // just the word "gameweek") so it doesn't misfire on an unrelated
     // "what changed" question that only names one GW.
-    const gwNumbers = new Set(Array.from(q.matchAll(/\bgw\s*([1-5])\b|\bgameweek\s*([1-5])\b/g)).map((m) => m[1] || m[2]))
+    const gwNumbers = new Set(Array.from(q.matchAll(/\bgw\s*([1-9][0-9]?)\b|\bgameweek\s*([1-9][0-9]?)\b/g)).map((m) => m[1] || m[2]))
     const mentionsTwoGameweeks = gwNumbers.size >= 2
     if (
       mentionsTwoGameweeks &&
@@ -80,7 +80,7 @@ export class IntentRouter {
     // back to the legacy demo data mid-conversation).
     const lastTurn = history.length > 0 ? history[history.length - 1].content.toLowerCase() : ''
     const wasResearchTurn = lastTurn.includes('m3_shrunk') || lastTurn.includes('v0_control')
-    const isBareGwFollowup = /^(what about|and|show|compare)?\s*gw\s*[1-5]\b/.test(q) || /^(what about|and)\s+(gw\s*[1-5]|it)\b/.test(q)
+    const isBareGwFollowup = /^(what about|and|show|compare)?\s*gw\s*[1-9][0-9]?\b/.test(q) || /^(what about|and)\s+(gw\s*[1-9][0-9]?|it)\b/.test(q)
     if (wasResearchTurn && isBareGwFollowup) {
       return 'RESEARCH_MODEL_QUERY'
     }
@@ -209,7 +209,11 @@ export class IntentRouter {
       q.includes("who hasn't played") ||
       q.includes('چەند خاڵمان') ||
       q.includes('کێ یاری کردووە') ||
-      q.includes('کێ هێشتا یاری نەکردووە')
+      q.includes('کێ هێشتا یاری نەکردووە') ||
+      // "Why does GW5 say published lineup?" -- a recovered-gameweek
+      // provenance question, answered release-aware alongside the other four.
+      (q.includes('why') && (q.includes('published lineup') || q.includes('publish') || q.includes('recover') || q.includes('missed'))) ||
+      q.includes('بڵاوکراو')
     ) {
       return 'LIVE_GAMEWEEK'
     }

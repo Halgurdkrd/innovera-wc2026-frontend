@@ -319,16 +319,12 @@ export function AskEnnoveraChat({
                       </div>
                     )}
 
-                    {/* Deterministic research-model context banner -- same
-                        principle: model/GW/status come from the API
-                        response, not from parsing the answer text. */}
-                    {msg.researchModel && (
-                      <div className="mt-1.5 px-2 py-1 rounded bg-[#58A6FF]/10 border border-[#58A6FF]/30 text-[10px] text-[#58A6FF] font-semibold">
-                        Research answer: {msg.researchModel} • GW{msg.researchGameweek ?? '—'} • {msg.researchArtifactStatus || 'STATUS_UNKNOWN'}
-                      </div>
-                    )}
-
-                    {/* Source Badge */}
+                    {/* Source Badge -- the one citation line shown by default;
+                        it already carries a plain-language summary of what the
+                        answer is grounded in (see plainCitation in
+                        researchGroundingService.ts). The raw model code /
+                        internal status enum are deliberately NOT shown here
+                        unless the question itself asked for that detail. */}
                     {msg.sourceBadge && (
                       <div className="pt-1.5 border-t border-[#30363D]/40 flex items-center justify-between text-[9px] text-[#8B949E]">
                         <span className="px-1.5 py-0.5 bg-[#161B22] border border-[#30363D] rounded font-bold text-[#58A6FF]">

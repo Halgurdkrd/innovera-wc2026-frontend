@@ -13,6 +13,7 @@ import { useReleasePolling } from '@/hooks/useReleasePolling'
 import { ForecastBadge, ReleaseBadges, ReleaseNotices, ReleaseSwapBanner } from '@/components/fantasy/ReleaseStatusPanel'
 import {
   deriveRowRelease,
+  fillTime,
   isXiOnlyObject,
   objectHasBench,
   reconciliationLine,
@@ -21,6 +22,7 @@ import {
   type ReleaseStatusResponse,
   type RowRelease,
 } from '@/lib/fantasy/releaseStatus'
+import { formatLocalTime } from '@/components/fantasy/ReleaseStatusPanel'
 
 // Ennovera Fantasy -- the M3_SHRUNK-backed public fantasy experience.
 // V0_CONTROL and FPL-03 remain in the codebase/backend for internal
@@ -919,6 +921,41 @@ function FantasyPageInner() {
     },
   })
 
+  // ONE short dynamic status line, in priority order: an honestly-recovered
+  // gameweek always leads with that fact (the headline is "which lineup is
+  // this", not the live score); otherwise results state, then forecast state.
+  const statusLine = useMemo(() => {
+    if (!releaseStatus || releaseStatus.status !== 'AVAILABLE') return null
+    const forecast = releaseStatus.forecast
+    const results = releaseStatus.results
+    if (forecast?.status === 'EARLY_PUBLISHED_RECOVERY') {
+      return tr('fantasy_status_recovery', language).replace('{gw}', String(releaseStatus.gameweek ?? gw))
+    }
+    if (results?.finalized === true || results?.status === 'FINAL') {
+      return tr('fantasy_status_final', language)
+    }
+    if (results?.status === 'PROVISIONAL') {
+      return tr('fantasy_status_provisional', language)
+    }
+    if (results?.status === 'IN_PROGRESS') {
+      return fillTime(tr('fantasy_status_live_points', language), formatLocalTime(results.last_updated_utc))
+    }
+    if (forecast?.generated_at_utc) {
+      return fillTime(tr('fantasy_status_forecast_updated', language), formatLocalTime(forecast.generated_at_utc))
+    }
+    return null
+  }, [releaseStatus, gw, language])
+
+  // Collapsed "About this gameweek": only rendered when there is something
+  // genuinely non-obvious to say (the recovery case) -- never repeated
+  // elsewhere on the page.
+  const aboutGwText = useMemo(() => {
+    if (releaseStatus?.forecast?.status === 'EARLY_PUBLISHED_RECOVERY') {
+      return tr('fantasy_about_recovery', language).replace('{gw}', String(releaseStatus.gameweek ?? gw))
+    }
+    return null
+  }, [releaseStatus, gw, language])
+
   const finalGwSet = useMemo(() => new Set<number>((status?.published_final_pairs?.map((p) => p.gameweek) ?? []).concat(status?.final_pair_gameweek ? [status.final_pair_gameweek] : [])), [status])
 
   const gwButtons = useMemo(() => {
@@ -937,34 +974,25 @@ function FantasyPageInner() {
       <Navbar language={language} onLanguageChange={changeLanguage} />
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="mb-4">
-          <h1 className="text-2xl font-bold">{language === 'KU' ? 'ئینۆڤێرا فەنتازی' : 'Ennovera Fantasy'}</h1>
+          <h1 className="text-2xl font-bold">
+            {language === 'KU' ? 'ئینۆڤێرا فەنتازی' : 'Ennovera Fantasy'}
+          </h1>
           <p className="text-neutral-400 text-sm">
-            {language === 'KU' ? (
-              <>بە هوشی دەستکردی مۆدێلی <bdi style={{ unicodeBidi: 'isolate' }}>Ennovera</bdi> کاردەکات. GW١-<bdi style={{ unicodeBidi: 'isolate' }}>{HISTORICAL_MAX_GW}</bdi> بازسازیکردنەوەی مێژووییە بۆ هەفتانەی تەواوبووە.
-                {status?.final_pair_registered
-                  ? (finalGwResults === 'FINAL'
-                      ? <> GW<bdi style={{ unicodeBidi: 'isolate' }}>{status.final_pair_gameweek}</bdi> پێشبینییەکی کۆتایی جێگیرکراوە و خاڵەکان کۆتاییان هاتووە.</>
-                      : finalGwResults === 'PROVISIONAL'
-                      ? <> GW<bdi style={{ unicodeBidi: 'isolate' }}>{status.final_pair_gameweek}</bdi> پێشبینییەکی کۆتایی جێگیرکراوە؛ یارییەکان تەواوبوون و خاڵەکان کاتیین.</>
-                      : finalGwIsLive
-                      ? <> GW<bdi style={{ unicodeBidi: 'isolate' }}>{status.final_pair_gameweek}</bdi> پێشبینییەکی کۆتایی جێگیرکراوە و یارییەکانی ئێستا لە یاریدان -- خاڵی هەتا ئێستا کاتیین و بەشێوەی خۆکار نوێ دەبنەوە.</>
-                      : <> GW<bdi style={{ unicodeBidi: 'isolate' }}>{status.final_pair_gameweek}</bdi> پێشبینییەکی جێگیرکراوی تۆمارکراوە، هێشتا یاری نەکراوە.</>)
-                  : ' هیچ هەفتەیەکی تر پێشبینیی جێگیرکراوی تۆمارکراوی نییە.'}
-              </>
-            ) : (
-              <>Powered by the M3_SHRUNK model. GW1-{HISTORICAL_MAX_GW} is a historical reconstruction of already-completed gameweeks.
-                {status?.final_pair_registered
-                  ? (finalGwResults === 'FINAL'
-                      ? ` GW${status.final_pair_gameweek} is a final frozen forecast and its points are final.`
-                      : finalGwResults === 'PROVISIONAL'
-                      ? ` GW${status.final_pair_gameweek} is a final frozen forecast; all its matches are complete and points are provisional until officially confirmed.`
-                      : finalGwIsLive
-                      ? ` GW${status.final_pair_gameweek} is a final frozen forecast and its matches are under way -- points so far are provisional and refresh automatically as official data updates.`
-                      : ` GW${status.final_pair_gameweek} is a registered final frozen forecast, not yet played.`)
-                  : ' No further gameweek has a registered final forecast yet.'}
-              </>
-            )}
+            <bdi style={{ unicodeBidi: 'isolate' }}>GW{gw}</bdi>
           </p>
+          {statusLine && (
+            <p className="text-neutral-400 text-sm mt-1" data-testid="fantasy-status-line">
+              <bdi style={{ unicodeBidi: 'isolate' }}>{statusLine}</bdi>
+            </p>
+          )}
+          {aboutGwText && (
+            <details className="mt-2 text-xs text-neutral-500">
+              <summary className="cursor-pointer select-none hover:text-neutral-300">{tr('fantasy_about_toggle', language)}</summary>
+              <p className="mt-1 text-neutral-400">
+                <bdi style={{ unicodeBidi: 'isolate' }}>{aboutGwText}</bdi>
+              </p>
+            </details>
+          )}
         </div>
 
         <ReleaseSwapBanner kind={swapNotice} language={language} />
