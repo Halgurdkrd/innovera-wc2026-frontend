@@ -940,6 +940,9 @@ function FantasyPageInner() {
     if (results?.status === 'IN_PROGRESS') {
       return fillTime(tr('fantasy_status_live_points', language), formatLocalTime(results.last_updated_utc))
     }
+    if (forecast?.status === 'FINAL_FROZEN' && (results?.status === 'NOT_STARTED' || results?.status === 'NOT_TRACKED' || !results?.status)) {
+      return tr('fantasy_status_final_lineup_saved', language)
+    }
     if (forecast?.generated_at_utc) {
       return fillTime(tr('fantasy_status_forecast_updated', language), formatLocalTime(forecast.generated_at_utc))
     }

@@ -260,6 +260,7 @@ const translations = {
   release_notice_GW_RECOVERED_FROM_PUBLISHED_EARLY_FORECAST: { EN: 'This gameweek\'s final-freeze window closed without a registered final release, so the last lineup published before the deadline was used.', KU: 'پەنجەرەی جێگیرکردنی کۆتایی ئەم هەفتەیە داخرا بەبێ بڵاوکردنەوەیەکی کۆتایی تۆمارکراو، بۆیە دوایین دانانی بڵاوکراوە پێش کاتی کۆتایی بەکارهات.' },
   // ── Simplified page header/status line + "About this gameweek" ────────────
   fantasy_status_forecast_updated: { EN: 'Forecast updated {time}.', KU: 'پێشبینی نوێکرایەوە {time}.' },
+  fantasy_status_final_lineup_saved: { EN: 'Final lineup saved before the deadline.', KU: 'دانانی کۆتایی پێش کاتی کۆتایی پاشەکەوتکرا.' },
   fantasy_status_live_points: { EN: 'Live points • Updated {time}.', KU: 'خاڵی ڕاستەوخۆ • نوێکرایەوە {time}.' },
   fantasy_status_provisional: { EN: 'Points are provisional while official checks finish.', KU: 'خاڵەکان کاتیین هەتا پشکنینی فەرمی تەواو بێت.' },
   fantasy_status_final: { EN: 'Final points confirmed.', KU: 'خاڵی کۆتایی پشتڕاستکرایەوە.' },
