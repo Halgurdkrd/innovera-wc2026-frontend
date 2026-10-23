@@ -198,6 +198,7 @@ interface StatusResponse {
   final_pair_registered?: boolean
   final_pair_gameweek?: number | null
   published_final_pairs?: { gameweek: number; freeze_id: string; release_hash?: string }[]
+  recovered_gameweeks?: { gameweek: number; freeze_id?: string }[]
 }
 
 // A bare NaN never reaches here (the export pipeline now refuses to publish
@@ -959,12 +960,14 @@ function FantasyPageInner() {
     return null
   }, [releaseStatus, gw, language])
 
-  const finalGwSet = useMemo(() => new Set<number>((status?.published_final_pairs?.map((p) => p.gameweek) ?? []).concat(status?.final_pair_gameweek ? [status.final_pair_gameweek] : [])), [status])
+  const finalGwSet = useMemo(() => new Set<number>((status?.published_final_pairs?.map((p) => p.gameweek) ?? []).concat(status?.final_pair_gameweek ? [status.final_pair_gameweek] : []).concat(status?.recovered_gameweeks?.map((r) => r.gameweek) ?? [])), [status])
 
   const gwButtons = useMemo(() => {
     const base = [1, 2, 3]
     const finals = (status?.published_final_pairs?.map((p) => p.gameweek) ?? []).concat(status?.final_pair_gameweek ? [status.final_pair_gameweek] : [])
     for (const finalGw of finals) if (finalGw && !base.includes(finalGw)) base.push(finalGw)
+    // Every gameweek that has a scored/served release keeps its tab permanently.
+    for (const r of status?.recovered_gameweeks ?? []) if (r.gameweek && !base.includes(r.gameweek)) base.push(r.gameweek)
     const earlyGw = earlyStatus?.status === 'AVAILABLE' ? earlyStatus.target_gw : null
     if (earlyGw && !base.includes(earlyGw)) base.push(earlyGw)
     return base.sort((a, b) => a - b)
@@ -1011,7 +1014,7 @@ function FantasyPageInner() {
               <bdi style={{ unicodeBidi: 'isolate' }}>GW{g}{
                 (finalGwSet.has(g))
                   ? (language === 'KU' ? ' (پێشبینی' : ' (Forecast') + (g === status?.final_pair_gameweek && finalGwResults === 'IN_PROGRESS' ? (language === 'KU' ? ' • لە یاریدایە' : ' • Live') : '') + ')'
-                  : (earlyStatus?.status === 'AVAILABLE' && earlyStatus.target_gw === g ? (language === 'KU' ? ' (زوو)' : ' (Early)') : '')
+                  : (earlyStatus?.status === 'AVAILABLE' && earlyStatus.target_gw === g ? (language === 'KU' ? ' (پێشبینی)' : ' (Forecast)') : '')
               }</bdi>
             </button>
           ))}
