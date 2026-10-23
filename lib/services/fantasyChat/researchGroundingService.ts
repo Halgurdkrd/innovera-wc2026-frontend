@@ -2578,7 +2578,7 @@ export async function buildResearchGroundedAnswer(
     const finalPts = objResp.final_points ?? objResp.corrected_points
     lines.push(isFutureRow(objResp)
       ? (isEarlyRow(objResp)
-          ? '- This gameweek has not been played yet -- no final points exist. This is an early forecast, subject to update before the deadline, not the registered final forecast.'
+          ? '- This gameweek has not been played yet -- no final points exist. These are forecast values, not results.'
           : '- This gameweek has not been played yet -- no final points exist.')
       : isLiveRow(objResp)
       ? `- ${livePointsText(objResp.points_so_far_total, objResp)}.${objResp.pending_adjustments?.length ? ' ' + objResp.pending_adjustments.join(' ') : ''}`

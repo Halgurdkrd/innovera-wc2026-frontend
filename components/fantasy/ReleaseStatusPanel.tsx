@@ -34,10 +34,10 @@ const FORECAST_STYLE: Record<ForecastStatus, string> = {
   EARLY_PUBLISHED_RECOVERY: 'bg-amber-800 text-amber-100',
 }
 
-export function ForecastBadge({ forecast, language }: { forecast: ForecastStatus | null; language: Language }) {
+export function ForecastBadge({ forecast, language, gw }: { forecast: ForecastStatus | null; language: Language; gw?: number | null }) {
   return (
     <span className={`text-xs px-2 py-0.5 rounded ${forecast ? FORECAST_STYLE[forecast] : 'bg-neutral-800 text-neutral-300'}`} data-testid="forecast-badge">
-      {forecastLabel(forecast, language)}
+      {gw ? `GW${gw} ${forecastLabel(forecast, language)}` : forecastLabel(forecast, language)}
     </span>
   )
 }
@@ -49,9 +49,7 @@ export function ForecastBadge({ forecast, language }: { forecast: ForecastStatus
 export function ReleaseBadges({ rel, releaseStatus, language }: { rel: RowRelease; releaseStatus: ReleaseStatusResponse | null; language: Language }) {
   if (!rel.forecast) return null
   const rsResults = releaseStatus?.results
-  const forecastTime = releaseStatus?.forecast?.generated_at_utc
   const resultsTime = rel.lastUpdatedUtc ?? rsResults?.last_updated_utc ?? null
-  const stale = rel.stale || rsResults?.stale === true
   const progress = fixtureProgress(rsResults)
 
   let resultsBadgeText: string | null = null
@@ -64,7 +62,6 @@ export function ReleaseBadges({ rel, releaseStatus, language }: { rel: RowReleas
     if (progress?.started) {
       resultsBadgeText = fixtureProgressLine(rsResults, language)
       resultsStyle = 'bg-neutral-800 text-neutral-200'
-      resultsNote = tr('release_not_scored_early', language)
     } else {
       resultsBadgeText = progress ? resultsLabel('NOT_STARTED', language) : resultsLabel('NOT_TRACKED', language)
     }
@@ -80,11 +77,7 @@ export function ReleaseBadges({ rel, releaseStatus, language }: { rel: RowReleas
   return (
     <div className="flex flex-col gap-1.5 mb-3 text-xs" data-testid="release-badges">
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-neutral-500">{tr('release_forecast_label', language)}:</span>
-        <ForecastBadge forecast={rel.forecast} language={language} />
-        {rel.early && forecastTime && (
-          <span className="text-neutral-400">{fillTime(tr('release_forecast_updated', language), formatLocalTime(forecastTime))}</span>
-        )}
+        <ForecastBadge forecast={rel.forecast} language={language} gw={releaseStatus?.gameweek} />
       </div>
       {resultsBadgeText && (
         <div className="flex items-center gap-2 flex-wrap">
@@ -102,13 +95,6 @@ export function ReleaseBadges({ rel, releaseStatus, language }: { rel: RowReleas
         </div>
       )}
       {resultsNote && <div className="text-sky-300">{resultsNote}</div>}
-      {stale && rel.tracked && (
-        <div className="text-orange-300" role="status" data-testid="results-stale">
-          {resultsTime
-            ? fillTime(tr('release_results_stale', language), formatLocalTime(resultsTime))
-            : tr('release_results_stale_unknown', language)}
-        </div>
-      )}
     </div>
   )
 }
@@ -121,7 +107,10 @@ const SEVERITY_STYLE: Record<string, string> = {
 
 // Localized (EN/Sorani) notices from release-status, rendered at the top.
 export function ReleaseNotices({ status, language }: { status: ReleaseStatusResponse | null; language: Language }) {
-  const notices: ReleaseNotice[] = status?.notices ?? []
+  // Only user-meaningful notices are shown. Internal/operational notices
+  // (freeze window, stale feeds, registration state) belong in logs, not the UI.
+  const USER_FACING = new Set(['MATCHES_COMPLETE_POINTS_PROVISIONAL'])
+  const notices: ReleaseNotice[] = (status?.notices ?? []).filter((n) => USER_FACING.has(n.code))
   if (notices.length === 0) return null
   return (
     <div className="mb-4 space-y-2" data-testid="release-notices">

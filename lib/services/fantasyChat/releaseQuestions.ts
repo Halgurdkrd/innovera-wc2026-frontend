@@ -189,7 +189,7 @@ function earlyFixturesNote(rel: ReturnType<typeof deriveRowRelease>, rs: Release
   if (!rel.early) return null
   const progress = fixtureProgress(rs?.results)
   if (!progress || !progress.started) return null
-  return `${fixtureProgressLine(rs?.results, trLang(lang))}. ${tr('release_not_scored_early', trLang(lang))}`
+  return fixtureProgressLine(rs?.results, trLang(lang))
 }
 
 export function buildReleaseAnswerText(input: ReleaseAnswerInput): string {
