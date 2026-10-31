@@ -31,6 +31,9 @@ export interface PLFixture {
 }
 
 export interface PLStanding {
+  played?: number
+  points_now?: number
+  goal_difference_now?: number
   position: number
   team_name: string
   expected_points: number
@@ -48,6 +51,7 @@ export interface PLTableResponse {
   model_version: string
   generated_at: string
   data_cutoff?: string
+  data_cutoff_latest_completed_gameweek?: number
   is_stale?: boolean
   staleness_note?: string
   standings: PLStanding[]

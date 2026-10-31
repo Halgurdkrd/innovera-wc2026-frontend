@@ -26,7 +26,10 @@ const L = {
     predAway: 'Away Win',
     cutoffNotice: 'Inference based on pre-match team Elo and rolling 5-game form.',
     simHeading: '10,000 Monte Carlo Season Forecast',
-    simSub: 'A single season-long simulation snapshot, refreshed manually (not on an automated fixture-cycle schedule yet).',
+    simSub: 'Real results so far plus 10,000 simulations of the remaining matches.',
+    updatedAfter: 'Updated after Gameweek {gw}',
+    colPlayed: 'P',
+    colPtsNow: 'Pts',
     colPos: 'Pos',
     colTeam: 'Club',
     colXPts: 'Exp Pts',
@@ -57,7 +60,10 @@ const L = {
     predAway: 'بردنەوەی میوان',
     cutoffNotice: 'پێشبینییەکان لەسەر بنەمای هێزی Elo و ئاستی ٥ یاری ڕابردوو ئەنجام دراون.',
     simHeading: '١٠،٠٠٠ خەمڵاندنی وەرزی مۆنتی کارلۆ',
-    simSub: 'وێنەیەکی تاکی خەمڵاندنی وەرز، بەدەستی نوێ دەکرێتەوە (هێشتا بەشێوەی خۆکار لەگەڵ هەر گەڕێکدا نوێ نابێتەوە).',
+    simSub: 'ئەنجامە ڕاستەقینەکان تا ئێستا لەگەڵ ١٠,٠٠٠ شبیهسازی بۆ یارییە ماوەکان.',
+    updatedAfter: 'نوێکرایەوە دوای هەفتەی {gw}',
+    colPlayed: 'یاری',
+    colPtsNow: 'خاڵ',
     colPos: 'پلە',
     colTeam: 'یانە',
     colXPts: 'خاڵی پێشبینیکراو',
@@ -216,15 +222,13 @@ export default function PremierLeaguePage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-[#161B22] border border-[#30363D] p-4 rounded-xl">
               <div>
                 <h2 className="text-base font-bold text-[#E6EDF3]">{t.simHeading}</h2>
-                <p className="text-xs text-[#8B949E] mt-0.5">{t.simSub}</p>
+                <p className="text-xs text-[#8B949E] mt-0.5">
+                  {t.simSub}
+                  {tableData?.data_cutoff_latest_completed_gameweek ? ` ${t.updatedAfter.replace('{gw}', String(tableData.data_cutoff_latest_completed_gameweek))}.` : ''}
+                </p>
               </div>
               <FreshnessTag generatedAt={tableData?.generated_at} />
             </div>
-            {tableData?.is_stale && tableData.staleness_note && (
-              <div className="text-xs text-amber-400/90 bg-amber-950/20 border border-amber-700/40 rounded-lg p-3">
-                {tableData.staleness_note}
-              </div>
-            )}
 
             {loading ? (
               <div className="h-96 rounded-xl bg-[#161B22] border border-[#30363D] animate-pulse" />
@@ -240,6 +244,8 @@ export default function PremierLeaguePage() {
                       <tr className="border-b border-[#30363D] bg-[#0D1117]/60 text-[#8B949E] uppercase font-bold">
                         <th className="py-3 px-4 w-12 text-center">{t.colPos}</th>
                         <th className="py-3 px-4">{t.colTeam}</th>
+                        <th className="py-3 px-2 text-center">{t.colPlayed}</th>
+                        <th className="py-3 px-2 text-center">{t.colPtsNow}</th>
                         <th className="py-3 px-4 text-center">{t.colXPts}</th>
                         <th className="py-3 px-4 text-center text-[#F0A500]">{t.colChamp}</th>
                         <th className="py-3 px-4 text-center text-[#58A6FF]">{t.colTop4}</th>
@@ -277,6 +283,8 @@ export default function PremierLeaguePage() {
                             </span>
                           </td>
                           <td className="py-3 px-4 font-bold text-[#E6EDF3]">{team.team_name}</td>
+                          <td className="py-3 px-2 text-center text-[#8B949E]">{team.played ?? '—'}</td>
+                          <td className="py-3 px-2 text-center font-bold text-[#E6EDF3]">{team.points_now ?? '—'}</td>
                           <td className="py-3 px-4 text-center text-sm font-extrabold text-[#3FB950]">
                             {team.expected_points.toFixed(1)}
                           </td>
