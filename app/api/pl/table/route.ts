@@ -15,6 +15,9 @@ export async function GET(request: Request) {
     const res = await fetch(upstreamUrl, {
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
+      // Next 14 caches route-handler fetches by default; without this the site kept serving
+      // an old season snapshot while the backend republished every 30 minutes.
+      cache: 'no-store',
     })
     clearTimeout(timeoutId)
 
