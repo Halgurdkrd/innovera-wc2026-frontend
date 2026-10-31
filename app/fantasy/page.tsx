@@ -81,7 +81,11 @@ const TAB_DESCRIPTIONS_KU: Record<ObjectLabel, string> = {
   OPTIONAL_XI_3: tr('fantasy_desc_optional', 'KU'),
   OPTIONAL_XI_4: tr('fantasy_desc_optional', 'KU'),
 }
-function tabDescription(id: ObjectLabel, lang: Language): string {
+const SQUAD_WITH_BENCH_EN = 'A full 15-player squad: the highest-xP starting XI plus a 4-player bench ordered to cover the likeliest absences (automatic substitutions apply).'
+const SQUAD_WITH_BENCH_KU = 'سکوادی ١٥ یاریزان: باشترین ١١ی دەستپێک لەگەڵ ٤ یاریزانی یەدەگ کە بەپێی ئەگەری نەهاتن ڕیزکراون (گۆڕینی خۆکار جێبەجێ دەکرێت).'
+
+function tabDescription(id: ObjectLabel, lang: Language, hasBench = false): string {
+  if (hasBench && id !== 'OWN_START' && id !== 'A_BLANK_SLATE') return lang === 'KU' ? SQUAD_WITH_BENCH_KU : SQUAD_WITH_BENCH_EN
   return lang === 'KU' ? TAB_DESCRIPTIONS_KU[id] : TAB_DESCRIPTIONS_EN[id]
 }
 
@@ -93,6 +97,7 @@ interface PlayerRow {
   position: 'GK' | 'DEF' | 'MID' | 'FWD'
   price: number | null
   role: 'XI' | 'BENCH'
+  bench_priority?: number | null
   is_captain: boolean
   is_vice: boolean
   predicted_xp: number | null
@@ -277,7 +282,11 @@ function toFplPlayer(p: PlayerRow, benchIndex?: { outfield: number; isReserveGk:
 // The reserve goalkeeper is identified by position and labelled separately;
 // the remaining outfield substitutes keep their real 1/2/3 priority from
 // that same source order.
-function benchWithPriorities(bench: PlayerRow[]): FPLPlayer[] {
+function benchWithPriorities(benchIn: PlayerRow[]): FPLPlayer[] {
+  // A release that stores an explicit bench_priority (0 = reserve GK, 1-3 = outfield order) is shown in exactly that order.
+  const bench = benchIn.every((p) => typeof p.bench_priority === 'number')
+    ? [...benchIn].sort((a, b) => (a.bench_priority as number) - (b.bench_priority as number))
+    : benchIn
   let outfieldSeen = 0
   return bench.map((p) => {
     const isReserveGk = p.position === 'GK'
@@ -510,7 +519,6 @@ function captainStatusText(status: string | undefined, language: Language): stri
 
 const AUTOSUB_KEYS = {
   PENDING_UNRESOLVED_FIXTURES: 'release_autosub_PENDING_UNRESOLVED_FIXTURES',
-  NOT_APPLICABLE_XI_ONLY: 'release_autosub_NOT_APPLICABLE_XI_ONLY',
   APPLIED_PROVISIONAL: 'release_autosub_APPLIED_PROVISIONAL',
   APPLIED_FINAL: 'release_autosub_APPLIED_FINAL',
   NONE_NEEDED: 'release_autosub_NONE_NEEDED',
@@ -580,6 +588,11 @@ function PointsSoFarBlock({ data, rel, releaseStatus, language, onRefresh, refre
       )}
       {captainText && <div className="text-amber-200 text-xs mt-1">{captainText}</div>}
       {autosubKey && <div className="text-amber-200/90 text-xs mt-1">{tr(autosubKey, language)}</div>}
+      {(data.autosubs ?? []).map((s, i) => (
+        <div key={`autosub-${i}`} className="text-emerald-300 text-xs mt-0.5" data-testid="autosub-event">
+          <bdi style={{ unicodeBidi: 'isolate' }}>{tr('autosub_event', language).replace('{in}', String(s.in)).replace('{out}', String(s.out)).replace('{pts}', String(s.points ?? 0))}</bdi>
+        </div>
+      ))}
       {pending.length > 0 && (
         <div className="mt-1">
           <div className="text-amber-200/90 text-[11px] font-semibold">{tr('release_pending_adjustments', language)}</div>
@@ -712,7 +725,7 @@ function ObjectView({ tabId, tabTitle, data, onRetry, onRefreshStatus, language,
             </span>
           : <ForecastBadge forecast={rel.forecast} language={language} />}
       </div>
-      <p className="text-xs text-neutral-500 mb-3">{tabDescription(tabId, language)}</p>
+      <p className="text-xs text-neutral-500 mb-3">{tabDescription(tabId, language, objectHasBench(tabId, membership as PlayerRow[]))}</p>
       {isAvailable && <ReleaseBadges rel={rel} releaseStatus={releaseStatus} language={language} />}
       {isTemporaryFailure ? (
         <ErrorState message={language === 'KU' ? tr('fantasy_temp_unavailable', language) : 'Temporarily unable to load data. This is a connectivity issue, not a missing forecast.'} onRetry={onRetry} />

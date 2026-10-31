@@ -53,6 +53,7 @@ export interface ReleaseRowFields {
   captain_status?: string | null
   autosub_adjustment?: number | null
   autosub_status?: AutosubStatus | string | null
+  autosubs?: { out: string; in: string; points?: number | null; slot?: string }[] | null
   hit_cost_applied?: number | null
   points_so_far_total?: number | null
   reconciliation?: Reconciliation | null
@@ -343,8 +344,9 @@ export function isXiOnlyObject(object: string): boolean {
   return XI_ONLY_OBJECTS.has(object)
 }
 
-export function objectHasBench(object: string, members: { role?: string }[] | null | undefined): boolean {
-  if (isXiOnlyObject(object)) return false
+// Data-driven: any object whose release carries BENCH-role players renders them (Best XI / Optional XIs gained a
+// bench in bench_insurance_v1); older XI-only releases simply have no BENCH rows, so nothing is shown for them.
+export function objectHasBench(_object: string, members: { role?: string }[] | null | undefined): boolean {
   return !!members && members.some((m) => m.role === 'BENCH')
 }
 

@@ -246,6 +246,7 @@ const translations = {
   release_autosub_NOT_APPLICABLE_XI_ONLY: { EN: 'Automatic substitutions: not applicable (this is an XI-only object with no bench).', KU: 'گۆڕینی خۆکار: پەیوەست نییە (ئەم بژاردەیە تەنها یاریی سەرەکییە و یەدەگی نییە).' },
   release_autosub_APPLIED_PROVISIONAL: { EN: 'Automatic substitutions applied (provisional).', KU: 'گۆڕینی خۆکار جێبەجێکرا (کاتیی).' },
   release_autosub_APPLIED_FINAL: { EN: 'Automatic substitutions applied (final).', KU: 'گۆڕینی خۆکار جێبەجێکرا (کۆتایی).' },
+  autosub_event: { EN: '↑ {in} replaced {out} (+{pts} pts)', KU: '↑ {in} جێگەی {out} گرتەوە (+{pts} خاڵ)' },
   release_autosub_NONE_NEEDED: { EN: 'Automatic substitutions: none needed.', KU: 'گۆڕینی خۆکار: پێویست نەبوو.' },
   release_notice_FINAL_NOT_REGISTERED_DEADLINE_PASSED: { EN: 'The deadline has passed and no final frozen forecast was registered for this gameweek. This page shows the last early forecast, generated {time}.', KU: 'کاتی کۆتایی تێپەڕیوە و هیچ پێشبینییەکی کۆتایی جێگیرکراو بۆ ئەم هەفتەیە تۆمار نەکراوە. ئەم پەڕەیە دوایین پێشبینی زوو پیشان دەدات کە لە {time} دروستکراوە.' },
   release_notice_EARLY_FORECAST_STALE: { EN: 'This early forecast has not been refreshed recently (last successful update {time}) and may be out of date.', KU: 'ئەم پێشبینییە زووە بەم دواییە نوێنەکراوەتەوە (دوایین نوێکردنەوەی سەرکەوتوو {time}) و لەوانەیە کۆن بێت.' },
